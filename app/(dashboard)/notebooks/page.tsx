@@ -36,6 +36,8 @@ export default function NotebooksPage() {
   const [setor, setSetor] = useState('')
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -50,7 +52,7 @@ export default function NotebooksPage() {
     setLoading(false)
   }, [page, search, setor, categoria, fabricante])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
   const filters = (
     <>

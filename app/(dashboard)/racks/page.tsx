@@ -36,6 +36,8 @@ export default function RacksPage() {
   const [selected, setSelected] = useState<Rack | null>(null)
   const [search, setSearch] = useState('')
   const [marca, setMarca] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -48,7 +50,7 @@ export default function RacksPage() {
     setLoading(false)
   }, [page, search, marca])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
   const filters = (
     <>

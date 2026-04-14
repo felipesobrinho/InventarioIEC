@@ -52,6 +52,9 @@ export default function UsuariosPage() {
   const [selected, setSelected] = useState<Usuario | null>(null)
   const [showNew, setShowNew] = useState(false)
 
+  const [refreshKey, setRefreshKey] = useState(0)
+  function refresh() { setRefreshKey(k => k + 1) }
+
   // Verificar se é admin
   const isAdmin = (session?.user as any)?.perfil === 'admin'
 
@@ -70,7 +73,7 @@ export default function UsuariosPage() {
     }
   }, [router])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
   if (!isAdmin) {
     return (

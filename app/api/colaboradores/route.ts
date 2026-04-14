@@ -3,31 +3,31 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(request: Request) {
+type Props = { params: Promise<{ id: string }> }
+
+export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { id } = await params
+  const item = await prisma.colaboradores.findUnique({ where: { id } })
+  if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+  return NextResponse.json(item)
+}
 
-  const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
-  const search = searchParams.get('search') || ''
-  const setor = searchParams.get('setor') || ''
-  const status = searchParams.get('status') || ''
+export async function PUT(request: Request, { params }: Props) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { id } = await params
+  const body = await request.json()
+  const { alocacoes_maquinas, alocacoes_notebooks, alocacoes_aparelhos, alocacoes_ramais, movimentacoes, created_at, ...data } = body
+  const item = await prisma.colaboradores.update({ where: { id }, data })
+  return NextResponse.json(item)
+}
 
-  const where: any = {}
-  if (search) where.nome = { contains: search, mode: 'insensitive' }
-  if (setor) where.setor = { contains: setor, mode: 'insensitive' }
-  if (status) where.status = status
-
-  const [data, total] = await Promise.all([
-    prisma.colaboradores.findMany({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { nome: 'asc' },
-    }),
-    prisma.colaboradores.count({ where }),
-  ])
-
-  return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+export async function DELETE(_: Request, { params }: Props) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const { id } = await params
+  await prisma.colaboradores.delete({ where: { id } })
+  return NextResponse.json({ ok: true })
 }

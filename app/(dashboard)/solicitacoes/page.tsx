@@ -61,6 +61,8 @@ export default function SolicitacoesPage() {
   const [tipoSolicitacao, setTipoSolicitacao] = useState('')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -78,7 +80,7 @@ export default function SolicitacoesPage() {
     setLoading(false)
   }, [page, status, prioridade, tipoSolicitacao, dataInicio, dataFim])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

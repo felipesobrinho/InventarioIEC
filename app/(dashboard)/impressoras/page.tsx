@@ -31,6 +31,8 @@ export default function ImpressorasPage() {
   const [localidade, setLocalidade] = useState('')
   const [andar, setAndar] = useState('')
   const [status, setStatus] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -45,7 +47,7 @@ export default function ImpressorasPage() {
     setLoading(false)
   }, [page, search, localidade, andar, status])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey])
 
   const filters = (
     <>

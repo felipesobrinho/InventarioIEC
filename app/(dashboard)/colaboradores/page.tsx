@@ -51,6 +51,8 @@ export default function ColaboradoresPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  console.log(data)
+  
   const filters = (
     <>
       <div className="relative flex-1 min-w-[200px]">
