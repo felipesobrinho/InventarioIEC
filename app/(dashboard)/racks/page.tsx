@@ -1,5 +1,5 @@
-import React from 'react'
 'use client'
+import React from 'react'
 
 import { useState, useEffect, useCallback } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'

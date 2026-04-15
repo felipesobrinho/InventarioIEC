@@ -18,7 +18,6 @@ export async function GET(request: Request) {
 
   const where: any = {}
   if (search) where.identificador_dispositivo = { contains: search, mode: 'insensitive' }
-
   if (tipoDispositivoRaw !== '') {
     const n = parseInt(tipoDispositivoRaw)
     if (!isNaN(n)) where.tipo_dispositivo = n

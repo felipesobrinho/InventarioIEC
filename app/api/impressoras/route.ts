@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const search = searchParams.get('search') || ''
   const localidade = searchParams.get('localidade') || ''
   const andar = searchParams.get('andar') || ''
-  const status = searchParams.get('status') || ''
+  const statusRaw = searchParams.get('status') || ''
 
   const where: any = {}
   if (search) {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   }
   if (localidade) where.localidade = { contains: localidade, mode: 'insensitive' }
   if (andar) where.andar = { contains: andar, mode: 'insensitive' }
-  if (status !== '') where.status = status === 'true'
+  if (statusRaw !== '') where.status = statusRaw === 'true'
 
   const [data, total] = await Promise.all([
     prisma.impressoras.findMany({

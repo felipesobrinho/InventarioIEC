@@ -10,7 +10,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '20')
-  // status e prioridade são Int no banco
   const statusRaw = searchParams.get('status') || ''
   const prioridadeRaw = searchParams.get('prioridade') || ''
   const tipoSolicitacaoRaw = searchParams.get('tipo_solicitacao') || ''
@@ -18,7 +17,6 @@ export async function GET(request: Request) {
   const dataFim = searchParams.get('data_fim') || ''
 
   const where: any = {}
-
   if (statusRaw !== '') {
     const n = parseInt(statusRaw)
     if (!isNaN(n)) where.status_solicitacao = n
