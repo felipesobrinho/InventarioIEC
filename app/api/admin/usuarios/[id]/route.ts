@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -12,7 +12,7 @@ async function checkAdmin() {
   return (session.user as any).perfil === 'admin'
 }
 
-export async function PUT(request: Request, { params }: Props) {
+export async function PUT(request: NextRequest, { params }: Props) {
   if (!await checkAdmin()) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   const { id } = await params
   const { nome, email, perfil, ativo, senha } = await request.json()
@@ -26,7 +26,7 @@ export async function PUT(request: Request, { params }: Props) {
   return NextResponse.json(usuario)
 }
 
-export async function DELETE(_: Request, { params }: Props) {
+export async function DELETE(request: NextRequest, { params }: Props) {
   if (!await checkAdmin()) return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
   const { id } = await params
   await prisma.usuarios.update({ where: { id }, data: { ativo: false } })

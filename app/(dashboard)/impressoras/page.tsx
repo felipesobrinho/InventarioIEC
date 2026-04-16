@@ -74,7 +74,7 @@ export default function ImpressorasPage() {
       <PageHeader title="Impressoras" total={total} />
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <ImpressoraModal impressora={selected} onClose={() => setSelected(null)} />}
+      {selected && <ImpressoraModal impressora={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )
 }

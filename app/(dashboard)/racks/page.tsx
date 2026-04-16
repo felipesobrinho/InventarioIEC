@@ -69,7 +69,7 @@ export default function RacksPage() {
       <PageHeader title="Racks" total={total} />
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <RackModal rack={selected} onClose={() => setSelected(null)} />}
+      {selected && <RackModal rack={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )
 }

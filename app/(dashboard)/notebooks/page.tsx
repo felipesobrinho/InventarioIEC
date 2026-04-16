@@ -79,7 +79,7 @@ export default function NotebooksPage() {
       <PageHeader title="Notebooks" total={total} />
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} />}
+      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )
 }

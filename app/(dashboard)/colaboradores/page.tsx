@@ -96,7 +96,7 @@ export default function ColaboradoresPage() {
         isLoading={loading}
         filters={filters}
       />
-      {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} />}
+      {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={fetchData}/>}
     </div>
   )
 }

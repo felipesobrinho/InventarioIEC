@@ -74,7 +74,7 @@ export default function RamaisPage() {
       <PageHeader title="Ramais" total={total} />
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <RamalModal ramal={selected} onClose={() => setSelected(null)} />}
+      {selected && <RamalModal ramal={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )
 }

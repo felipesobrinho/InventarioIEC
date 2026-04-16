@@ -30,14 +30,14 @@ export function MovimentacaoModal({ movimentacao, onClose, onRefresh }: Props) {
 
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
+    defaultValues: 
       identificador_dispositivo: movimentacao.identificador_dispositivo,
       tipo_dispositivo: movimentacao.tipo_dispositivo,
       tipo_movimentacao: movimentacao.tipo_movimentacao,
       setor: movimentacao.setor,
       tecnico_responsavel: movimentacao.tecnico_responsavel,
       observacao: movimentacao.observacao,
-    },
+    ,
   })
 
   const i = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"

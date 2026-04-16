@@ -89,7 +89,7 @@ export default function MovimentacoesPage() {
       <PageHeader title="Movimentações" total={total} />
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <MovimentacaoModal movimentacao={selected} onClose={() => setSelected(null)} />}
+      {selected && <MovimentacaoModal movimentacao={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )
 }
