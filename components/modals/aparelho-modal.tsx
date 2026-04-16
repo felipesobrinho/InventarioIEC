@@ -14,7 +14,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
   const [alocandoColabId, setAlocandoColabId] = useState('')
   const [alocandoColabNome, setAlocandoColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
-  const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false)
+  const [savingAlocacao, setSavingAlocacao] = useState(false)
 
   const { remove } = useCrud('aparelhos', () => {
     onRefresh()
@@ -22,6 +22,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
   })
 
   async function handleAlocar() {
+    setSavingAlocacao(true)
     const res = await fetch('/api/alocacoes/aparelhos', {
       method: 'POST',
       body: JSON.stringify({
@@ -35,15 +36,18 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
       onRefresh()
       onClose()
     }
+    setSavingAlocacao(false)
   }
 
   async function handleDesalocar() {
+    setSavingAlocacao(true)
     await fetch(`/api/alocacoes/aparelhos/${aparelho.id}/ativo`, {
       method: 'DELETE',
     })
 
     onRefresh()
     onClose()
+    setSavingAlocacao(false)
   }
 
   return (
@@ -70,7 +74,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
               <>
                 <p>{aparelho.alocacao_ativa.colaborador.nome}</p>
 
-                <button type="button" onClick={() => setShowDesalocarConfirm(true)}>
+                <button type="button" onClick={(e) => { e.preventDefault(); setShowDesalocarConfirm(true); }}>
                   <UserMinus /> Desalocar
                 </button>
               </>
@@ -87,7 +91,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
                 />
 
                 {alocandoColabId && (
-                  <button type="button" onClick={handleAlocar}>
+                  <button type="button" onClick={(e) => { e.preventDefault(); handleAlocar(); }} disabled={savingAlocacao}>
                     {savingAlocacao && <Loader2 className="animate-spin" />}
                     Alocar
                   </button>
@@ -102,11 +106,11 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
 
           {/* FOOTER */}
           <div className="p-4 border-t flex gap-2">
-            <button type="button" onClick={() => remove(aparelho.id)}>
+            <button type="button" onClick={(e) => { e.preventDefault(); remove(aparelho.id); }}>
               <Trash2 /> Excluir
             </button>
 
-            <button type="button" onClick={() => setMode('edit')}>
+            <button type="button" onClick={(e) => { e.preventDefault(); setMode('edit'); }}>
               <Pencil /> Editar
             </button>
           </div>
@@ -119,6 +123,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: any) {
           description="Confirmar?"
           onConfirm={handleDesalocar}
           onCancel={() => setShowDesalocarConfirm(false)}
+          loading={savingAlocacao}
         />
       )}
     </>
