@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
+export const runtime = 'nodejs'
+
 async function checkAdmin() {
   const session = await getServerSession(authOptions)
   if (!session) return false
