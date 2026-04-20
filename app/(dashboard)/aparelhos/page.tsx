@@ -9,6 +9,8 @@ import { AparelhoModal } from '@/components/modals/aparelho-modal'
 import { Search } from 'lucide-react'
 import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
+import { CriarAparelhoModal } from '@/components/modals/criar-aparelho-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Aparelho>[] = [
   { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -37,6 +39,7 @@ export default function AparelhosPage() {
   const [status, setStatus] = useState('')
   const [chip, setChip] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showCriar, setShowCriar] = useState(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -79,10 +82,18 @@ export default function AparelhosPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Aparelhos" total={total} />
+      <PageHeader title="Aparelhos" total={total}>
+      <button type="button" onClick={() => setShowCriar(true)}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+        <Plus className="w-4 h-4" /> Novo aparelho
+      </button>
+    </PageHeader>
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <AparelhoModal aparelho={selected} onClose={() => setSelected(null)} />}
+      {selected && <AparelhoModal aparelho={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
+      {showCriar && (
+        <CriarAparelhoModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
+      )}
     </div>
   )
 }

@@ -8,6 +8,8 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { Search } from 'lucide-react'
 import type { Maquina, PaginatedResponse } from '@/types'
+import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Maquina>[] = [
   { accessorKey: 'nome_host', header: 'Nome Host', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -33,6 +35,7 @@ export default function MaquinasPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Maquina | null>(null)
   const [search, setSearch] = useState('')
+  const [showCriar, setShowCriar] = useState(false)
   const [setor, setSetor] = useState('')
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
@@ -77,10 +80,16 @@ export default function MaquinasPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Máquinas" total={total} />
+      <PageHeader title="Máquinas" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Nova máquina
+        </button>
+      </PageHeader>
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
       {selected && <MaquinaModal maquina={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
+      {showCriar && <CriarMaquinaModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
     </div>
   )
 }

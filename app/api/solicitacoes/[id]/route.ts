@@ -9,7 +9,7 @@ export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const item = await prisma.racks.findUnique({ where: { id } })
+  const item = await prisma.solicitacoes.findUnique({ where: { id } })
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
   return NextResponse.json(item)
 }
@@ -19,8 +19,16 @@ export async function PUT(request: Request, { params }: Props) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
   const body = await request.json()
-  const { created_at, ...data } = body
-  const item = await prisma.racks.update({ where: { id }, data })
+  const { created_at, ...rest } = body
+
+  const data: any = { ...rest }
+  if (data.data_criacao) {
+    data.data_criacao = new Date(data.data_criacao)
+  } else if (data.data_criacao === '') {
+    data.data_criacao = null
+  }
+
+  const item = await prisma.solicitacoes.update({ where: { id }, data })
   return NextResponse.json(item)
 }
 
@@ -28,6 +36,6 @@ export async function DELETE(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  await prisma.racks.delete({ where: { id } })
+  await prisma.solicitacoes.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

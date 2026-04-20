@@ -21,14 +21,22 @@ const schema = z.object({
   prioridade: z.coerce.number().optional().nullable(),
   observacao: z.string().optional().nullable(),
 })
-
 type FormData = z.infer<typeof schema>
-interface Props { solicitacao: Solicitacao; onClose: () => void; onRefresh: () => void }
+
+interface Props {
+  solicitacao: Solicitacao
+  onClose: () => void
+  onRefresh: () => void
+}
 
 export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
-  const [showConfirm, setShowConfirm] = useState(false)
-  const { update, remove, saving, deleting } = useCrud('solicitacoes', () => { onRefresh(); onClose() })
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const { update, remove, saving, deleting } = useCrud('solicitacoes', () => {
+    onRefresh()
+    onClose()
+  })
 
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -43,111 +51,188 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
     },
   })
 
-  const i = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-  const l = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
+  function onSubmit(data: FormData) {
+    update(solicitacao.id, data)
+  }
+
+  const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+  const lbl = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
 
   return (
     <>
       <div className="fixed inset-0 z-50 flex">
         <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
         <aside className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden">
+
+          {/* Header */}
           <div className="flex items-start justify-between p-5 border-b border-slate-100 dark:border-slate-800">
             <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white">{mode === 'edit' ? 'Editar Solicitação' : 'Solicitação'}</h2>
-              {mode === 'view' && <div className="flex items-center gap-2 mt-1"><StatusSolicitacaoBadge status={solicitacao.status_solicitacao} /><PrioridadeBadge prioridade={solicitacao.prioridade} /></div>}
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                {mode === 'edit' ? 'Editar Solicitação' : 'Solicitação'}
+              </h2>
+              {mode === 'view' && (
+                <div className="flex items-center gap-2 mt-1">
+                  <StatusSolicitacaoBadge status={solicitacao.status_solicitacao} />
+                  <PrioridadeBadge prioridade={solicitacao.prioridade} />
+                </div>
+              )}
             </div>
-            <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><X className="w-4 h-4" /></button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5">
-            {mode === 'view' ? (
-              <div className="space-y-5">
-                <DetailSection title="Informações">
-                  <DetailField label="Data" value={formatDate(solicitacao.data_criacao)} />
-                  <DetailField label="Solicitante" value={solicitacao.solicitante} />
-                  <DetailField label="Colaborador" value={solicitacao.colaborador_relacionado} />
-                  <DetailField label="Origem" value={mapOrigem(solicitacao.origem_solicitacao)} />
-                </DetailSection>
-                <DetailSection title="Detalhes">
-                  <DetailField label="Tipo" value={mapTipoSolicitacao(solicitacao.tipo_solicitacao)} />
-                  <DetailField label="Dispositivo" value={mapTipoDispositivo(solicitacao.tipo_dispositivo)} />
-                  <DetailField label="Identificador" value={solicitacao.identificador_dispositivo} />
-                  <DetailField label="Status" value={<StatusSolicitacaoBadge status={solicitacao.status_solicitacao} />} />
-                  <DetailField label="Prioridade" value={<PrioridadeBadge prioridade={solicitacao.prioridade} />} />
-                </DetailSection>
-                {solicitacao.observacao && (
-                  <div>
-                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Observação</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-lg p-3">{solicitacao.observacao}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <form id="edit-form" onSubmit={handleSubmit((d) => update(solicitacao.id, d))} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className={l}>Colaborador</label><input {...register('colaborador_relacionado')} className={i} /></div>
-                  <div><label className={l}>Solicitante</label><input {...register('solicitante')} className={i} /></div>
-                  <div>
-                    <label className={l}>Tipo de Solicitação</label>
-                    <select {...register('tipo_solicitacao')} className={i}>
-                      <option value="">—</option>
-                      <option value="1">Suporte</option><option value="2">Instalação</option>
-                      <option value="3">Troca</option><option value="4">Configuração</option>
-                      <option value="5">Manutenção</option><option value="6">Novo ativo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={l}>Dispositivo</label>
-                    <select {...register('tipo_dispositivo')} className={i}>
-                      <option value="">—</option>
-                      <option value="1">Máquina</option><option value="2">Notebook</option>
-                      <option value="3">Aparelho</option><option value="4">Impressora</option>
-                      <option value="5">Ramal</option><option value="6">Rack</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={l}>Status</label>
-                    <select {...register('status_solicitacao')} className={i}>
-                      <option value="1">Aberto</option><option value="2">Em andamento</option>
-                      <option value="3">Pendente</option><option value="4">Concluído</option>
-                      <option value="5">Cancelado</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={l}>Prioridade</label>
-                    <select {...register('prioridade')} className={i}>
-                      <option value="1">Baixa</option><option value="2">Média</option>
-                      <option value="3">Alta</option><option value="4">Crítica</option>
-                      <option value="5">Urgente</option>
-                    </select>
-                  </div>
-                </div>
+          {/* Body — view */}
+          {mode === 'view' && (
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <DetailSection title="Informações">
+                <DetailField label="Data" value={formatDate(solicitacao.data_criacao)} />
+                <DetailField label="Solicitante" value={solicitacao.solicitante} />
+                <DetailField label="Colaborador Relacionado" value={solicitacao.colaborador_relacionado} />
+                <DetailField label="Origem" value={mapOrigem(solicitacao.origem_solicitacao)} />
+              </DetailSection>
+              <DetailSection title="Detalhes">
+                <DetailField label="Tipo" value={mapTipoSolicitacao(solicitacao.tipo_solicitacao)} />
+                <DetailField label="Dispositivo" value={mapTipoDispositivo(solicitacao.tipo_dispositivo)} />
+                <DetailField label="Identificador" value={solicitacao.identificador_dispositivo} />
+                <DetailField label="Status" value={<StatusSolicitacaoBadge status={solicitacao.status_solicitacao} />} />
+                <DetailField label="Prioridade" value={<PrioridadeBadge prioridade={solicitacao.prioridade} />} />
+              </DetailSection>
+              {solicitacao.observacao && (
                 <div>
-                  <label className={l}>Observação</label>
-                  <textarea {...register('observacao')} rows={3} className={i} />
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1.5">Observação</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-lg p-3 leading-relaxed">
+                    {solicitacao.observacao}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Body — edit */}
+          {mode === 'edit' && (
+            <div className="flex-1 overflow-y-auto p-5">
+              <form id="sol-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={lbl}>Colaborador Relacionado</label>
+                      <input {...register('colaborador_relacionado')} className={inp} />
+                    </div>
+                    <div>
+                      <label className={lbl}>Solicitante</label>
+                      <input {...register('solicitante')} className={inp} />
+                    </div>
+                    <div>
+                      <label className={lbl}>Tipo de Solicitação</label>
+                      <select {...register('tipo_solicitacao')} className={inp}>
+                        <option value="">—</option>
+                        <option value="1">Suporte</option>
+                        <option value="2">Instalação</option>
+                        <option value="3">Troca</option>
+                        <option value="4">Configuração</option>
+                        <option value="5">Manutenção</option>
+                        <option value="6">Novo ativo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={lbl}>Dispositivo</label>
+                      <select {...register('tipo_dispositivo')} className={inp}>
+                        <option value="">—</option>
+                        <option value="1">Máquina</option>
+                        <option value="2">Notebook</option>
+                        <option value="3">Aparelho</option>
+                        <option value="4">Impressora</option>
+                        <option value="5">Ramal</option>
+                        <option value="6">Rack</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={lbl}>Status</label>
+                      <select {...register('status_solicitacao')} className={inp}>
+                        <option value="1">Aberto</option>
+                        <option value="2">Em andamento</option>
+                        <option value="3">Pendente</option>
+                        <option value="4">Concluído</option>
+                        <option value="5">Cancelado</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={lbl}>Prioridade</label>
+                      <select {...register('prioridade')} className={inp}>
+                        <option value="1">Baixa</option>
+                        <option value="2">Média</option>
+                        <option value="3">Alta</option>
+                        <option value="4">Crítica</option>
+                        <option value="5">Urgente</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={lbl}>Observação</label>
+                    <textarea {...register('observacao')} rows={4} className={inp} />
+                  </div>
                 </div>
               </form>
-            )}
-          </div>
+            </div>
+          )}
 
+          {/* Footer */}
           <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
             {mode === 'view' ? (
               <>
-                <button onClick={() => setShowConfirm(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
-                <button onClick={() => setMode('edit')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"><Pencil className="w-3.5 h-3.5" /> Editar</button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('edit')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Editar
+                </button>
               </>
             ) : (
               <>
-                <button onClick={() => setMode('view')} className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Cancelar</button>
-                <button type="submit" form="edit-form" disabled={saving} className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60 transition">
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar alterações
+                <button
+                  type="button"
+                  onClick={() => setMode('view')}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  form="sol-form"
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60 transition"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Salvar alterações
                 </button>
               </>
             )}
           </div>
         </aside>
       </div>
-      {showConfirm && <ConfirmDialog title="Excluir solicitação" description="Excluir esta solicitação? Esta ação não pode ser desfeita." onConfirm={() => remove(solicitacao.id)} onCancel={() => setShowConfirm(false)} loading={deleting} />}
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Excluir solicitação"
+          description="Excluir esta solicitação? Esta ação não pode ser desfeita."
+          onConfirm={() => remove(solicitacao.id)}
+          onCancel={() => setShowDeleteConfirm(false)}
+          loading={deleting}
+        />
+      )}
     </>
   )
 }

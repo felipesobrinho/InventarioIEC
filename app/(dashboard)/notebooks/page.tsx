@@ -8,6 +8,8 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
 import { Search } from 'lucide-react'
 import type { Notebook, PaginatedResponse } from '@/types'
+import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Notebook>[] = [
   { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -33,6 +35,7 @@ export default function NotebooksPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Notebook | null>(null)
   const [search, setSearch] = useState('')
+  const [showCriar, setShowCriar] = useState(false)
   const [setor, setSetor] = useState('')
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
@@ -76,10 +79,16 @@ export default function NotebooksPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Notebooks" total={total} />
+      <PageHeader title="Notebooks" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Novo notebook
+        </button>
+      </PageHeader>
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
       {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
+      {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
     </div>
   )
 }

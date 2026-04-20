@@ -9,6 +9,8 @@ import { StatusSolicitacaoBadge, PrioridadeBadge } from '@/components/dashboard/
 import { SolicitacaoModal } from '@/components/modals/solicitacao-modal'
 import { formatDate, mapTipoSolicitacao, mapTipoDispositivo } from '@/lib/utils'
 import type { Solicitacao, PaginatedResponse } from '@/types'
+import { CriarSolicitacaoModal } from '@/components/modals/criar-solicitacao-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Solicitacao, unknown>[] = [
   {
@@ -62,6 +64,7 @@ export default function SolicitacoesPage() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showCriar, setShowCriar] = useState(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -121,7 +124,12 @@ export default function SolicitacoesPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Solicitações" total={total} />
+      <PageHeader title="Solicitações" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Nova solicitação
+        </button>
+      </PageHeader>
       <DataTable
         columns={columns}
         data={data}
@@ -140,6 +148,9 @@ export default function SolicitacoesPage() {
           onRefresh={fetchData}
         />
       )}
+      {showCriar && (
+        <CriarSolicitacaoModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
+      )}  
     </div>
   )
 }

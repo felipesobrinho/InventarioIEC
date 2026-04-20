@@ -9,7 +9,7 @@ export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const item = await prisma.ramais.findUnique({ where: { id } })
+  const item = await prisma.racks.findUnique({ where: { id } })
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
   return NextResponse.json(item)
 }
@@ -19,8 +19,9 @@ export async function PUT(request: Request, { params }: Props) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, ...data } = body
-  const item = await prisma.ramais.update({ where: { id }, data })
+  // Remover campos não editáveis
+  const { created_at, id: _id, ...data } = body
+  const item = await prisma.racks.update({ where: { id }, data })
   return NextResponse.json(item)
 }
 
@@ -28,6 +29,6 @@ export async function DELETE(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  await prisma.ramais.delete({ where: { id } })
+  await prisma.racks.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

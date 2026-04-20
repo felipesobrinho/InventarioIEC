@@ -31,3 +31,11 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
 }
+
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const body = await request.json()
+  const item = await prisma.colaboradores.create({ data: body })
+  return NextResponse.json(item, { status: 201 })
+}

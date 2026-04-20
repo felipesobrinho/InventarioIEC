@@ -8,6 +8,8 @@ import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
 import { Search } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
+import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Ramal>[] = [
   { accessorKey: 'numero_ramal', header: 'Ramal', cell: ({ getValue }) => <span className="font-medium font-mono">{getValue() != null ? String(getValue()) : '—'}</span> },
@@ -35,6 +37,7 @@ export default function RamaisPage() {
   const [disponibilidade, setDisponibilidade] = useState('')
   const [fila, setFila] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showCriar, setShowCriar] = useState(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -71,9 +74,17 @@ export default function RamaisPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Ramais" total={total} />
+      <PageHeader title="Ramais" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Novo ramal
+        </button>
+      </PageHeader>
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
+      {showCriar && (
+        <CriarRamalModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
+      )}
       {selected && <RamalModal ramal={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
     </div>
   )

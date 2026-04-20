@@ -9,6 +9,8 @@ import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
+import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Colaborador>[] = [
   { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
@@ -30,7 +32,7 @@ export default function ColaboradoresPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Colaborador | null>(null)
-
+  const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [setor, setSetor] = useState(searchParams.get('setor') || '')
   const [status, setStatus] = useState(searchParams.get('status') || '')
@@ -84,7 +86,12 @@ export default function ColaboradoresPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Colaboradores" total={total} />
+      <PageHeader title="Colaboradores" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Novo colaborador
+        </button>
+      </PageHeader>
       <DataTable
         columns={columns}
         data={data}
@@ -97,6 +104,7 @@ export default function ColaboradoresPage() {
         filters={filters}
       />
       {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={fetchData}/>}
+      {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
     </div>
   )
 }

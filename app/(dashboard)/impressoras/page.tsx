@@ -8,6 +8,8 @@ import { BoolBadge } from '@/components/dashboard/status-badge'
 import { ImpressoraModal } from '@/components/modals/impressora-modal'
 import { Search } from 'lucide-react'
 import type { Impressora, PaginatedResponse } from '@/types'
+import { CriarImpressoraModal } from '@/components/modals/criar-impressora-modal'
+import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Impressora>[] = [
   { accessorKey: 'nome_host', header: 'Nome Host', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -32,6 +34,7 @@ export default function ImpressorasPage() {
   const [andar, setAndar] = useState('')
   const [status, setStatus] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showCriar, setShowCriar] = useState(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -71,10 +74,18 @@ export default function ImpressorasPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
-      <PageHeader title="Impressoras" total={total} />
+      <PageHeader title="Impressoras" total={total}>
+        <button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Nova impressora
+        </button>
+      </PageHeader>
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
       {selected && <ImpressoraModal impressora={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
+      {showCriar && (
+        <CriarImpressoraModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />
+      )}
     </div>
   )
 }
