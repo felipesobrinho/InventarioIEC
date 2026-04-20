@@ -16,7 +16,7 @@ const schema = z.object({
   andar: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
   tipo_usuario: z.string().optional().nullable(),
-  status: z.boolean().default(true),
+  status: z.boolean().optional(),
 })
 type FormData = z.infer<typeof schema>
 

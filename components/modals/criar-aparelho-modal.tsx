@@ -14,8 +14,8 @@ const schema = z.object({
   setor: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   endereco_mac: z.string().optional().nullable(),
-  chip: z.boolean().default(false),
-  status: z.boolean().default(true),
+  chip: z.boolean().optional(),
+  status: z.boolean().optional(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -26,7 +26,6 @@ export function CriarAparelhoModal({ onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
-
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { chip: false, status: true },

@@ -9,7 +9,7 @@ import { useCreate } from '@/hooks/use-create'
 const schema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
   setor: z.string().optional().nullable(),
-  status: z.enum(['Ativo', 'Inativo']).default('Ativo'),
+  status: z.enum(['Ativo', 'Inativo']).optional(),
 })
 type FormData = z.infer<typeof schema>
 
