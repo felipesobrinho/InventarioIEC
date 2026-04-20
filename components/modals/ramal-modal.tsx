@@ -13,15 +13,17 @@ import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Ramal } from '@/types'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
-  numero_ramal: z.coerce.number().optional().nullable(),
+  numero_ramal: optionalInt,
   nome_setor: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
   fila: z.boolean().optional().nullable(),
   contemplacao: z.boolean().optional().nullable(),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props {
@@ -45,7 +47,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       numero_ramal: ramal.numero_ramal,
       nome_setor: ramal.nome_setor,

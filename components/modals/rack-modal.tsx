@@ -9,16 +9,18 @@ import { DetailField, DetailSection } from '@/components/modals/detail-field'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import type { Rack } from '@/types'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
   nome_switch: z.string().optional().nullable(),
   marca_switch: z.string().optional().nullable(),
   localizacao: z.string().optional().nullable(),
   numero_patrimonio: z.string().optional().nullable(),
-  quantidade_portas: z.coerce.number().optional().nullable(),
-  portas_em_uso: z.coerce.number().optional().nullable(),
-  portas_livres: z.coerce.number().optional().nullable(),
+  quantidade_portas: optionalInt,
+  portas_em_uso: optionalInt,
+  portas_livres: optionalInt,
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props {
@@ -37,7 +39,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       nome_switch: rack.nome_switch,
       marca_switch: rack.marca_switch,

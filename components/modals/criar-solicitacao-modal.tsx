@@ -5,19 +5,21 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCreate } from '@/hooks/use-create'
+import { optionalInt, intWithDefault } from '@/lib/zod-helpers'
 
 const schema = z.object({
   data_criacao: z.string().optional().nullable(),
   colaborador_relacionado: z.string().optional().nullable(),
   solicitante: z.string().optional().nullable(),
   identificador_dispositivo: z.string().optional().nullable(),
-  tipo_dispositivo: z.coerce.number().optional().nullable(),
-  tipo_solicitacao: z.coerce.number().optional().nullable(),
-  status_solicitacao: z.coerce.number().default(1),
-  prioridade: z.coerce.number().default(2),
-  origem_solicitacao: z.coerce.number().optional().nullable(),
+  tipo_dispositivo: optionalInt,
+  tipo_solicitacao: optionalInt,
+  status_solicitacao: intWithDefault(1),
+  prioridade: intWithDefault(2),
+  origem_solicitacao: optionalInt,
   observacao: z.string().optional().nullable(),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props { onClose: () => void; onRefresh: () => void }
@@ -25,7 +27,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 export function CriarSolicitacaoModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('solicitacoes', () => { onRefresh(); onClose() })
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { status_solicitacao: 1, prioridade: 2 },
   })
 

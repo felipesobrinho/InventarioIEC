@@ -8,15 +8,17 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCreate } from '@/hooks/use-create'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
-  numero_ramal: z.coerce.number().optional().nullable(),
+  numero_ramal: optionalInt,
   nome_setor: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
   fila: z.boolean().default(false),
   contemplacao: z.boolean().default(false),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props { onClose: () => void; onRefresh: () => void }
@@ -29,7 +31,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   const [savingAlocacao, setSavingAlocacao] = useState(false)
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: { fila: false, contemplacao: false },
   })
 

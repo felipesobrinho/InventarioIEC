@@ -11,16 +11,18 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate, mapTipoSolicitacao, mapTipoDispositivo, mapOrigem } from '@/lib/utils'
 import type { Solicitacao } from '@/types'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
   colaborador_relacionado: z.string().optional().nullable(),
   solicitante: z.string().optional().nullable(),
-  tipo_solicitacao: z.coerce.number().optional().nullable(),
-  tipo_dispositivo: z.coerce.number().optional().nullable(),
-  status_solicitacao: z.coerce.number().optional().nullable(),
-  prioridade: z.coerce.number().optional().nullable(),
+  tipo_solicitacao: optionalInt,
+  tipo_dispositivo: optionalInt,
+  status_solicitacao: optionalInt,
+  prioridade: optionalInt,
   observacao: z.string().optional().nullable(),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props {
@@ -39,7 +41,7 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       colaborador_relacionado: solicitacao.colaborador_relacionado,
       solicitante: solicitacao.solicitante,

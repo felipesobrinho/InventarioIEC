@@ -10,15 +10,17 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate, mapTipoDispositivo, mapTipoMovimentacao } from '@/lib/utils'
 import type { Movimentacao } from '@/types'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
   identificador_dispositivo: z.string().optional().nullable(),
-  tipo_dispositivo: z.coerce.number().optional().nullable(),
-  tipo_movimentacao: z.coerce.number().optional().nullable(),
+  tipo_dispositivo: optionalInt,
+  tipo_movimentacao: optionalInt,
   setor: z.string().optional().nullable(),
   tecnico_responsavel: z.string().optional().nullable(),
   observacao: z.string().optional().nullable(),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props {
@@ -37,7 +39,7 @@ export function MovimentacaoModal({ movimentacao, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       identificador_dispositivo: movimentacao.identificador_dispositivo,
       tipo_dispositivo: movimentacao.tipo_dispositivo,

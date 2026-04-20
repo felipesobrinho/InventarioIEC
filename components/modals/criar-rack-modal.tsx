@@ -5,23 +5,25 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCreate } from '@/hooks/use-create'
+import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
   nome_switch: z.string().optional().nullable(),
   marca_switch: z.string().optional().nullable(),
   localizacao: z.string().optional().nullable(),
   numero_patrimonio: z.string().optional().nullable(),
-  quantidade_portas: z.coerce.number().optional().nullable(),
-  portas_em_uso: z.coerce.number().optional().nullable(),
-  portas_livres: z.coerce.number().optional().nullable(),
+  quantidade_portas: optionalInt,
+  portas_em_uso: optionalInt,
+  portas_livres: optionalInt,
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props { onClose: () => void; onRefresh: () => void }
 
 export function CriarRackModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('racks', () => { onRefresh(); onClose() })
-  const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
+  const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) as any })
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
   const lbl = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
