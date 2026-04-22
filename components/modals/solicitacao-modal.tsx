@@ -189,14 +189,14 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
               <>
                 <button
                   type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={(e) => {e.preventDefault(); setShowDeleteConfirm(true)}}
                   className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Excluir
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMode('edit')}
+                  onClick={(e) => {e.preventDefault(); setMode('edit')}}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
                 >
                   <Pencil className="w-3.5 h-3.5" /> Editar
@@ -206,7 +206,7 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
               <>
                 <button
                   type="button"
-                  onClick={() => setMode('view')}
+                  onClick={(e) => {e.preventDefault(); setMode('view')}}
                   className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancelar
