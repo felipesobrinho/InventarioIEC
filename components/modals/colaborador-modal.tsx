@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Colaborador } from '@/types'
+import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
@@ -74,6 +75,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
                 <DetailField label="Status" value={<StatusBadge status={colaborador.status} />} />
                 <DetailField label="Cadastrado em" value={formatDate(colaborador.created_at)} />
               </DetailSection>
+              <HistoricoPanel registroId={colaborador.id} tabela="colaboradores" />
             </div>
           )}
 

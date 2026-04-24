@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import type { Rack } from '@/types'
 import { optionalInt } from '@/lib/zod-helpers'
+import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   nome_switch: z.string().optional().nullable(),
@@ -132,6 +133,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
                 <DetailField label="Acadêmicas" value={rack.portas_academicas} />
                 <DetailField label="VLAN Impressoras" value={rack.portas_vlan_impressoras} />
               </DetailSection>
+              <HistoricoPanel registroId={rack.id} tabela="racks" />
             </div>
           )}
 

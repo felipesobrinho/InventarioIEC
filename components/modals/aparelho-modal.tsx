@@ -13,6 +13,7 @@ import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate, mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho } from '@/types'
+import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
@@ -179,6 +180,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                 <DetailField label="Endereço MAC" value={aparelho.endereco_mac} />
                 <DetailField label="Setor" value={aparelho.setor} />
               </DetailSection>
+              <HistoricoPanel registroId={aparelho.id} tabela="aparelhos" />
             </div>
           )}
 
