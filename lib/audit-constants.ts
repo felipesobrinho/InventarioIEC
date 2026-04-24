@@ -1,3 +1,16 @@
+export interface AuditLog {
+  id: string
+  tabela: string
+  registro_id: string
+  acao: string
+  descricao: string | null
+  dados_anteriores: any
+  dados_novos: any
+  usuario_id: string | null
+  usuario_nome: string | null
+  created_at: string | null
+}
+
 export const ACAO_COLORS: Record<string, string> = {
   CREATE:          'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
   UPDATE:          'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',

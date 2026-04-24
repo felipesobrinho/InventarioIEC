@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { AuditLogModal } from '@/components/modals/audit-log-modal'
 import { useFetchData } from '@/hooks/use-fetch-data'
 import { Search } from 'lucide-react'
-import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES } from '@/lib/audit-constants'
+import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES, type AuditLog } from '@/lib/audit-constants'
 
 function AcaoBadge({ acao }: { acao: string }) {
   return (

@@ -1,7 +1,7 @@
 'use client'
 
 import { X, User, Clock, Database, Tag, FileText, ArrowRight } from 'lucide-react'
-import type { AuditLog } from '@/app/(dashboard)/movimentacoes/page'
+import type { AuditLog } from '@/lib/audit-constants'
 import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES } from '@/lib/audit-constants'
 
 interface Props {
