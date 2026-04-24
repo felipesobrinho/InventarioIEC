@@ -13,6 +13,7 @@ import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Notebook } from '@/types'
+import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
@@ -200,6 +201,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
                 <DetailField label="Armazenamento" value={notebook.armazenamento} />
                 <DetailField label="Setor" value={notebook.setor} />
               </DetailSection>
+              <HistoricoPanel registroId={notebook.id} tabela="notebooks" />
             </div>
           )}
 

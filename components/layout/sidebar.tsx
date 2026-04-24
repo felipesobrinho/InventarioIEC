@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Users, Monitor, Laptop, Smartphone, Printer,
-  Phone, Server, ArrowLeftRight, ClipboardList, ChevronLeft,
+  Phone, Server, ScrollText, ClipboardList, ChevronLeft,
   PanelLeftOpen, LogOut, Sun, Moon, Menu, X, Users2
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -21,7 +21,7 @@ const navItems = [
   { href: '/impressoras', label: 'Impressoras', icon: Printer },
   { href: '/ramais', label: 'Ramais', icon: Phone },
   { href: '/racks', label: 'Racks', icon: Server },
-  { href: '/movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
+  { href: '/movimentacoes', label: 'Auditoria', icon: ScrollText },
   { href: '/solicitacoes', label: 'Solicitações', icon: ClipboardList, badge: true },
   { href: '/usuarios', label: 'Usuários', icon: Users2, adminOnly: true },
 ]

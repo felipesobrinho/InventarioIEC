@@ -13,6 +13,7 @@ import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Maquina } from '@/types'
+import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
@@ -195,6 +196,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
                 <DetailField label="Categoria" value={<CategoriaBadge categoria={maquina.categoria} />} />
                 <DetailField label="Data Revisão" value={formatDate(maquina.data_revisao)} />
               </DetailSection>
+              <HistoricoPanel registroId={maquina.id} tabela="maquinas" />
             </div>
           )}
 
