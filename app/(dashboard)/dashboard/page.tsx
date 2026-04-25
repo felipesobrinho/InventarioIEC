@@ -12,8 +12,13 @@ async function getDashboardData() {
     colaboradores, maquinas, notebooks, aparelhos,
     impressoras, ramais, racks,
     solicitacoesAbertas,
-    maquinasAlocadas, notebooksAlocados, aparelhosAlocados, ramaisAlocados,
-    ultimasSolicitacoes, ultimasMovimentacoes, porStatus,
+    maquinasAlocadasList,
+    notebooksAlocadosList,
+    aparelhosAlocadosList,
+    ramaisAlocadosList,
+    ultimasSolicitacoes,
+    ultimasMovimentacoes,
+    porStatus,
   ] = await Promise.all([
     prisma.colaboradores.count({ where: { status: 'Ativo' } }),
     prisma.maquinas.count(),
@@ -23,10 +28,29 @@ async function getDashboardData() {
     prisma.ramais.count(),
     prisma.racks.count(),
     prisma.solicitacoes.count({ where: { status_solicitacao: { notIn: [4, 5] } } }),
-    prisma.alocacoes_maquinas.count({ where: { ativo: true } }),
-    prisma.alocacoes_notebooks.count({ where: { ativo: true } }),
-    prisma.alocacoes_aparelhos.count({ where: { ativo: true } }),
-    prisma.alocacoes_ramais.count({ where: { ativo: true } }),
+
+    // Buscar IDs distintos de itens alocados — evita dupla contagem
+    prisma.alocacoes_maquinas.findMany({
+      where: { ativo: true },
+      select: { maquina_id: true },
+      distinct: ['maquina_id'],
+    }),
+    prisma.alocacoes_notebooks.findMany({
+      where: { ativo: true },
+      select: { notebook_id: true },
+      distinct: ['notebook_id'],
+    }),
+    prisma.alocacoes_aparelhos.findMany({
+      where: { ativo: true },
+      select: { aparelho_id: true },
+      distinct: ['aparelho_id'],
+    }),
+    prisma.alocacoes_ramais.findMany({
+      where: { ativo: true },
+      select: { ramal_id: true },
+      distinct: ['ramal_id'],
+    }),
+
     prisma.solicitacoes.findMany({ orderBy: { created_at: 'desc' }, take: 5 }),
     prisma.movimentacoes.findMany({
       orderBy: { created_at: 'desc' }, take: 5,
@@ -44,7 +68,11 @@ async function getDashboardData() {
     stats: {
       colaboradores, maquinas, notebooks, aparelhos,
       impressoras, ramais, racks, solicitacoesAbertas,
-      maquinasAlocadas, notebooksAlocados, aparelhosAlocados, ramaisAlocados,
+      // .length dá o número de itens únicos alocados
+      maquinasAlocadas:  maquinasAlocadasList.length,
+      notebooksAlocados: notebooksAlocadosList.length,
+      aparelhosAlocados: aparelhosAlocadosList.length,
+      ramaisAlocados:    ramaisAlocadosList.length,
     },
     ultimasSolicitacoes,
     ultimasMovimentacoes,

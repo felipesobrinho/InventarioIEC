@@ -23,11 +23,6 @@ export async function POST(request: Request) {
       select: { nome: true, setor: true },
     })
 
-    await prisma.alocacoes_maquinas.updateMany({
-      where: { maquina_id, ativo: true },
-      data: { ativo: false, data_fim: new Date() },
-    })
-
     const alocacao = await prisma.alocacoes_maquinas.create({
       data: {
         maquina_id,

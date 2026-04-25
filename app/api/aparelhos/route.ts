@@ -34,22 +34,28 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' }
           },
         },
       }),
       prisma.aparelhos.count({ where }),
     ])
 
-    const mapped = data.map((a: any) => ({
-      ...a,
-      alocacao_ativa: a.alocacoes[0]
+    const mapped = data.map((m: any) => ({
+      ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
+      // Manter alocacao_ativa como a primeira para retrocompatibilidade
+      alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: a.alocacoes[0].colaborador,
-            descricao_alocacao: a.alocacoes[0].descricao_alocacao,
-            motivo_alocacao: a.alocacoes[0].motivo_alocacao,
-            data_inicio: a.alocacoes[0].data_inicio,
+            colaborador: m.alocacoes[0].colaborador,
+            tipo_uso: m.alocacoes[0].tipo_uso,
+            data_inicio: m.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,

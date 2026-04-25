@@ -38,22 +38,27 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' }
           },
         },
       }),
       prisma.ramais.count({ where }),
     ])
 
-    const mapped = data.map((r: any) => ({
-      ...r,
-      alocacao_ativa: r.alocacoes[0]
+    const mapped = data.map((m: any) => ({
+      ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
+      alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: r.alocacoes[0].colaborador,
-            tipo_base: r.alocacoes[0].tipo_base,
-            whatsapp: r.alocacoes[0].whatsapp,
-            data_inicio: r.alocacoes[0].data_inicio,
+            colaborador: m.alocacoes[0].colaborador,
+            tipo_uso: m.alocacoes[0].tipo_uso,
+            data_inicio: m.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,

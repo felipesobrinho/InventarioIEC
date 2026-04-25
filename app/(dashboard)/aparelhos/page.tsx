@@ -20,10 +20,31 @@ const columns: ColumnDef<Aparelho>[] = [
   { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
   {
-    id: 'alocado', header: 'Alocado a',
-    cell: ({ row }) => row.original.alocacao_ativa
-      ? <span className="text-green-600 dark:text-green-400 text-xs font-medium">{row.original.alocacao_ativa.colaborador.nome}</span>
-      : <span className="text-slate-400 text-xs">Livre</span>,
+    id: 'alocado',
+    header: 'Alocado a',
+    cell: ({ row }) => {
+      const alocacoes = row.original.alocacoes_ativas ?? []
+      if (alocacoes.length === 0) {
+        return <span className="text-slate-400 text-xs">Livre</span>
+      }
+      if (alocacoes.length === 1) {
+        return (
+          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+            {alocacoes[0].colaborador.nome}
+          </span>
+        )
+      }
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+            {alocacoes[0].colaborador.nome}
+          </span>
+          <span className="bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            +{alocacoes.length - 1}
+          </span>
+        </span>
+      )
+    },
   },
 ]
 

@@ -9,6 +9,7 @@ import {
  Loader2,
  UserPlus,
  UserMinus,
+ Check,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +24,7 @@ import { formatDate } from "@/lib/utils";
 import type { Ramal } from "@/types";
 import { optionalInt } from "@/lib/zod-helpers";
 import { HistoricoPanel } from "./historico-panel";
+import { AlocacoesAtivasSection } from '@/components/modals/alocacoes-ativas-section'
 
 const schema = z.object({
  numero_ramal: optionalInt,
@@ -49,11 +51,9 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [colabNome, setColabNome] = useState("");
  const [whatsapp, setWhatsapp] = useState(false);
  const [savingAlocacao, setSavingAlocacao] = useState(false);
- const [editandoAlocacao, setEditandoAlocacao] = useState(false);
- const [novoWhatsapp, setNovoWhatsapp] = useState(
-  ramal.alocacao_ativa?.whatsapp ?? false,
- );
- const [savingEdicaoAlocacao, setSavingEdicaoAlocacao] = useState(false);
+ const [editandoId, setEditandoId] = useState<string | null>(null);
+ const [novoWhatsapp, setNovoWhatsapp] = useState(false);
+ const [savingEdit, setSavingEdit] = useState(false);
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -76,22 +76,22 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
   update(ramal.id, data);
  }
 
- async function editarAlocacao() {
-  setSavingEdicaoAlocacao(true);
+ async function salvarEdicaoAlocacao(alocacaoId: string) {
+  setSavingEdit(true);
   try {
-   const res = await fetch(`/api/alocacoes/ramais/${ramal.id}`, {
+   const res = await fetch(`/api/alocacoes/ramais/${alocacaoId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ whatsapp: novoWhatsapp }),
    });
    if (!res.ok) throw new Error();
    toast.success("Alocação atualizada!");
-   setEditandoAlocacao(false);
+   setEditandoId(null);
    onRefresh();
   } catch {
-   toast.error("Erro ao atualizar alocação.");
+   toast.error("Erro ao atualizar.");
   } finally {
-   setSavingEdicaoAlocacao(false);
+   setSavingEdit(false);
   }
  }
 
@@ -170,139 +170,59 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
 
      {mode === "view" && (
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-       {/* Alocação */}
-       {ramal.alocacao_ativa ? (
-        <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-lg p-4">
-         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-           <User className="w-4 h-4 text-green-600 dark:text-green-400" />
-           <span className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">
-            Alocação Ativa
-           </span>
-          </div>
-          <button
-           type="button"
-           onClick={(e) => {
-            e.preventDefault();
-            setShowDesalocarConfirm(true);
-           }}
-           className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition"
-          >
-           <UserMinus className="w-3.5 h-3.5" /> Desalocar
-          </button>
-         </div>
-         <p className="text-sm font-medium text-green-800 dark:text-green-300">
-          {ramal.alocacao_ativa.colaborador.nome}
-         </p>
-         {ramal.alocacao_ativa.colaborador.setor && (
-          <p className="text-xs text-green-600 dark:text-green-500">
-           {ramal.alocacao_ativa.colaborador.setor}
-          </p>
-         )}
-         <p className="text-xs text-green-600 dark:text-green-500 mt-1">
-          WhatsApp: {ramal.alocacao_ativa.whatsapp ? "Sim" : "Não"}
-         </p>
-         {ramal.alocacao_ativa.data_inicio && (
-          <p className="text-xs text-green-600 dark:text-green-500">
-           Desde: {formatDate(String(ramal.alocacao_ativa.data_inicio))}
-          </p>
-         )}
-         {!editandoAlocacao ? (
-          <div className="flex items-center justify-between mt-2">
-           <p className="text-xs text-green-600 dark:text-green-500">
-            WhatsApp: {ramal.alocacao_ativa?.whatsapp ? "Sim" : "Não"}
-           </p>
-           <button
-            type="button"
-            onClick={() => setEditandoAlocacao(true)}
-            className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 transition"
-           >
-            Editar
-           </button>
-          </div>
-         ) : (
-          <div className="mt-2 flex items-center gap-3">
-           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-             type="checkbox"
-             checked={novoWhatsapp}
-             onChange={(e) => setNovoWhatsapp(e.target.checked)}
-             className="w-4 h-4 rounded border-slate-300 text-blue-600"
-            />
-            <span className="text-xs text-green-700 dark:text-green-300">
-             WhatsApp
-            </span>
-           </label>
-           <button
-            type="button"
-            onClick={editarAlocacao}
-            disabled={savingEdicaoAlocacao}
-            className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition disabled:opacity-60"
-           >
-            {savingEdicaoAlocacao && (
-             <Loader2 className="w-3 h-3 animate-spin" />
-            )}
-            Salvar
-           </button>
-           <button
-            type="button"
-            onClick={() => setEditandoAlocacao(false)}
-            className="text-xs text-slate-400 hover:text-slate-600 transition"
-           >
-            Cancelar
-           </button>
-          </div>
-         )}
-        </div>
-       ) : (
-        <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
-         <div className="flex items-center gap-2">
-          <UserPlus className="w-4 h-4 text-slate-400" />
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-           Alocar Colaborador
-          </span>
-         </div>
-         <ColaboradorSelect
-          value={colabId}
-          onChange={(id, nome) => {
-           setColabId(id);
-           setColabNome(nome);
-          }}
-          onClear={() => {
-           setColabId("");
-           setColabNome("");
-          }}
-          selectedNome={colabNome}
-         />
-         {colabId && (
-          <>
-           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-             type="checkbox"
-             checked={whatsapp}
-             onChange={(e) => setWhatsapp(e.target.checked)}
-             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-slate-700 dark:text-slate-300">
-             Ramal com WhatsApp
-            </span>
-           </label>
-           <button
-            type="button"
-            onClick={(e) => {
-             e.preventDefault();
-             alocar();
-            }}
-            disabled={savingAlocacao}
-            className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-60 transition"
-           >
-            {savingAlocacao && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Confirmar alocação
-           </button>
-          </>
-         )}
-        </div>
-       )}
+       <AlocacoesAtivasSection
+        itemId={ramal.id}
+        entidade="ramais"
+        alocacoes={(ramal.alocacoes_ativas ?? []).map((a: any) => ({
+          id: a.id,
+          colaborador: a.colaborador,
+          data_inicio: a.data_inicio ?? null,
+          whatsapp: a.whatsapp,
+        }))}
+        onRefresh={onRefresh}
+        onClose={onClose}
+        renderExtraForm={(alocacaoId) => {
+          const aloc = (ramal.alocacoes_ativas ?? []).find((a: any) => a.id === alocacaoId)
+          if (!aloc) return null
+          return editandoId === alocacaoId ? (
+            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-green-100 dark:border-green-900">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={novoWhatsapp}
+                  onChange={(e) => setNovoWhatsapp(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600"
+                />
+                <span className="text-xs text-green-700 dark:text-green-300">WhatsApp</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => salvarEdicaoAlocacao(alocacaoId)}
+                disabled={savingEdit}
+                className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition disabled:opacity-60"
+              >
+                {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                Salvar
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditandoId(null)}
+                className="text-xs text-slate-400 hover:text-slate-600 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setEditandoId(alocacaoId); setNovoWhatsapp((aloc as any).whatsapp ?? false) }}
+              className="mt-1.5 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 transition"
+            >
+              Editar WhatsApp
+            </button>
+          )
+        }}
+       />
 
        <DetailSection title="Informações do Ramal">
         <DetailField

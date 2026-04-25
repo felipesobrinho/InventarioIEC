@@ -16,6 +16,12 @@ export interface DashboardStats {
   solicitacoesAbertas: number
 }
 
+export interface AlocacaoAtiva {
+  id: string
+  colaborador: { nome: string; setor: string | null }
+  data_inicio: string | null
+}
+
 export interface Colaborador {
   id: string
   codigo: number | null
@@ -43,11 +49,9 @@ export interface Maquina {
   patrimonio_monitor: string | null
   data_revisao: string | null
   created_at: string | null
-  alocacao_ativa?: {
-    colaborador: { nome: string; setor: string | null }
-    tipo_uso: number | null
-    data_inicio: string | null
-  } | null
+
+  alocacao_ativa?: AlocacaoAtiva | null
+  alocacoes_ativas?: AlocacaoAtiva[]  
 }
 
 export interface Notebook {
@@ -61,12 +65,9 @@ export interface Notebook {
   numero_patrimonio: string | null
   setor: string | null
   created_at: string | null
-  alocacao_ativa?: {
-    colaborador: { nome: string; setor: string | null }
-    motivo_alocacao: string | null
-    tipo_posse: number | null
-    data_inicio: string | null
-  } | null
+
+  alocacao_ativa?: AlocacaoAtiva | null
+  alocacoes_ativas?: AlocacaoAtiva[]  
 }
 
 export interface Aparelho {
@@ -79,12 +80,9 @@ export interface Aparelho {
   setor: string | null
   status: boolean | null
   created_at: string | null
-  alocacao_ativa?: {
-    colaborador: { nome: string; setor: string | null }
-    descricao_alocacao: string | null
-    motivo_alocacao: string | null
-    data_inicio: string | null
-  } | null
+
+  alocacao_ativa?: AlocacaoAtiva | null
+  alocacoes_ativas?: AlocacaoAtiva[]  
 }
 
 export interface Impressora {
@@ -115,12 +113,9 @@ export interface Ramal {
   status_contemplacao: number | null
   senha_acesso: string | null
   created_at: string | null
-  alocacao_ativa?: {
-    colaborador: { nome: string; setor: string | null }
-    tipo_base: number | null
-    whatsapp: boolean | null
-    data_inicio: string | null
-  } | null
+
+  alocacao_ativa?: AlocacaoAtiva | null
+  alocacoes_ativas?: AlocacaoAtiva[]  
 }
 
 export interface Rack {

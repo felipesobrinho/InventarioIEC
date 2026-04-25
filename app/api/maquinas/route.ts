@@ -64,8 +64,8 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
@@ -74,6 +74,12 @@ export async function GET(request: Request) {
 
     const mapped = data.map((m: any) => ({
       ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
       alocacao_ativa: m.alocacoes[0]
         ? {
             colaborador: m.alocacoes[0].colaborador,
