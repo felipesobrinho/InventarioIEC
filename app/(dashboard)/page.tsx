@@ -22,8 +22,9 @@ async function getDashboardData() {
   const [
     colaboradores, maquinas, notebooks, aparelhos,
     impressoras, ramais, racks,
-    solicitacoesAbertas, ultimasSolicitacoes,
-    ultimasMovimentacoes, porStatus,
+    solicitacoesAbertas,
+    maquinasAlocadas, notebooksAlocados, aparelhosAlocados, ramaisAlocados,
+    ultimasSolicitacoes, ultimasMovimentacoes, porStatus,
   ] = await Promise.all([
     prisma.colaboradores.count({ where: { status: 'Ativo' } }),
     prisma.maquinas.count(),
@@ -32,8 +33,11 @@ async function getDashboardData() {
     prisma.impressoras.count(),
     prisma.ramais.count(),
     prisma.racks.count(),
-    // abertos = status != 4 (Concluído) e != 5 (Cancelado)
     prisma.solicitacoes.count({ where: { status_solicitacao: { notIn: [4, 5] } } }),
+    prisma.alocacoes_maquinas.count({ where: { ativo: true } }),
+    prisma.alocacoes_notebooks.count({ where: { ativo: true } }),
+    prisma.alocacoes_aparelhos.count({ where: { ativo: true } }),
+    prisma.alocacoes_ramais.count({ where: { ativo: true } }),
     prisma.solicitacoes.findMany({ orderBy: { created_at: 'desc' }, take: 5 }),
     prisma.movimentacoes.findMany({
       orderBy: { created_at: 'desc' }, take: 5,
@@ -48,7 +52,11 @@ async function getDashboardData() {
   ])
 
   return {
-    stats: { colaboradores, maquinas, notebooks, aparelhos, impressoras, ramais, racks, solicitacoesAbertas },
+    stats: {
+      colaboradores, maquinas, notebooks, aparelhos,
+      impressoras, ramais, racks, solicitacoesAbertas,
+      maquinasAlocadas, notebooksAlocados, aparelhosAlocados, ramaisAlocados,
+    },
     ultimasSolicitacoes,
     ultimasMovimentacoes,
     porStatus,
