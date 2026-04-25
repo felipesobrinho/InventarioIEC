@@ -17,6 +17,20 @@ import Link from 'next/link'
 import { ClipboardList, ArrowLeftRight, AlertCircle, TrendingUp } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
+interface DashboardStats {
+  colaboradores: number
+  maquinas: number
+  notebooks: number
+  aparelhos: number
+  impressoras: number
+  ramais: number
+  racks: number
+  solicitacoesAbertas: number
+  maquinasAlocadas: number    // novo
+  notebooksAlocados: number   // novo
+  aparelhosAlocados: number   // novo
+  ramaisAlocados: number      // novo
+}
 
 async function getDashboardData() {
   const [
