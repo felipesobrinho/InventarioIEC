@@ -7,13 +7,13 @@ import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
-export async function DELETE(_: Request, { params }: Props) {
+export async function DELETE(request: Request, { params }: Props) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id: maquina_id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession()
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
 
     const alocacaoAtiva = await prisma.alocacoes_maquinas.findFirst({
       where: { maquina_id, ativo: true },
