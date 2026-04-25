@@ -7,7 +7,7 @@ import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
-export async function DELETE(_: Request, { params }: Props) {
+export async function DELETE(request: Request, { params }: Props) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -15,7 +15,7 @@ export async function DELETE(_: Request, { params }: Props) {
     const { id: notebook_id } = await params
     console.log('[DESALOCAR NOTEBOOK] notebook_id:', notebook_id)
 
-    const { usuario_id, usuario_nome } = await getAuditSession()
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
     console.log('[DESALOCAR NOTEBOOK] usuário:', { usuario_id, usuario_nome })
 
     // Buscar alocação ativa ANTES de desativar

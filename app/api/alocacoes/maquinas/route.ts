@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'maquina_id e colaborador_id são obrigatórios' }, { status: 400 })
     }
 
-    const { usuario_id, usuario_nome } = await getAuditSession()
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
 
     const colaborador = await prisma.colaboradores.findUnique({
       where: { id: colaborador_id },
