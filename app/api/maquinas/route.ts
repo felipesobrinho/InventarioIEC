@@ -22,10 +22,10 @@ async function tryAudit(params: {
   }
 }
 
-async function tryGetSession() {
+async function tryGetSession(request: Request) {
   try {
     const { getAuditSession } = await import('@/lib/audit')
-    return await getAuditSession()
+    return await getAuditSession(request)
   } catch {
     return { usuario_id: null, usuario_nome: null }
   }
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await tryGetSession()
+    const { usuario_id, usuario_nome } = await tryGetSession(request)
     const body = await request.json()
     const item = await prisma.maquinas.create({ data: body })
 
