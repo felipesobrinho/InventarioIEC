@@ -2,9 +2,34 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 
 export const runtime = 'nodejs'
+
+async function tryAudit(params: {
+  tabela: string
+  registro_id: string
+  acao: string
+  descricao: string
+  dados_novos?: any
+  usuario_id?: string | null
+  usuario_nome?: string | null
+}) {
+  try {
+    const { registrarAuditoria } = await import('@/lib/audit')
+    await registrarAuditoria({ ...params, acao: params.acao as any })
+  } catch (err) {
+    console.error('[audit] falhou silenciosamente:', err)
+  }
+}
+
+async function tryGetSession() {
+  try {
+    const { getAuditSession } = await import('@/lib/audit')
+    return await getAuditSession()
+  } catch {
+    return { usuario_id: null, usuario_nome: null }
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -62,7 +87,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
     console.error('[GET /api/maquinas]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
@@ -71,11 +96,11 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await tryGetSession()
     const body = await request.json()
     const item = await prisma.maquinas.create({ data: body })
 
-    await registrarAuditoria({
+    await tryAudit({
       tabela: 'maquinas',
       registro_id: item.id,
       acao: 'CREATE',
