@@ -8,7 +8,7 @@ import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
   nome:   z.string().min(1, 'Nome obrigatório'),
-  codigo: z.number().min(1, 'Código obrigatório'),
+  codigo: z.union([z.number(), z.null()]).optional(),
   setor:  z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']),
 })
@@ -47,7 +47,7 @@ export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
               </div>
               <div>
                 <label className={lbl}>Código de Pessoa</label>
-                <input type="number" {...register('codigo')} className={inp} placeholder="Ex: 12345" />
+                <input type="number" {...register('codigo', { valueAsNumber: true })} className={inp} placeholder="Ex: 12345" />
               </div>
               <div>
                 <label className={lbl}>Status</label>

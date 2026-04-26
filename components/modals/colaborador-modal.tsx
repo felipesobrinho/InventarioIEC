@@ -15,7 +15,7 @@ import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
   nome:   z.string().min(1, 'Nome obrigatório'),
-  codigo: z.number().min(1, 'Código obrigatório'),
+  codigo: z.union([z.number(), z.null()]).optional(),
   setor:  z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']),
 })
@@ -87,7 +87,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
               <form id="colab-form" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
                 <div>
                   <label className={lbl}>Código de Pessoa</label>
-                  <input type="number" {...register('codigo')} className={inp} placeholder="Ex: 12345" />
+                  <input type="number" {...register('codigo', { valueAsNumber: true })} className={inp} placeholder="Ex: 12345" />
                 </div>
                 <div>
                   <label className={lbl}>Nome *</label>
