@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
 import { PageHeader } from '@/components/layout/page-header'
@@ -65,43 +65,44 @@ export default function RamaisPage() {
   const [sort, setSort] = useState('numero_ramal')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 
+  const cancelledRef = useRef(false)
+
   function refresh() { setRefreshKey(k => k + 1) }
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
+  const fetchData = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: '20',
+      sort,
+      dir,
+    })
+    if (search)    params.set('search',    search)
+    if (disponibilidade) params.set('disponibilidade', disponibilidade)
+    if (fila !== '') params.set('fila', fila)
+    if (alocacao)  params.set('alocacao',  alocacao)
 
-    async function fetchData() {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: '20',
-        sort,
-        dir,
-      })
-      if (search)    params.set('search',    search)
-      if (disponibilidade) params.set('disponibilidade', disponibilidade)
-      if (fila !== '') params.set('fila', fila)
-      if (alocacao)  params.set('alocacao',  alocacao)
-
-      try {
-        const res = await fetch(`/api/ramais?${params}`)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json: PaginatedResponse<Ramal> = await res.json()
-        if (!cancelled) {
-          setData(json.data)
-          setTotal(json.total)
-          setTotalPages(json.totalPages)
-        }
-      } catch (err) {
-        console.error('[ramais page]', err)
-      } finally {
-        if (!cancelled) setLoading(false)
+    try {
+      const res = await fetch(`/api/ramais?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json: PaginatedResponse<Ramal> = await res.json()
+      if (!cancelledRef.current) {
+        setData(json.data)
+        setTotal(json.total)
+        setTotalPages(json.totalPages)
       }
+    } catch (err) {
+      console.error('[ramais page]', err)
+    } finally {
+      if (!cancelledRef.current) setLoading(false)
     }
+  }, [page, search, disponibilidade, fila, alocacao, sort, dir])
 
+  useEffect(() => {
+    cancelledRef.current = false
+    setLoading(true)
     fetchData()
-    return () => { cancelled = true }
-  }, [page, search, disponibilidade, fila, alocacao, sort, dir, refreshKey])
+    return () => { cancelledRef.current = true }
+  }, [fetchData, refreshKey])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
