@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
     const marca = searchParams.get('marca') || ''
+    const sortBy = searchParams.get('sort') || 'created_at'
+    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
 
     const where: any = {}
     if (search) {
@@ -25,13 +27,17 @@ export async function GET(request: Request) {
       ]
     }
     if (marca) where.marca_switch = { contains: marca, mode: 'insensitive' }
+    const validSort: Record<string, boolean> = {
+      nome: true, created_at: true, codigo: true, setor: true,
+    }
+    const safeSort = validSort[sortBy] ? sortBy : 'nome'
 
     const [data, total] = await Promise.all([
       prisma.racks.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { nome_switch: 'asc' },
+        orderBy: { [safeSort]: sortDir },
       }),
       prisma.racks.count({ where }),
     ])

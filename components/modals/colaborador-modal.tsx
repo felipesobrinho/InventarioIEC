@@ -14,10 +14,12 @@ import type { Colaborador } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 
 const schema = z.object({
-  nome: z.string().min(1, 'Nome obrigatório'),
-  setor: z.string().optional().nullable(),
+  nome:   z.string().min(1, 'Nome obrigatório'),
+  codigo: z.number().min(1, 'Código obrigatório'),
+  setor:  z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']),
 })
+
 type FormData = z.infer<typeof schema>
 
 interface Props { colaborador: Colaborador; onClose: () => void; onRefresh: () => void }
@@ -35,6 +37,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       nome: colaborador.nome,
+      codigo: colaborador.codigo,
       setor: colaborador.setor,
       status: colaborador.status,
     },
@@ -82,6 +85,10 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
               <form id="colab-form" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+                <div>
+                  <label className={lbl}>Código de Pessoa</label>
+                  <input type="number" {...register('codigo')} className={inp} placeholder="Ex: 12345" />
+                </div>
                 <div>
                   <label className={lbl}>Nome *</label>
                   <input {...register('nome')} className={inp} />

@@ -61,6 +61,8 @@ export default function AparelhosPage() {
   const [chip, setChip] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCriar, setShowCriar] = useState(false)
+  const [sort, setSort] = useState('created_at')
+  const [dir,  setDir]  = useState('desc')
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -76,7 +78,7 @@ export default function AparelhosPage() {
     setLoading(false)
   }, [page, search, setor, status, chip])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey, search, setor, status, chip, sort, dir])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

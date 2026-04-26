@@ -24,7 +24,7 @@ export interface AlocacaoAtiva {
 
 export interface Colaborador {
   id: string
-  codigo: number | null
+  codigo: number
   nome: string
   setor: string | null
   status: 'Ativo' | 'Inativo'

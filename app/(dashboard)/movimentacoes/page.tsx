@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { AuditLogModal } from '@/components/modals/audit-log-modal'
 import { useFetchData } from '@/hooks/use-fetch-data'
 import { Search } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES, type AuditLog } from '@/lib/audit-constants'
 
 function AcaoBadge({ acao }: { acao: string }) {
@@ -24,6 +25,9 @@ export default function MovimentacoesPage() {
   const [tabela, setTabela] = useState('')
   const [acao, setAcao] = useState('')
   const [usuario, setUsuario] = useState('')
+  const [inspectLog, setInspectLog] = useState<AuditLog | null>(null)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect') 
 
   const { data, total, totalPages, loading } = useFetchData<AuditLog>(
     'audit-log',
@@ -81,6 +85,14 @@ export default function MovimentacoesPage() {
       ),
     },
   ], [])
+  
+  useEffect(() => {
+  if (!inspectId) return
+  fetch(`/api/audit-log/by-id/${inspectId}`)
+    .then(r => r.json())
+    .then(json => { if (json?.id) setSelected(json) })
+    .catch(() => {})
+}, [inspectId])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

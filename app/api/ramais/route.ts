@@ -17,17 +17,48 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const disponibilidade = searchParams.get('disponibilidade') || ''
     const fila = searchParams.get('fila') || ''
+    const sortBy = searchParams.get('sort') || 'created_at'
+    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
+    const searchColab = searchParams.get('search_colab') || ''
+    const alocacao = searchParams.get('alocacao') || ''
 
     const where: any = {}
     if (search) {
-      const numSearch = parseInt(search)
       where.OR = [
-        { nome_setor: { contains: search, mode: 'insensitive' } },
-        ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
+        { nome_host:    { contains: search, mode: 'insensitive' } },
+        { identificador:{ contains: search, mode: 'insensitive' } },
+        {
+          alocacoes: {
+            some: {
+              ativo: true,
+              colaborador: { nome: { contains: search, mode: 'insensitive' } },
+            },
+          },
+        },
       ]
+    }
+    if (searchColab) {
+      where.alocacoes = {
+        some: {
+          ativo: true,
+          colaborador: {
+            nome: { contains: searchColab, mode: 'insensitive' },
+          },
+        },
+      }
+    }
+    if (alocacao === 'alocado') {
+      where.alocacoes = { some: { ativo: true } }
+    }
+    if (alocacao === 'livre') {
+      where.alocacoes = { none: { ativo: true } }
     }
     if (disponibilidade) where.disponibilidade = { contains: disponibilidade, mode: 'insensitive' }
     if (fila !== '') where.fila = fila === 'true'
+    const validSort: Record<string, boolean> = {
+      nome: true, created_at: true, codigo: true, setor: true,
+    }
+    const safeSort = validSort[sortBy] ? sortBy : 'nome'
 
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
@@ -39,7 +70,7 @@ export async function GET(request: Request) {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
-            orderBy: { data_inicio: 'asc' }
+            orderBy: { [safeSort]: sortDir }
           },
         },
       }),

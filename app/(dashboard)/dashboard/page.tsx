@@ -4,6 +4,7 @@ import { StatusBadge, PrioridadeBadge } from '@/components/dashboard/status-badg
 import { formatDate, mapTipoDispositivo, mapTipoMovimentacao } from '@/lib/utils'
 import Link from 'next/link'
 import { ClipboardList, ArrowLeftRight, AlertCircle } from 'lucide-react'
+import { UltimasAuditoriasCard } from '@/components/dashboard/last-audits'
 
 export const dynamic = 'force-dynamic'
 
@@ -166,43 +167,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Últimas Movimentações */}
-      <div className="mt-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <ArrowLeftRight className="w-4 h-4 text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Últimas Movimentações</h2>
-          </div>
-          <Link href="/movimentacoes" className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400">
-            Ver todas →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wide">Data</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wide">Identificador</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wide">Dispositivo</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wide">Movimentação</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-400 uppercase tracking-wide">Técnico</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-              {ultimasMovimentacoes.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-xs">Nenhuma movimentação.</td></tr>
-              ) : ultimasMovimentacoes.map((m: any) => (
-                <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">{formatDate(m.data_movimentacao)}</td>
-                  <td className="px-4 py-3 text-slate-800 dark:text-slate-200 text-xs font-medium">{m.identificador_dispositivo || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">{mapTipoDispositivo(m.tipo_dispositivo)}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">{mapTipoMovimentacao(m.tipo_movimentacao)}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">{m.tecnico_responsavel || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <UltimasAuditoriasCard />
     </div>
   )
 }

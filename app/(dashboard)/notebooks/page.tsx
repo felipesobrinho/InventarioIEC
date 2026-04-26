@@ -61,6 +61,8 @@ export default function NotebooksPage() {
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [sort, setSort] = useState('created_at')
+  const [dir,  setDir]  = useState('desc')
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {

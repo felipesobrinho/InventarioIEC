@@ -10,6 +10,7 @@ import { Search } from 'lucide-react'
 import type { Maquina, PaginatedResponse } from '@/types'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
 import { Plus } from 'lucide-react'
+import { SortSelect } from '@/components/tables/sort-select'
 
 const columns: ColumnDef<Maquina>[] = [
   { accessorKey: 'nome_host', header: 'Nome Host', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -60,6 +61,10 @@ export default function MaquinasPage() {
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [alocacao, setAlocacao] = useState('')
+  const [sort, setSort] = useState('created_at')
+  const [dir,  setDir]  = useState('desc')
+  
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -75,7 +80,7 @@ export default function MaquinasPage() {
     setLoading(false)
   }, [page, search, setor, categoria, fabricante])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey])
+  useEffect(() => { fetchData() }, [fetchData, refreshKey, search, setor, categoria, fabricante, alocacao, sort, dir])
 
   const filters = (
     <>
@@ -95,6 +100,22 @@ export default function MaquinasPage() {
         <option value="Administrativa">Administrativa</option>
         <option value="Academica">Acadêmica</option>
       </select>
+      <select value={alocacao} onChange={(e) => { setAlocacao(e.target.value); setPage(1) }} className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="">Todos</option>
+        <option value="alocado">Alocados</option>
+        <option value="livre">Disponíveis</option>
+      </select>
+      <SortSelect
+        sort={sort}
+        dir={dir}
+        onChange={(s, d) => { setSort(s); setDir(d); setPage(1) }}
+        options={[
+          { value: 'created_at:desc', label: 'Mais recentes primeiro' },
+          { value: 'created_at:asc',  label: 'Mais antigos primeiro' },
+          { value: 'nome_host:asc',   label: 'Nome A→Z' },
+          { value: 'nome_host:desc',  label: 'Nome Z→A' },
+        ]}
+      />
     </>
   )
 
