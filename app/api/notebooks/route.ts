@@ -12,23 +12,22 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const setor = searchParams.get('setor') || ''
-    const categoria = searchParams.get('categoria') || ''
+    const page       = parseInt(searchParams.get('page')  || '1')
+    const limit      = parseInt(searchParams.get('limit') || '20')
+    const search     = searchParams.get('search')     || ''
+    const setor      = searchParams.get('setor')      || ''
+    const categoria  = searchParams.get('categoria')  || ''
     const fabricante = searchParams.get('fabricante') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
-    const searchColab = searchParams.get('search_colab') || ''
-    const alocacao = searchParams.get('alocacao') || ''
-
+    const alocacao   = searchParams.get('alocacao')   || ''  // 'alocado' | 'livre' | ''
+    const sort       = searchParams.get('sort')       || 'modelo'
+    const dir        = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
+
     if (search) {
       where.OR = [
-        { nome_host:    { contains: search, mode: 'insensitive' } },
-        { identificador:{ contains: search, mode: 'insensitive' } },
+        { modelo:            { contains: search, mode: 'insensitive' } },
+        { numero_patrimonio: { contains: search, mode: 'insensitive' } },
         {
           alocacoes: {
             some: {
@@ -39,41 +38,36 @@ export async function GET(request: Request) {
         },
       ]
     }
+
+    if (setor)     where.setor     = { contains: setor,     mode: 'insensitive' }
+    if (categoria) where.categoria = categoria
+    if (fabricante)where.fabricante= { contains: fabricante,mode: 'insensitive' }
+
     if (alocacao === 'alocado') {
       where.alocacoes = { some: { ativo: true } }
-    }
-    if (alocacao === 'livre') {
+    } else if (alocacao === 'livre') {
       where.alocacoes = { none: { ativo: true } }
     }
-    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
-    if (categoria) where.categoria = categoria
-    if (fabricante) where.fabricante = { contains: fabricante, mode: 'insensitive' }
-    if (searchColab) {
-      where.alocacoes = {
-        some: {
-          ativo: true,
-          colaborador: {
-            nome: { contains: searchColab, mode: 'insensitive' },
-          },
-        },
-      }
+
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      modelo: true, fabricante: true,
+      categoria: true, numero_patrimonio: true,
+      setor: true, created_at: true,
     }
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
-    }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
 
     const [data, total] = await Promise.all([
       prisma.notebooks.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { modelo: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
-            orderBy: { [safeSort]: sortDir }
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
@@ -88,7 +82,6 @@ export async function GET(request: Request) {
         tipo_uso: a.tipo_uso,
         data_inicio: a.data_inicio,
       })),
-      // Manter alocacao_ativa como a primeira para retrocompatibilidade
       alocacao_ativa: m.alocacoes[0]
         ? {
             colaborador: m.alocacoes[0].colaborador,
@@ -102,7 +95,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
     console.error('[GET /api/notebooks]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 

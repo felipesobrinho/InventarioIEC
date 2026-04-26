@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
 import { PageHeader } from '@/components/layout/page-header'
@@ -55,50 +55,130 @@ export default function AparelhosPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Aparelho | null>(null)
+  const [showCriar, setShowCriar] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  // Filtros
   const [search, setSearch] = useState('')
   const [setor, setSetor] = useState('')
   const [status, setStatus] = useState('')
   const [chip, setChip] = useState('')
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [showCriar, setShowCriar] = useState(false)
-  const [sort, setSort] = useState('created_at')
-  const [dir,  setDir]  = useState('desc')
+  const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
+  const [sort, setSort] = useState('modelo')
+  const [dir, setDir] = useState<'asc' | 'desc'>('asc')
+
   function refresh() { setRefreshKey(k => k + 1) }
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '20' })
-    if (search) params.set('search', search)
-    if (setor) params.set('setor', setor)
-    if (status !== '') params.set('status', status)
-    if (chip !== '') params.set('chip', chip)
-    const res = await fetch(`/api/aparelhos?${params}`)
-    const json: PaginatedResponse<Aparelho> = await res.json()
-    setData(json.data); setTotal(json.total); setTotalPages(json.totalPages)
-    setLoading(false)
-  }, [page, search, setor, status, chip])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey, search, setor, status, chip, sort, dir])
+    async function fetchData() {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '20',
+        sort,
+        dir,
+      })
+      if (search)    params.set('search',    search)
+      if (setor)     params.set('setor',     setor)
+      if (status !== '') params.set('status', status)
+      if (chip !== '') params.set('chip', chip)
+      if (alocacao)  params.set('alocacao',  alocacao)
+
+      try {
+        const res = await fetch(`/api/aparelhos?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Aparelho> = await res.json()
+        if (!cancelled) {
+          setData(json.data)
+          setTotal(json.total)
+          setTotalPages(json.totalPages)
+        }
+      } catch (err) {
+        console.error('[aparelhos page]', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetchData()
+    return () => { cancelled = true }
+  }, [page, search, setor, status, chip, alocacao, sort, dir, refreshKey])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
   const filters = (
     <>
+      {/* Busca */}
       <div className="relative flex-1 min-w-[200px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Buscar por modelo..."
-          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Modelo ou colaborador..."
+          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
-      <input value={setor} onChange={(e) => { setSetor(e.target.value); setPage(1) }} placeholder="Setor..." className={`${inputCls} w-36`} />
-      <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={inputCls}>
+
+      {/* Setor */}
+      <input
+        value={setor}
+        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
+        placeholder="Setor..."
+        className={`${inputCls} w-32`}
+      />
+
+      {/* Status */}
+      <select
+        value={status}
+        onChange={(e) => { setStatus(e.target.value); setPage(1) }}
+        className={inputCls}
+      >
         <option value="">Todos os status</option>
         <option value="true">Ativo</option>
         <option value="false">Inativo</option>
       </select>
-      <select value={chip} onChange={(e) => { setChip(e.target.value); setPage(1) }} className={inputCls}>
+
+      {/* Chip */}
+      <select
+        value={chip}
+        onChange={(e) => { setChip(e.target.value); setPage(1) }}
+        className={inputCls}
+      >
         <option value="">Com/sem chip</option>
         <option value="true">Com chip</option>
         <option value="false">Sem chip</option>
+      </select>
+
+      {/* Alocação */}
+      <select
+        value={alocacao}
+        onChange={(e) => { setAlocacao(e.target.value); setPage(1) }}
+        className={inputCls}
+      >
+        <option value="">Todos</option>
+        <option value="alocado">Alocados</option>
+        <option value="livre">Disponíveis</option>
+      </select>
+
+      {/* Ordenação */}
+      <select
+        value={`${sort}:${dir}`}
+        onChange={(e) => {
+          const [s, d] = e.target.value.split(':')
+          setSort(s)
+          setDir(d as 'asc' | 'desc')
+          setPage(1)
+        }}
+        className={inputCls}
+      >
+        <option value="modelo:asc">Modelo A→Z</option>
+        <option value="modelo:desc">Modelo Z→A</option>
+        <option value="created_at:desc">Mais recentes</option>
+        <option value="created_at:asc">Mais antigos</option>
+        <option value="tipo:asc">Tipo A→Z</option>
+        <option value="setor:asc">Setor A→Z</option>
       </select>
     </>
   )

@@ -16,18 +16,17 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
     const setor = searchParams.get('setor') || ''
-    const statusRaw = searchParams.get('status') || ''
-    const chipRaw = searchParams.get('chip') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
-    const searchColab = searchParams.get('search_colab') || ''
-    const alocacao = searchParams.get('alocacao') || ''
+    const status = searchParams.get('status') || ''
+    const chip = searchParams.get('chip') || ''
+    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
+    const sort = searchParams.get('sort') || 'modelo'
+    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
+
     if (search) {
       where.OR = [
-        { nome_host:    { contains: search, mode: 'insensitive' } },
-        { identificador:{ contains: search, mode: 'insensitive' } },
+        { modelo: { contains: search, mode: 'insensitive' } },
         {
           alocacoes: {
             some: {
@@ -38,43 +37,36 @@ export async function GET(request: Request) {
         },
       ]
     }
-    if (searchColab) {
-      where.alocacoes = {
-        some: {
-          ativo: true,
-          colaborador: {
-            nome: { contains: searchColab, mode: 'insensitive' },
-          },
-        },
-      }
-    }
+
+    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
+    if (status !== '') where.status = status === 'true'
+    if (chip !== '') where.chip = chip === 'true'
+
     if (alocacao === 'alocado') {
       where.alocacoes = { some: { ativo: true } }
-    }
-    if (alocacao === 'livre') {
+    } else if (alocacao === 'livre') {
       where.alocacoes = { none: { ativo: true } }
     }
-    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
-    if (statusRaw !== '') where.status = statusRaw === 'true'
-    if (chipRaw !== '') where.chip = chipRaw === 'true'
-    
 
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      modelo: true, tipo: true,
+      setor: true, endereco_ip: true,
+      status: true, created_at: true,
     }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
 
     const [data, total] = await Promise.all([
       prisma.aparelhos.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { modelo: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
-            orderBy: { [safeSort]: sortDir }
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),

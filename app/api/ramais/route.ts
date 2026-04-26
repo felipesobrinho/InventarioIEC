@@ -17,16 +17,16 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const disponibilidade = searchParams.get('disponibilidade') || ''
     const fila = searchParams.get('fila') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
-    const searchColab = searchParams.get('search_colab') || ''
-    const alocacao = searchParams.get('alocacao') || ''
+    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
+    const sort = searchParams.get('sort') || 'numero_ramal'
+    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
+
     if (search) {
       where.OR = [
-        { nome_host:    { contains: search, mode: 'insensitive' } },
-        { identificador:{ contains: search, mode: 'insensitive' } },
+        { numero_ramal: { contains: search, mode: 'insensitive' } },
+        { nome_setor:   { contains: search, mode: 'insensitive' } },
         {
           alocacoes: {
             some: {
@@ -37,40 +37,35 @@ export async function GET(request: Request) {
         },
       ]
     }
-    if (searchColab) {
-      where.alocacoes = {
-        some: {
-          ativo: true,
-          colaborador: {
-            nome: { contains: searchColab, mode: 'insensitive' },
-          },
-        },
-      }
-    }
-    if (alocacao === 'alocado') {
-      where.alocacoes = { some: { ativo: true } }
-    }
-    if (alocacao === 'livre') {
-      where.alocacoes = { none: { ativo: true } }
-    }
+
     if (disponibilidade) where.disponibilidade = { contains: disponibilidade, mode: 'insensitive' }
     if (fila !== '') where.fila = fila === 'true'
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
+
+    if (alocacao === 'alocado') {
+      where.alocacoes = { some: { ativo: true } }
+    } else if (alocacao === 'livre') {
+      where.alocacoes = { none: { ativo: true } }
     }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      numero_ramal: true, nome_setor: true,
+      prefixo_telefonico: true, disponibilidade: true,
+      created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
 
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { numero_ramal: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
-            orderBy: { [safeSort]: sortDir }
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
