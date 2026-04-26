@@ -9,6 +9,7 @@ import { NotebookModal } from '@/components/modals/notebook-modal'
 import { Search } from 'lucide-react'
 import type { Notebook, PaginatedResponse } from '@/types'
 import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
+import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Notebook>[] = [
@@ -68,7 +69,8 @@ export default function NotebooksPage() {
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 
   const cancelledRef = useRef(false)
-
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -106,6 +108,21 @@ export default function NotebooksPage() {
     fetchData()
     return () => { cancelledRef.current = true }
   }, [fetchData, refreshKey])
+
+  useEffect(() => {
+    if (!inspectId || data.length === 0) return
+    const found = data.find(d => d.id === inspectId)
+    if (found) setSelected(found)
+  }, [inspectId, data])
+
+  // Se não achar na página atual (pode estar em outra página), buscar direto:
+  useEffect(() => {
+    if (!inspectId) return
+    fetch(`/api/maquinas/${inspectId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(item => { if (item) setSelected(item) })
+      .catch(() => {})
+  }, [inspectId])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

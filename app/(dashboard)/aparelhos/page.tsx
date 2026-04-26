@@ -10,6 +10,7 @@ import { Search } from 'lucide-react'
 import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
 import { CriarAparelhoModal } from '@/components/modals/criar-aparelho-modal'
+import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Aparelho>[] = [
@@ -68,6 +69,8 @@ export default function AparelhosPage() {
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 
   function refresh() { setRefreshKey(k => k + 1) }
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
 
   useEffect(() => {
     let cancelled = false
@@ -105,6 +108,20 @@ export default function AparelhosPage() {
     fetchData()
     return () => { cancelled = true }
   }, [page, search, setor, status, chip, alocacao, sort, dir, refreshKey])
+
+  useEffect(() => {
+    if (!inspectId || data.length === 0) return
+    const found = data.find(d => d.id === inspectId)
+    if (found) setSelected(found)
+  }, [inspectId, data])
+
+  useEffect(() => {
+    if (!inspectId) return
+    fetch(`/api/maquinas/${inspectId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(item => { if (item) setSelected(item) })
+      .catch(() => {})
+  }, [inspectId])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

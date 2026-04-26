@@ -8,6 +8,7 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
 import { Search, Plus } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import type { Maquina, PaginatedResponse } from '@/types'
 
 export default function MaquinasPage() {
@@ -28,6 +29,9 @@ export default function MaquinasPage() {
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
   const [sort, setSort] = useState('nome_host')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
+
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
 
   function refresh() { setRefreshKey(k => k + 1) }
 
@@ -67,6 +71,20 @@ export default function MaquinasPage() {
     fetchData()
     return () => { cancelled = true }
   }, [page, search, setor, categoria, fabricante, alocacao, sort, dir, refreshKey])
+
+    useEffect(() => {
+    if (!inspectId || data.length === 0) return
+    const found = data.find(d => d.id === inspectId)
+    if (found) setSelected(found)
+  }, [inspectId, data])
+
+  useEffect(() => {
+    if (!inspectId) return
+    fetch(`/api/maquinas/${inspectId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(item => { if (item) setSelected(item) })
+      .catch(() => {})
+  }, [inspectId])
 
   const columns = useMemo<ColumnDef<Maquina, unknown>[]>(() => [
     {

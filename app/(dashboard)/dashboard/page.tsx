@@ -11,15 +11,12 @@ export const dynamic = 'force-dynamic'
 async function getDashboardData() {
   const [
     colaboradores, maquinas, notebooks, aparelhos,
-    impressoras, ramais, racks,
-    solicitacoesAbertas,
-    maquinasAlocadasList,
-    notebooksAlocadosList,
-    aparelhosAlocadosList,
-    ramaisAlocadosList,
-    ultimasSolicitacoes,
-    ultimasMovimentacoes,
-    porStatus,
+    impressoras, ramais, racks, solicitacoesAbertas,
+    maquinasAlocadasGroup,
+    notebooksAlocadosGroup,
+    aparelhosAlocadosGroup,
+    ramaisAlocadosGroup,
+    ultimasSolicitacoes, ultimasMovimentacoes, porStatus,
   ] = await Promise.all([
     prisma.colaboradores.count({ where: { status: 'Ativo' } }),
     prisma.maquinas.count(),
@@ -30,26 +27,22 @@ async function getDashboardData() {
     prisma.racks.count(),
     prisma.solicitacoes.count({ where: { status_solicitacao: { notIn: [4, 5] } } }),
 
-    // Buscar IDs distintos de itens alocados — evita dupla contagem
-    prisma.alocacoes_maquinas.findMany({
+    // groupBy retorna um item por maquina_id único com ativo: true
+    prisma.alocacoes_maquinas.groupBy({
+      by: ['maquina_id'],
       where: { ativo: true },
-      select: { maquina_id: true },
-      distinct: ['maquina_id'],
     }),
-    prisma.alocacoes_notebooks.findMany({
+    prisma.alocacoes_notebooks.groupBy({
+      by: ['notebook_id'],
       where: { ativo: true },
-      select: { notebook_id: true },
-      distinct: ['notebook_id'],
     }),
-    prisma.alocacoes_aparelhos.findMany({
+    prisma.alocacoes_aparelhos.groupBy({
+      by: ['aparelho_id'],
       where: { ativo: true },
-      select: { aparelho_id: true },
-      distinct: ['aparelho_id'],
     }),
-    prisma.alocacoes_ramais.findMany({
+    prisma.alocacoes_ramais.groupBy({
+      by: ['ramal_id'],
       where: { ativo: true },
-      select: { ramal_id: true },
-      distinct: ['ramal_id'],
     }),
 
     prisma.solicitacoes.findMany({ orderBy: { created_at: 'desc' }, take: 5 }),
@@ -69,11 +62,10 @@ async function getDashboardData() {
     stats: {
       colaboradores, maquinas, notebooks, aparelhos,
       impressoras, ramais, racks, solicitacoesAbertas,
-      // .length dá o número de itens únicos alocados
-      maquinasAlocadas:  maquinasAlocadasList.length,
-      notebooksAlocados: notebooksAlocadosList.length,
-      aparelhosAlocados: aparelhosAlocadosList.length,
-      ramaisAlocados:    ramaisAlocadosList.length,
+      maquinasAlocadas:  maquinasAlocadasGroup.length,
+      notebooksAlocados: notebooksAlocadosGroup.length,
+      aparelhosAlocados: aparelhosAlocadosGroup.length,
+      ramaisAlocados:    ramaisAlocadosGroup.length,
     },
     ultimasSolicitacoes,
     ultimasMovimentacoes,
