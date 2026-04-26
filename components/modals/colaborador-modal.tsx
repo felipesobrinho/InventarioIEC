@@ -17,10 +17,7 @@ import type { Colaborador } from '@/types'
 
 const schema = z.object({
   nome: z.string().min(1, 'Nome obrigatório'),
-  codigo: z.preprocess(
-    v => (v === '' || v === null || v === undefined ? null : Number(v)),
-    z.number().nullable().optional()
-  ),
+  codigo: z.union([z.number(), z.null()]).optional(),
   setor:  z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']),
 })
@@ -32,7 +29,6 @@ interface Props {
   onRefresh: () => void
 }
 
-// Abas do modo view
 type Tab = 'info' | 'alocacoes' | 'historico'
 
 export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
