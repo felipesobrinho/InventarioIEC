@@ -60,7 +60,7 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
   }
 
   return (
-    <div className="border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden">
+    <div className="border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden mt-4">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
