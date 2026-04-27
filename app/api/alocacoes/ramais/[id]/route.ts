@@ -7,45 +7,96 @@ import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
-// PATCH — editar alocação ativa pelo ramal_id
-export async function PATCH(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+export async function DELETE(request: Request, { params }: Props) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const { id: ramal_id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
-  const body = await request.json()
-  const { whatsapp, canal_adicional } = body
+    const { id: alocacao_id } = await params
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
 
-  const alocacaoAtiva = await prisma.alocacoes_ramais.findFirst({
-    where: { ramal_id, ativo: true },
-    include: { colaborador: { select: { nome: true } } },
-  })
+    const alocacao = await prisma.alocacoes_ramais.findUnique({
+      where: { id: alocacao_id },
+      include: { colaborador: { select: { nome: true } } },
+    })
 
-  if (!alocacaoAtiva) {
-    return NextResponse.json({ error: 'Nenhuma alocação ativa encontrada' }, { status: 404 })
+    if (!alocacao) return NextResponse.json({ error: 'Alocação não encontrada' }, { status: 404 })
+
+    await prisma.alocacoes_ramais.update({
+      where: { id: alocacao_id },
+      data: { ativo: false, data_fim: new Date() },
+    })
+
+    await registrarAuditoria({
+      tabela: 'alocacoes_ramais',
+      registro_id: alocacao.ramal_id ?? alocacao_id,
+      acao: 'DESALOCAR',
+      descricao: `Desalocado de ${alocacao.colaborador?.nome ?? 'colaborador desconhecido'}`,
+      dados_anteriores: {
+        alocacao_id,
+        colaborador_nome: alocacao.colaborador?.nome ?? null,
+        whatsapp: alocacao.whatsapp,
+        data_inicio: alocacao.data_inicio,
+      },
+      usuario_id,
+      usuario_nome,
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[DELETE /api/alocacoes/ramais/[id]]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
+}
 
-  const anterior = { whatsapp: alocacaoAtiva.whatsapp, canal_adicional: alocacaoAtiva.canal_adicional }
-  const novo: any = {}
-  if (whatsapp !== undefined) novo.whatsapp = whatsapp
-  if (canal_adicional !== undefined) novo.canal_adicional = canal_adicional
+// PATCH — editar campos da alocação ativa
+export async function PATCH(request: Request, { params }: Props) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const alocacao = await prisma.alocacoes_ramais.update({
-    where: { id: alocacaoAtiva.id },
-    data: novo,
-  })
+    const { id: alocacao_id } = await params
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const body = await request.json()
+    const { whatsapp, canal_adicional } = body
 
-  await registrarAuditoria({
-    tabela: 'alocacoes_ramais',
-    registro_id: ramal_id,
-    acao: 'EDITAR_ALOCACAO',
-    descricao: `Alocação de ${alocacaoAtiva.colaborador?.nome ?? 'colaborador'} editada: ${descricaoDiff(anterior, novo)}`,
-    dados_anteriores: anterior,
-    dados_novos: novo,
-    usuario_id,
-    usuario_nome,
-  })
+    const alocacaoAtual = await prisma.alocacoes_ramais.findUnique({
+      where: { id: alocacao_id },
+      include: { colaborador: { select: { nome: true } } },
+    })
 
-  return NextResponse.json(alocacao)
+    if (!alocacaoAtual) {
+      return NextResponse.json({ error: 'Alocação não encontrada' }, { status: 404 })
+    }
+
+    const anterior = {
+      whatsapp: alocacaoAtual.whatsapp,
+      canal_adicional: alocacaoAtual.canal_adicional,
+    }
+
+    const novo: any = {}
+    if (whatsapp !== undefined) novo.whatsapp = whatsapp
+    if (canal_adicional !== undefined) novo.canal_adicional = canal_adicional
+
+    const alocacao = await prisma.alocacoes_ramais.update({
+      where: { id: alocacao_id },
+      data: novo,
+    })
+
+    await registrarAuditoria({
+      tabela: 'alocacoes_ramais',
+      registro_id: alocacaoAtual.ramal_id ?? alocacao_id,
+      acao: 'EDITAR_ALOCACAO',
+      descricao: `Alocação de ${alocacaoAtual.colaborador?.nome ?? 'colaborador'} editada: ${descricaoDiff(anterior, novo)}`,
+      dados_anteriores: anterior,
+      dados_novos: novo,
+      usuario_id,
+      usuario_nome,
+    })
+
+    return NextResponse.json(alocacao)
+  } catch (err) {
+    console.error('[PATCH /api/alocacoes/ramais/[id]]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
 }

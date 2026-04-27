@@ -113,6 +113,7 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
         {/* Theme toggle */}
         {mounted && (
           <button
+            type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             className={cn(
               'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-700/60 transition',
@@ -121,9 +122,12 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
             title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
           >
             {theme === 'dark'
-              ? <Sun className="w-4 h-4 shrink-0" />
-              : <Moon className="w-4 h-4 shrink-0" />}
-            {!collapsed && <span className="text-sm">{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</span>}
+              ? <Sun  className="w-4 h-4 shrink-0" />
+              : <Moon className="w-4 h-4 shrink-0" />
+            }
+            {!collapsed && (
+              <span className="text-sm">{theme === 'dark' ? 'Modo claro' : 'Modo escuro'}</span>
+            )}
           </button>
         )}
 

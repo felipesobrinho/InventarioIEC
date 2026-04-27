@@ -8,31 +8,42 @@ export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
 export async function DELETE(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-  const { id: notebook_id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { id: alocacao_id } = await params
+    const { usuario_id, usuario_nome } = await getAuditSession(request)
 
-  const alocacaoAtiva = await prisma.alocacoes_notebooks.findFirst({
-    where: { notebook_id, ativo: true },
-    include: { colaborador: { select: { nome: true } } },
-  })
+    const alocacao = await prisma.alocacoes_notebooks.findUnique({
+      where: { id: alocacao_id },
+      include: { colaborador: { select: { nome: true } } },
+    })
 
-  await prisma.alocacoes_notebooks.updateMany({
-    where: { notebook_id, ativo: true },
-    data: { ativo: false, data_fim: new Date() },
-  })
+    if (!alocacao) return NextResponse.json({ error: 'Alocação não encontrada' }, { status: 404 })
 
-  await registrarAuditoria({
-    tabela: 'alocacoes_notebooks',
-    registro_id: notebook_id,
-    acao: 'DESALOCAR',
-    descricao: `Desalocado de ${alocacaoAtiva?.colaborador?.nome ?? 'colaborador desconhecido'}`,
-    dados_anteriores: alocacaoAtiva ? { colaborador_nome: alocacaoAtiva.colaborador?.nome } : null,
-    usuario_id,
-    usuario_nome,
-  })
+    await prisma.alocacoes_notebooks.update({
+      where: { id: alocacao_id },
+      data: { ativo: false, data_fim: new Date() },
+    })
 
-  return NextResponse.json({ ok: true })
+    await registrarAuditoria({
+      tabela: 'alocacoes_notebooks',
+      registro_id: alocacao.notebook_id ?? alocacao_id,
+      acao: 'DESALOCAR',
+      descricao: `Desalocado de ${alocacao.colaborador?.nome ?? 'colaborador desconhecido'}`,
+      dados_anteriores: {
+        alocacao_id,
+        colaborador_nome: alocacao.colaborador?.nome ?? null,
+        data_inicio: alocacao.data_inicio,
+      },
+      usuario_id,
+      usuario_nome,
+    })
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[DELETE /api/alocacoes/notebooks/[id]]', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+  }
 }
