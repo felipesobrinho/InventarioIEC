@@ -32,8 +32,8 @@ interface AuditParams {
   descricao?: string
   dados_anteriores?: Record<string, any> | null
   dados_novos?: Record<string, any> | null
-  usuario_id?: string
-  usuario_nome?: string
+  usuario_id?: string | null
+  usuario_nome?: string | null
 }
 
 export async function registrarAuditoria(params: AuditParams) {

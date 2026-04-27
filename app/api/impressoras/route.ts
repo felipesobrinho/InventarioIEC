@@ -18,6 +18,8 @@ export async function GET(request: Request) {
     const localidade = searchParams.get('localidade') || ''
     const andar = searchParams.get('andar') || ''
     const statusRaw = searchParams.get('status') || ''
+    const sortBy = searchParams.get('sort') || 'created_at'
+    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
 
     const where: any = {}
     if (search) {
@@ -29,13 +31,17 @@ export async function GET(request: Request) {
     if (localidade) where.localidade = { contains: localidade, mode: 'insensitive' }
     if (andar) where.andar = { contains: andar, mode: 'insensitive' }
     if (statusRaw !== '') where.status = statusRaw === 'true'
+    const validSort: Record<string, boolean> = {
+      nome: true, created_at: true, codigo: true, setor: true,
+    }
+    const safeSort = validSort[sortBy] ? sortBy : 'nome'
 
     const [data, total] = await Promise.all([
       prisma.impressoras.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { nome_host: 'asc' },
+        orderBy: { [safeSort]: sortDir },
       }),
       prisma.impressoras.count({ where }),
     ])

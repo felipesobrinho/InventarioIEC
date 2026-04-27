@@ -19,6 +19,8 @@ export async function GET(request: Request) {
     const tipoMovimentacaoRaw = searchParams.get('tipo_movimentacao') || ''
     const dataInicio = searchParams.get('data_inicio') || ''
     const dataFim = searchParams.get('data_fim') || ''
+    const sortBy = searchParams.get('sort') || 'created_at'
+    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
 
     const where: any = {}
     if (search) where.identificador_dispositivo = { contains: search, mode: 'insensitive' }
@@ -35,13 +37,17 @@ export async function GET(request: Request) {
       if (dataInicio) where.data_movimentacao.gte = new Date(dataInicio)
       if (dataFim) where.data_movimentacao.lte = new Date(dataFim)
     }
+    const validSort: Record<string, boolean> = {
+      nome: true, created_at: true, codigo: true, setor: true,
+    }
+    const safeSort = validSort[sortBy] ? sortBy : 'nome'
 
     const [data, total] = await Promise.all([
       prisma.movimentacoes.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: { [safeSort]: sortDir },
         include: { colaborador: { select: { nome: true } } },
       }),
       prisma.movimentacoes.count({ where }),

@@ -17,43 +17,74 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const disponibilidade = searchParams.get('disponibilidade') || ''
     const fila = searchParams.get('fila') || ''
+    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
+    const sort = searchParams.get('sort') || 'numero_ramal'
+    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
+
     if (search) {
-      const numSearch = parseInt(search)
       where.OR = [
-        { nome_setor: { contains: search, mode: 'insensitive' } },
-        ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
+        { numero_ramal: { contains: search, mode: 'insensitive' } },
+        { nome_setor:   { contains: search, mode: 'insensitive' } },
+        {
+          alocacoes: {
+            some: {
+              ativo: true,
+              colaborador: { nome: { contains: search, mode: 'insensitive' } },
+            },
+          },
+        },
       ]
     }
+
     if (disponibilidade) where.disponibilidade = { contains: disponibilidade, mode: 'insensitive' }
     if (fila !== '') where.fila = fila === 'true'
+
+    if (alocacao === 'alocado') {
+      where.alocacoes = { some: { ativo: true } }
+    } else if (alocacao === 'livre') {
+      where.alocacoes = { none: { ativo: true } }
+    }
+
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      numero_ramal: true, nome_setor: true,
+      prefixo_telefonico: true, disponibilidade: true,
+      created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
 
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { numero_ramal: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
       prisma.ramais.count({ where }),
     ])
 
-    const mapped = data.map((r: any) => ({
-      ...r,
-      alocacao_ativa: r.alocacoes[0]
+    const mapped = data.map((m: any) => ({
+      ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
+      alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: r.alocacoes[0].colaborador,
-            tipo_base: r.alocacoes[0].tipo_base,
-            whatsapp: r.alocacoes[0].whatsapp,
-            data_inicio: r.alocacoes[0].data_inicio,
+            colaborador: m.alocacoes[0].colaborador,
+            tipo_uso: m.alocacoes[0].tipo_uso,
+            data_inicio: m.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,

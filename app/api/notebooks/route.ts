@@ -12,49 +12,81 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const setor = searchParams.get('setor') || ''
-    const categoria = searchParams.get('categoria') || ''
+    const page       = parseInt(searchParams.get('page')  || '1')
+    const limit      = parseInt(searchParams.get('limit') || '20')
+    const search     = searchParams.get('search')     || ''
+    const setor      = searchParams.get('setor')      || ''
+    const categoria  = searchParams.get('categoria')  || ''
     const fabricante = searchParams.get('fabricante') || ''
+    const alocacao   = searchParams.get('alocacao')   || ''  // 'alocado' | 'livre' | ''
+    const sort       = searchParams.get('sort')       || 'modelo'
+    const dir        = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
+
     if (search) {
       where.OR = [
-        { modelo: { contains: search, mode: 'insensitive' } },
+        { modelo:            { contains: search, mode: 'insensitive' } },
         { numero_patrimonio: { contains: search, mode: 'insensitive' } },
+        {
+          alocacoes: {
+            some: {
+              ativo: true,
+              colaborador: { nome: { contains: search, mode: 'insensitive' } },
+            },
+          },
+        },
       ]
     }
-    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
+
+    if (setor)     where.setor     = { contains: setor,     mode: 'insensitive' }
     if (categoria) where.categoria = categoria
-    if (fabricante) where.fabricante = { contains: fabricante, mode: 'insensitive' }
+    if (fabricante)where.fabricante= { contains: fabricante,mode: 'insensitive' }
+
+    if (alocacao === 'alocado') {
+      where.alocacoes = { some: { ativo: true } }
+    } else if (alocacao === 'livre') {
+      where.alocacoes = { none: { ativo: true } }
+    }
+
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      modelo: true, fabricante: true,
+      categoria: true, numero_patrimonio: true,
+      setor: true, created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
 
     const [data, total] = await Promise.all([
       prisma.notebooks.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { modelo: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
       prisma.notebooks.count({ where }),
     ])
 
-    const mapped = data.map((n: any) => ({
-      ...n,
-      alocacao_ativa: n.alocacoes[0]
+    const mapped = data.map((m: any) => ({
+      ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
+      alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: n.alocacoes[0].colaborador,
-            motivo_alocacao: n.alocacoes[0].motivo_alocacao,
-            tipo_posse: n.alocacoes[0].tipo_posse,
-            data_inicio: n.alocacoes[0].data_inicio,
+            colaborador: m.alocacoes[0].colaborador,
+            tipo_uso: m.alocacoes[0].tipo_uso,
+            data_inicio: m.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,
@@ -63,7 +95,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
     console.error('[GET /api/notebooks]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 

@@ -22,11 +22,6 @@ export async function POST(request: Request) {
     select: { nome: true, setor: true },
   })
 
-  await prisma.alocacoes_ramais.updateMany({
-    where: { ramal_id, ativo: true },
-    data: { ativo: false, data_fim: new Date() },
-  })
-
   const alocacao = await prisma.alocacoes_ramais.create({
     data: { ramal_id, colaborador_id, canal_adicional: canal_adicional || null, whatsapp: whatsapp ?? false, data_inicio: new Date(), ativo: true },
   })

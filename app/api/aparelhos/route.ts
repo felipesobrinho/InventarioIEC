@@ -16,40 +16,77 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
     const setor = searchParams.get('setor') || ''
-    const statusRaw = searchParams.get('status') || ''
-    const chipRaw = searchParams.get('chip') || ''
+    const status = searchParams.get('status') || ''
+    const chip = searchParams.get('chip') || ''
+    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
+    const sort = searchParams.get('sort') || 'modelo'
+    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
     const where: any = {}
-    if (search) where.modelo = { contains: search, mode: 'insensitive' }
+
+    if (search) {
+      where.OR = [
+        { modelo: { contains: search, mode: 'insensitive' } },
+        {
+          alocacoes: {
+            some: {
+              ativo: true,
+              colaborador: { nome: { contains: search, mode: 'insensitive' } },
+            },
+          },
+        },
+      ]
+    }
+
     if (setor) where.setor = { contains: setor, mode: 'insensitive' }
-    if (statusRaw !== '') where.status = statusRaw === 'true'
-    if (chipRaw !== '') where.chip = chipRaw === 'true'
+    if (status !== '') where.status = status === 'true'
+    if (chip !== '') where.chip = chip === 'true'
+
+    if (alocacao === 'alocado') {
+      where.alocacoes = { some: { ativo: true } }
+    } else if (alocacao === 'livre') {
+      where.alocacoes = { none: { ativo: true } }
+    }
+
+    // Campos válidos para ordenação
+    const validSortFields: Record<string, boolean> = {
+      modelo: true, tipo: true,
+      setor: true, endereco_ip: true,
+      status: true, created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
 
     const [data, total] = await Promise.all([
       prisma.aparelhos.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { modelo: 'asc' },
+        orderBy: { [safeSort]: dir },
         include: {
           alocacoes: {
             where: { ativo: true },
-            take: 1,
             include: { colaborador: { select: { nome: true, setor: true } } },
+            orderBy: { data_inicio: 'asc' },
           },
         },
       }),
       prisma.aparelhos.count({ where }),
     ])
 
-    const mapped = data.map((a: any) => ({
-      ...a,
-      alocacao_ativa: a.alocacoes[0]
+    const mapped = data.map((m: any) => ({
+      ...m,
+      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+        id: a.id,
+        colaborador: a.colaborador,
+        tipo_uso: a.tipo_uso,
+        data_inicio: a.data_inicio,
+      })),
+      // Manter alocacao_ativa como a primeira para retrocompatibilidade
+      alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: a.alocacoes[0].colaborador,
-            descricao_alocacao: a.alocacoes[0].descricao_alocacao,
-            motivo_alocacao: a.alocacoes[0].motivo_alocacao,
-            data_inicio: a.alocacoes[0].data_inicio,
+            colaborador: m.alocacoes[0].colaborador,
+            tipo_uso: m.alocacoes[0].tipo_uso,
+            data_inicio: m.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,

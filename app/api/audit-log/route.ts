@@ -16,6 +16,8 @@ export async function GET(request: Request) {
   const acao = searchParams.get('acao') || ''
   const usuario = searchParams.get('usuario') || ''
   const registro_id = searchParams.get('registro_id') || ''
+  const sortBy  = searchParams.get('sort') || 'created_at'
+  const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
 
   const where: any = {}
   if (tabela) where.tabela = tabela
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
       where,
       skip: (page - 1) * limit,
       take: limit,
-      orderBy: { created_at: 'desc' },
+      orderBy: { [sortBy === 'created_at' ? 'created_at' : 'created_at']: sortDir },
     }),
     prisma.audit_log.count({ where }),
   ])
