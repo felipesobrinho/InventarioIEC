@@ -82,14 +82,10 @@ export function ApiRequestToasts() {
           pendingSlowReads += 1
 
           if (!sharedReadToastId) {
-            sharedReadToastId = toast.loading(getLoadingMessage(method), {
-              description: 'A requisição está levando mais tempo que o normal.',
-            })
+            sharedReadToastId = toast(getLoadingMessage(method), { duration: Infinity })
           }
         } else {
-          toastId = toast.loading(getLoadingMessage(method), {
-            description: 'A requisição está levando mais tempo que o normal.',
-          })
+          toastId = toast(getLoadingMessage(method), { duration: Infinity })
         }
       }, SLOW_REQUEST_MS)
 
