@@ -40,7 +40,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema),
     defaultValues: {
       nome_switch: rack.nome_switch,
       marca_switch: rack.marca_switch,
@@ -140,7 +140,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
           {/* Body — edit */}
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
-              <form id="rack-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+              <form id="rack-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e) }} noValidate>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={lbl}>Nome Switch</label>

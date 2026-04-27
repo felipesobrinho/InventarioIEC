@@ -162,7 +162,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
           {/* Body — edit */}
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
-              <form id="colab-form" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+              <form id="colab-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e) }} noValidate className="space-y-4">
                 <div>
                   <label className={lbl}>Nome *</label>
                   <input {...register('nome')} className={inp} />
@@ -173,7 +173,12 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={lbl}>Código de Pessoa</label>
-                    <input type="number" {...register('codigo')} className={inp} placeholder="Ex: 12345" />
+                    <input
+                      type="number"
+                      {...register('codigo', { setValueAs: value => value === '' ? null : Number(value) })}
+                      className={inp}
+                      placeholder="Ex: 12345"
+                    />
                   </div>
                   <div>
                     <label className={lbl}>Status</label>
@@ -204,7 +209,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setMode('edit'); setTab('info') }}
+                  onClick={(e) => { e.preventDefault(); setMode('edit'); setTab('info') }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
                 >
                   <Pencil className="w-3.5 h-3.5" /> Editar
@@ -214,7 +219,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
               <>
                 <button
                   type="button"
-                  onClick={() => setMode('view')}
+                  onClick={(e) => { e.preventDefault(); setMode('view') }}
                   className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
                 >
                   Cancelar

@@ -41,7 +41,7 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema),
     defaultValues: {
       colaborador_relacionado: solicitacao.colaborador_relacionado,
       solicitante: solicitacao.solicitante,
@@ -118,7 +118,7 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
           {/* Body — edit */}
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
-              <form id="sol-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+              <form id="sol-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e) }} noValidate>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
