@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { History, ChevronDown, ChevronUp, Loader2, User, Edit, Plus, Trash2, Link, Unlink } from 'lucide-react'
-import { silentApiRequest } from '@/lib/api-fetch'
 
 interface AuditEntry {
   id: string
@@ -38,7 +37,7 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
     if (!open || loaded) return
     const loadingTimer = window.setTimeout(() => setLoading(true), 0)
 
-    fetch(`/api/audit-log/${registroId}?tabela=${tabela}`, silentApiRequest)
+    fetch(`/api/audit-log/${registroId}?tabela=${tabela}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         const json = await r.json()

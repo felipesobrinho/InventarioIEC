@@ -8,7 +8,6 @@ import { AuditLogModal } from '@/components/modals/audit-log-modal'
 import { useFetchData } from '@/hooks/use-fetch-data'
 import { Search } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { silentApiRequest } from '@/lib/api-fetch'
 import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES, type AuditLog } from '@/lib/audit-constants'
 
 function AcaoBadge({ acao }: { acao: string }) {
@@ -89,7 +88,7 @@ export default function MovimentacoesPage() {
   
   useEffect(() => {
   if (!inspectId) return
-  fetch(`/api/audit-log/by-id/${inspectId}`, silentApiRequest)
+  fetch(`/api/audit-log/by-id/${inspectId}`)
     .then(r => r.json())
     .then(json => { if (json?.id) setSelected(json) })
     .catch(() => {})

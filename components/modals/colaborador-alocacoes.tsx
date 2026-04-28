@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { Monitor, Laptop, Smartphone, Phone, Loader2, ExternalLink, ChevronRight } from 'lucide-react'
-import { silentApiRequest } from '@/lib/api-fetch'
 import { formatDate } from '@/lib/utils'
 
 type AlocacaoItemData = {
@@ -163,7 +162,7 @@ export function ColaboradorAlocacoes({ colaboradorId, onNavigate }: Props) {
       if (!cancelled) setLoading(true)
     }, 0)
 
-    fetch(`/api/colaboradores/${colaboradorId}/alocacoes`, silentApiRequest)
+    fetch(`/api/colaboradores/${colaboradorId}/alocacoes`)
       .then(r => r.json())
       .then(json => {
         if (!cancelled) setData(json)

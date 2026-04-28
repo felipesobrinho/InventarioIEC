@@ -2,9 +2,6 @@
 
 import { useEffect } from 'react'
 import { toast } from 'sonner'
-import { API_TOAST_HEADER } from '@/lib/api-fetch'
-
-const SLOW_REQUEST_MS = 700
 
 function getRequestUrl(input: RequestInfo | URL) {
   if (typeof input === 'string') return input
@@ -12,25 +9,10 @@ function getRequestUrl(input: RequestInfo | URL) {
   return input.url
 }
 
-function getRequestMethod(input: RequestInfo | URL, init?: RequestInit) {
-  if (init?.method) return init.method.toUpperCase()
+function isReadRequest(input: RequestInfo | URL, init?: RequestInit) {
+  if (init?.method) return init.method.toUpperCase() === 'GET'
   if (typeof input !== 'string' && !(input instanceof URL)) return input.method.toUpperCase()
-  return 'GET'
-}
-
-function hasSilentToastHeader(input: RequestInfo | URL, init?: RequestInit) {
-  const headerValues: HeadersInit[] = []
-
-  if (init?.headers) headerValues.push(init.headers)
-  if (typeof input !== 'string' && !(input instanceof URL)) headerValues.push(input.headers)
-
-  return headerValues.some((headers) => {
-    try {
-      return new Headers(headers).get(API_TOAST_HEADER) === 'silent'
-    } catch {
-      return false
-    }
-  })
+  return true
 }
 
 function isInternalApiRequest(input: RequestInfo | URL) {
@@ -45,20 +27,6 @@ function isInternalApiRequest(input: RequestInfo | URL) {
     return parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/')
   } catch {
     return false
-  }
-}
-
-function getLoadingMessage(method: string) {
-  switch (method) {
-    case 'POST':
-      return 'Salvando registro...'
-    case 'PUT':
-    case 'PATCH':
-      return 'Atualizando registro...'
-    case 'DELETE':
-      return 'Removendo registro...'
-    default:
-      return 'Carregando dados...'
   }
 }
 
@@ -79,57 +47,16 @@ async function getApiErrorMessage(response: Response) {
 export function ApiRequestToasts() {
   useEffect(() => {
     const originalFetch = window.fetch.bind(window)
-    let pendingSlowReads = 0
-    let sharedReadToastId: string | number | undefined
 
     window.fetch = async (input, init) => {
       if (!isInternalApiRequest(input)) {
         return originalFetch(input, init)
       }
 
-      if (hasSilentToastHeader(input, init)) {
-        return originalFetch(input, init)
-      }
-
-      const method = getRequestMethod(input, init)
-      const isRead = method === 'GET'
-      let toastId: string | number | undefined
-      let slowReadTracked = false
-
-      const slowRequestTimer = window.setTimeout(() => {
-        if (isRead) {
-          slowReadTracked = true
-          pendingSlowReads += 1
-
-          if (!sharedReadToastId) {
-            sharedReadToastId = toast(getLoadingMessage(method), { duration: Infinity })
-          }
-        } else {
-          toastId = toast(getLoadingMessage(method), { duration: Infinity })
-        }
-      }, SLOW_REQUEST_MS)
-
-      function clearLoadingToast() {
-        window.clearTimeout(slowRequestTimer)
-
-        if (slowReadTracked) {
-          pendingSlowReads = Math.max(0, pendingSlowReads - 1)
-
-          if (pendingSlowReads === 0 && sharedReadToastId) {
-            toast.dismiss(sharedReadToastId)
-            sharedReadToastId = undefined
-          }
-
-          return
-        }
-
-        if (toastId) toast.dismiss(toastId)
-      }
+      const isRead = isReadRequest(input, init)
 
       try {
         const response = await originalFetch(input, init)
-
-        clearLoadingToast()
 
         if (!response.ok && isRead) {
           toast.error('Erro ao carregar dados.', {
@@ -139,8 +66,6 @@ export function ApiRequestToasts() {
 
         return response
       } catch (error) {
-        clearLoadingToast()
-
         if (isRead) {
           toast.error('Falha de conexão com a API.', {
             description: error instanceof Error ? error.message : 'Tente novamente em instantes.',

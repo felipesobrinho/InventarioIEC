@@ -8,7 +8,6 @@ import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
 import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
-import { silentApiRequest } from '@/lib/api-fetch'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
 
@@ -153,7 +152,7 @@ export default function RamaisPage() {
   useEffect(() => {
     if (!inspectId) return
     // Buscar diretamente pelo ID — correto: /api/ramais/[id]
-    fetch(`/api/ramais/${inspectId}`, silentApiRequest)
+    fetch(`/api/ramais/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})

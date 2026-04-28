@@ -9,7 +9,6 @@ import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
 import { Search, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
-import { silentApiRequest } from '@/lib/api-fetch'
 import type { Maquina, PaginatedResponse } from '@/types'
 
 export default function MaquinasPage() {
@@ -81,7 +80,7 @@ export default function MaquinasPage() {
 
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`, silentApiRequest)
+    fetch(`/api/maquinas/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
