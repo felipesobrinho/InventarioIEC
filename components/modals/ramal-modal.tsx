@@ -5,26 +5,19 @@ import {
  X,
  Pencil,
  Trash2,
- User,
  Loader2,
- UserPlus,
- UserMinus,
- Check,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import { BoolBadge } from "@/components/dashboard/status-badge";
 import { DetailField, DetailSection } from "@/components/modals/detail-field";
 import { ConfirmDialog } from "@/components/modals/confirm-dialog";
-import { ColaboradorSelect } from "@/components/modals/colaborador-select";
 import { useCrud } from "@/hooks/use-crud";
-import { formatDate } from "@/lib/utils";
 import type { Ramal } from "@/types";
 import { optionalInt } from "@/lib/zod-helpers";
 import { HistoricoPanel } from "./historico-panel";
-import { AlocacoesAtivasSection } from '@/components/modals/alocacoes-ativas-section'
+import { AlocacoesAtivasSection } from "@/components/modals/alocacoes-ativas-section";
 
 const schema = z.object({
  numero_ramal: optionalInt,
@@ -46,14 +39,6 @@ interface Props {
 export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
- const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false);
- const [colabId, setColabId] = useState("");
- const [colabNome, setColabNome] = useState("");
- const [whatsapp, setWhatsapp] = useState(false);
- const [savingAlocacao, setSavingAlocacao] = useState(false);
- const [editandoId, setEditandoId] = useState<string | null>(null);
- const [novoWhatsapp, setNovoWhatsapp] = useState(false);
- const [savingEdit, setSavingEdit] = useState(false);
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -61,6 +46,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  const { register, handleSubmit } = useForm<FormData>({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolver: zodResolver(schema) as any,
   defaultValues: {
    numero_ramal: ramal.numero_ramal,
@@ -75,67 +61,6 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  function onSubmit(data: FormData) {
   update(ramal.id, data);
  }
-
- async function salvarEdicaoAlocacao(alocacaoId: string) {
-  setSavingEdit(true);
-  try {
-   const res = await fetch(`/api/alocacoes/ramais/${alocacaoId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ whatsapp: novoWhatsapp }),
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Alocação atualizada!");
-   setEditandoId(null);
-   onRefresh();
-  } catch {
-   toast.error("Erro ao atualizar.");
-  } finally {
-   setSavingEdit(false);
-  }
- }
-
- async function alocar() {
-  if (!colabId) return;
-  setSavingAlocacao(true);
-  try {
-   const res = await fetch("/api/alocacoes/ramais", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-     ramal_id: ramal.id,
-     colaborador_id: colabId,
-     whatsapp,
-    }),
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Ramal alocado com sucesso!");
-   onRefresh();
-   onClose();
-  } catch {
-   toast.error("Erro ao alocar.");
-  } finally {
-   setSavingAlocacao(false);
-  }
- }
-
- async function desalocar() {
-  setSavingAlocacao(true);
-  try {
-   const res = await fetch(`/api/alocacoes/ramais/${ramal.id}/ativo`, {
-    method: "DELETE",
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Alocação encerrada.");
-   onRefresh();
-   onClose();
-  } catch {
-   toast.error("Erro ao desalocar.");
-  } finally {
-   setSavingAlocacao(false);
-  }
- }
-
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
  const lbl =
@@ -173,55 +98,14 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        <AlocacoesAtivasSection
         itemId={ramal.id}
         entidade="ramais"
-        alocacoes={(ramal.alocacoes_ativas ?? []).map((a: any) => ({
-          id: a.id,
-          colaborador: a.colaborador,
-          data_inicio: a.data_inicio ?? null,
-          whatsapp: a.whatsapp,
+        alocacoes={(ramal.alocacoes_ativas ?? []).map((a) => ({
+         id: a.id,
+         colaborador: a.colaborador,
+         data_inicio: a.data_inicio ?? null,
+         whatsapp: a.whatsapp,
         }))}
         onRefresh={onRefresh}
         onClose={onClose}
-        renderExtraForm={(alocacaoId) => {
-          const aloc = (ramal.alocacoes_ativas ?? []).find((a: any) => a.id === alocacaoId)
-          if (!aloc) return null
-          return editandoId === alocacaoId ? (
-            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-green-100 dark:border-green-900">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={novoWhatsapp}
-                  onChange={(e) => setNovoWhatsapp(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600"
-                />
-                <span className="text-xs text-green-700 dark:text-green-300">WhatsApp</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => salvarEdicaoAlocacao(alocacaoId)}
-                disabled={savingEdit}
-                className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition disabled:opacity-60"
-              >
-                {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                Salvar
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditandoId(null)}
-                className="text-xs text-slate-400 hover:text-slate-600 transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setEditandoId(alocacaoId); setNovoWhatsapp((aloc as any).whatsapp ?? false) }}
-              className="mt-1.5 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 transition"
-            >
-              Editar WhatsApp
-            </button>
-          )
-        }}
        />
 
        <DetailSection title="Informações do Ramal">
@@ -363,16 +247,6 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
      onConfirm={() => remove(ramal.id)}
      onCancel={() => setShowDeleteConfirm(false)}
      loading={deleting}
-    />
-   )}
-
-   {showDesalocarConfirm && (
-    <ConfirmDialog
-     title="Encerrar alocação"
-     description={`Desalocar "${ramal.alocacao_ativa?.colaborador.nome}" deste ramal?`}
-     onConfirm={desalocar}
-     onCancel={() => setShowDesalocarConfirm(false)}
-     loading={savingAlocacao}
     />
    )}
   </>

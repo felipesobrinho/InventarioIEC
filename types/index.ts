@@ -20,6 +20,7 @@ export interface AlocacaoAtiva {
   id: string
   colaborador: { nome: string; setor: string | null }
   data_inicio: string | null
+  whatsapp?: boolean | null  // apenas para ramais
 }
 
 export interface Colaborador {
@@ -116,7 +117,9 @@ export interface Ramal {
 
   alocacao_ativa?: AlocacaoAtiva | null
   alocacoes_ativas?: AlocacaoAtiva[]  
+  ultima_revisao?: string | null
 }
+
 
 export interface Rack {
   id: string
