@@ -21,6 +21,7 @@ export default function RamaisPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [overviewData, setOverviewData] = useState<Ramal[]>([])
   const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Ramal | null>(null)
@@ -136,6 +137,7 @@ export default function RamaisPage() {
 
   useEffect(() => {
     let cancelled = false
+    setOverviewLoading(true)
 
     async function fetchOverview() {
       try {
@@ -154,6 +156,8 @@ export default function RamaisPage() {
         }
       } catch (err) {
         console.error('[ramais overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
       }
     }
 
@@ -256,16 +260,8 @@ export default function RamaisPage() {
         title="Ramais"
         total={overviewTotal || total}
         items={overviewData}
-        selected={selected}
         accentClassName="bg-emerald-500"
-        getTitle={(item) => item.numero_ramal != null ? `Ramal ${item.numero_ramal}` : 'Ramal'}
-        getSubtitle={(item) => item.nome_setor || item.prefixo_telefonico || 'Sem setor informado'}
-        getMeta={(item) => (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <BoolBadge value={item.fila} labelTrue="Fila" labelFalse="Sem fila" />
-            <BoolBadge value={item.contemplacao} labelTrue="Contemplado" labelFalse="Não contemplado" />
-          </div>
-        )}
+        isLoading={overviewLoading}
       />
 
       <DataTable
