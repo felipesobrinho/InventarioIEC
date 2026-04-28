@@ -1,14 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Monitor, Laptop, Smartphone, Phone, Loader2, ExternalLink, ChevronRight } from 'lucide-react'
+import { silentApiRequest } from '@/lib/api-fetch'
 import { formatDate } from '@/lib/utils'
+
+type AlocacaoItemData = {
+  id: string
+} & Record<string, string | number | boolean | null | undefined>
 
 interface AlocacaoItem {
   alocacao_id: string
   data_inicio: string | null
-  item: any
+  item: AlocacaoItemData
   tipo_uso?: number | null
   motivo_alocacao?: string | null
   whatsapp?: boolean | null
@@ -61,29 +65,29 @@ const TIPO_CONFIG = {
   },
 } as const
 
-function getItemLabel(tipo: keyof typeof TIPO_CONFIG, item: any): string {
+function getItemLabel(tipo: keyof typeof TIPO_CONFIG, item: AlocacaoItemData): string {
   switch (tipo) {
     case 'maquinas':
-      return item.nome_host ?? item.identificador ?? '—'
+      return String(item.nome_host ?? item.identificador ?? '—')
     case 'notebooks':
-      return item.numero_patrimonio ?? item.modelo ?? '—'
+      return String(item.numero_patrimonio ?? item.modelo ?? '—')
     case 'aparelhos':
-      return item.modelo ?? '—'
+      return String(item.modelo ?? '—')
     case 'ramais':
       return item.numero_ramal != null ? `Ramal ${item.numero_ramal}` : '—'
   }
 }
 
-function getItemSub(tipo: keyof typeof TIPO_CONFIG, item: any): string {
+function getItemSub(tipo: keyof typeof TIPO_CONFIG, item: AlocacaoItemData): string {
   switch (tipo) {
     case 'maquinas':
-      return [item.fabricante, item.modelo].filter(Boolean).join(' ') || item.setor || ''
+      return [item.fabricante, item.modelo].filter(Boolean).map(String).join(' ') || String(item.setor ?? '')
     case 'notebooks':
-      return [item.fabricante, item.modelo].filter(Boolean).join(' ') || ''
+      return [item.fabricante, item.modelo].filter(Boolean).map(String).join(' ') || ''
     case 'aparelhos':
-      return item.setor || ''
+      return String(item.setor ?? '')
     case 'ramais':
-      return item.nome_setor || ''
+      return String(item.nome_setor ?? '')
   }
 }
 
@@ -155,9 +159,11 @@ export function ColaboradorAlocacoes({ colaboradorId, onNavigate }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    const loadingTimer = window.setTimeout(() => {
+      if (!cancelled) setLoading(true)
+    }, 0)
 
-    fetch(`/api/colaboradores/${colaboradorId}/alocacoes`)
+    fetch(`/api/colaboradores/${colaboradorId}/alocacoes`, silentApiRequest)
       .then(r => r.json())
       .then(json => {
         if (!cancelled) setData(json)
@@ -165,7 +171,10 @@ export function ColaboradorAlocacoes({ colaboradorId, onNavigate }: Props) {
       .catch(err => console.error('[ColaboradorAlocacoes]', err))
       .finally(() => { if (!cancelled) setLoading(false) })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      window.clearTimeout(loadingTimer)
+    }
   }, [colaboradorId])
 
   const total = data

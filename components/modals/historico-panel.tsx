@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { History, ChevronDown, ChevronUp, Loader2, User, Edit, Plus, Trash2, Link, Unlink } from 'lucide-react'
+import { silentApiRequest } from '@/lib/api-fetch'
 
 interface AuditEntry {
   id: string
@@ -9,8 +10,8 @@ interface AuditEntry {
   descricao: string | null
   usuario_nome: string | null
   created_at: string | null
-  dados_anteriores: any
-  dados_novos: any
+  dados_anteriores: unknown
+  dados_novos: unknown
 }
 
 const ACAO_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -35,9 +36,9 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
 
   useEffect(() => {
     if (!open || loaded) return
-    setLoading(true)
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0)
 
-    fetch(`/api/audit-log/${registroId}?tabela=${tabela}`)
+    fetch(`/api/audit-log/${registroId}?tabela=${tabela}`, silentApiRequest)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         const json = await r.json()
@@ -49,6 +50,8 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
         setLogs([])
       })
       .finally(() => setLoading(false))
+
+    return () => window.clearTimeout(loadingTimer)
   }, [open, loaded, registroId, tabela])
 
   const config = (acao: string) => ACAO_CONFIG[acao] ?? { label: acao, color: 'bg-slate-400', icon: History }

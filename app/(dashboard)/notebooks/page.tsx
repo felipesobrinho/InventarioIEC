@@ -10,6 +10,7 @@ import { Search } from 'lucide-react'
 import type { Notebook, PaginatedResponse } from '@/types'
 import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
 import { useSearchParams } from 'next/navigation'
+import { silentApiRequest } from '@/lib/api-fetch'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Notebook>[] = [
@@ -118,7 +119,7 @@ export default function NotebooksPage() {
   // Se não achar na página atual (pode estar em outra página), buscar direto:
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/maquinas/${inspectId}`, silentApiRequest)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})

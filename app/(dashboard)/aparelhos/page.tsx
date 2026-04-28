@@ -11,6 +11,7 @@ import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
 import { CriarAparelhoModal } from '@/components/modals/criar-aparelho-modal'
 import { useSearchParams } from 'next/navigation'
+import { silentApiRequest } from '@/lib/api-fetch'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Aparelho>[] = [
@@ -117,7 +118,7 @@ export default function AparelhosPage() {
 
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/maquinas/${inspectId}`, silentApiRequest)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})

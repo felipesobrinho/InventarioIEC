@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type MouseEvent } from 'react'
 import {
   LayoutDashboard, Users, Monitor, Laptop, Smartphone, Printer,
   Phone, Server, ScrollText, ClipboardList, ChevronLeft,
-  PanelLeftOpen, LogOut, Sun, Moon, Menu, X, Users2
+  PanelLeftOpen, LogOut, Sun, Moon, Menu, X, Users2, Loader2
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
@@ -37,20 +37,53 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
 
   const navItemsFiltrados = navItems.filter(item => 
-    !('adminOnly' in item) || (session?.user as any)?.perfil === 'admin'
+    !('adminOnly' in item) || session?.user?.perfil === 'admin'
   )
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setMounted(true), 0)
+    return () => window.clearTimeout(timeout)
+  }, [])
   // close mobile drawer on route change
-  useEffect(() => setMobileOpen(false), [pathname])
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setMobileOpen(false)
+      setPendingHref(null)
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!pendingHref) return
+    const timeout = window.setTimeout(() => setPendingHref(null), 8000)
+    return () => window.clearTimeout(timeout)
+  }, [pendingHref])
+
+  function handleNavClick(event: MouseEvent<HTMLAnchorElement>, href: string, active: boolean) {
+    if (
+      active ||
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return
+    }
+
+    setPendingHref(href)
+    setMobileOpen(false)
+  }
 
   const initials = session?.user?.name
     ? session.user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
     : 'U'
 
-  const NavContent = () => (
+  const renderNavContent = () => (
     <>
       {/* Logo header */}
       <div className="flex items-center justify-between px-3 py-3 border-b border-slate-700/50 shrink-0">
@@ -80,27 +113,37 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {navItemsFiltrados.map(({ href, label, icon: Icon, badge }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+          const pending = pendingHref === href && !active
           return (
             <Link
               key={href}
               href={href}
               title={collapsed ? label : undefined}
+              aria-busy={pending}
+              onClick={(event) => handleNavClick(event, href, active)}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative',
-                active
+                active || pending
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700/60',
+                pending && 'bg-blue-600/80 cursor-wait',
                 collapsed && 'justify-center px-2'
               )}
             >
-              <Icon className="w-4 h-4 shrink-0" />
+              {pending
+                ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                : <Icon className="w-4 h-4 shrink-0" />
+              }
               {!collapsed && <span className="truncate">{label}</span>}
-              {badge && solicitacoesAbertas > 0 && !collapsed && (
+              {pending && !collapsed && (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80 animate-pulse" />
+              )}
+              {badge && solicitacoesAbertas > 0 && !pending && !collapsed && (
                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none min-w-[18px] text-center">
                   {solicitacoesAbertas > 99 ? '99+' : solicitacoesAbertas}
                 </span>
               )}
-              {badge && solicitacoesAbertas > 0 && collapsed && (
+              {badge && solicitacoesAbertas > 0 && !pending && collapsed && (
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               )}
             </Link>
@@ -212,16 +255,29 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon, badge }) => {
+          {navItemsFiltrados.map(({ href, label, icon: Icon, badge }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+            const pending = pendingHref === href && !active
             return (
-              <Link key={href} href={href}
+              <Link
+                key={href}
+                href={href}
+                aria-busy={pending}
+                onClick={(event) => handleNavClick(event, href, active)}
                 className={cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all relative',
-                  active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
-                )}>
-                <Icon className="w-4 h-4 shrink-0" />
+                  active || pending ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700/60',
+                  pending && 'bg-blue-600/80 cursor-wait'
+                )}
+              >
+                {pending
+                  ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                  : <Icon className="w-4 h-4 shrink-0" />
+                }
                 <span className="truncate">{label}</span>
-                {badge && solicitacoesAbertas > 0 && (
+                {pending && (
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80 animate-pulse" />
+                )}
+                {badge && solicitacoesAbertas > 0 && !pending && (
                   <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
                     {solicitacoesAbertas > 99 ? '99+' : solicitacoesAbertas}
                   </span>
@@ -250,7 +306,7 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
           collapsed ? 'w-14' : 'w-56'
         )}
       >
-        <NavContent />
+        {renderNavContent()}
       </aside>
     </>
   )

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import { API_TOAST_HEADER } from '@/lib/api-fetch'
 
 const SLOW_REQUEST_MS = 700
 
@@ -15,6 +16,21 @@ function getRequestMethod(input: RequestInfo | URL, init?: RequestInit) {
   if (init?.method) return init.method.toUpperCase()
   if (typeof input !== 'string' && !(input instanceof URL)) return input.method.toUpperCase()
   return 'GET'
+}
+
+function hasSilentToastHeader(input: RequestInfo | URL, init?: RequestInit) {
+  const headerValues: HeadersInit[] = []
+
+  if (init?.headers) headerValues.push(init.headers)
+  if (typeof input !== 'string' && !(input instanceof URL)) headerValues.push(input.headers)
+
+  return headerValues.some((headers) => {
+    try {
+      return new Headers(headers).get(API_TOAST_HEADER) === 'silent'
+    } catch {
+      return false
+    }
+  })
 }
 
 function isInternalApiRequest(input: RequestInfo | URL) {
@@ -68,6 +84,10 @@ export function ApiRequestToasts() {
 
     window.fetch = async (input, init) => {
       if (!isInternalApiRequest(input)) {
+        return originalFetch(input, init)
+      }
+
+      if (hasSilentToastHeader(input, init)) {
         return originalFetch(input, init)
       }
 

@@ -10,6 +10,7 @@ import { Search } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
 import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { useSearchParams } from 'next/navigation'
+import { silentApiRequest } from '@/lib/api-fetch'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Ramal>[] = [
@@ -114,7 +115,7 @@ export default function RamaisPage() {
 
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/maquinas/${inspectId}`, silentApiRequest)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
