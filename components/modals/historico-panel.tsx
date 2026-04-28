@@ -9,8 +9,8 @@ interface AuditEntry {
   descricao: string | null
   usuario_nome: string | null
   created_at: string | null
-  dados_anteriores: any
-  dados_novos: any
+  dados_anteriores: unknown
+  dados_novos: unknown
 }
 
 const ACAO_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -35,7 +35,7 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
 
   useEffect(() => {
     if (!open || loaded) return
-    setLoading(true)
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0)
 
     fetch(`/api/audit-log/${registroId}?tabela=${tabela}`)
       .then(async (r) => {
@@ -49,6 +49,8 @@ export function HistoricoPanel({ registroId, tabela }: Props) {
         setLogs([])
       })
       .finally(() => setLoading(false))
+
+    return () => window.clearTimeout(loadingTimer)
   }, [open, loaded, registroId, tabela])
 
   const config = (acao: string) => ACAO_CONFIG[acao] ?? { label: acao, color: 'bg-slate-400', icon: History }

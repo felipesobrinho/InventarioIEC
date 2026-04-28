@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Pencil, Trash2, User, Loader2, UserPlus, UserMinus } from 'lucide-react'
+import { X, Pencil, Trash2, Loader2, UserPlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,7 +11,6 @@ import { DetailField, DetailSection } from '@/components/modals/detail-field'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
-import { formatDate } from '@/lib/utils'
 import type { Notebook } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 import { AlocacoesAtivasSection } from './alocacoes-ativas-section'
@@ -108,9 +107,9 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex">
-        <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-        <aside className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+        <section className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
 
           {/* Header */}
           <div className="flex items-start justify-between p-5 border-b border-slate-100 dark:border-slate-800">
@@ -243,7 +242,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
               </>
             )}
           </div>
-        </aside>
+        </section>
       </div>
 
       {showDeleteConfirm && (

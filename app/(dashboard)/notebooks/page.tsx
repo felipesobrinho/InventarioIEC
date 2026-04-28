@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
@@ -13,16 +14,22 @@ import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Notebook>[] = [
-  { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
-  { accessorKey: 'fabricante', header: 'Fabricante', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'modelo',
+    header: 'Notebook',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.modelo || row.original.numero_patrimonio || '—'}</span>
+        <p className="text-xs text-slate-400">{row.original.fabricante || 'Sem fabricante'}</p>
+      </div>
+    ),
+  },
+  { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string || '—'}</span> },
   { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
   { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'memoria', header: 'Memória', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'armazenamento', header: 'Armazenamento', cell: ({ getValue }) => getValue() || '—' },
   {
     id: 'alocado',
-    header: 'Alocado a',
+    header: 'Uso',
     cell: ({ row }) => {
       const alocacoes = row.original.alocacoes_ativas ?? []
       if (alocacoes.length === 0) {
@@ -53,6 +60,8 @@ export default function NotebooksPage() {
   const [data, setData] = useState<Notebook[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Notebook[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Notebook | null>(null)
@@ -110,6 +119,33 @@ export default function NotebooksPage() {
   }, [fetchData, refreshKey])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'modelo',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/notebooks?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Notebook> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[notebooks overview]', err)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
+  useEffect(() => {
     if (!inspectId || data.length === 0) return
     const found = data.find(d => d.id === inspectId)
     if (found) setSelected(found)
@@ -118,7 +154,7 @@ export default function NotebooksPage() {
   // Se não achar na página atual (pode estar em outra página), buscar direto:
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/notebooks/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
@@ -206,10 +242,26 @@ export default function NotebooksPage() {
           <Plus className="w-4 h-4" /> Novo notebook
         </button>
       </PageHeader>
+      <DeviceOverviewPanel
+        title="Notebooks"
+        total={overviewTotal || total}
+        items={overviewData}
+        selected={selected}
+        accentClassName="bg-violet-500"
+        getTitle={(item) => item.modelo || item.numero_patrimonio || 'Notebook'}
+        getSubtitle={(item) => item.fabricante || item.processador || 'Sem fabricante informado'}
+        getMeta={(item) => (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <CategoriaBadge categoria={item.categoria} />
+            {item.setor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{item.setor}</span>}
+          </div>
+        )}
+      />
+
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
-      {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
+      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
+      {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={refresh} />}
     </div>
   )
 }
