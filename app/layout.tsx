@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster richColors position="bottom-right" closeButton containerAriaLabel="Fechar notificação" />
         </Providers>
       </body>
     </html>

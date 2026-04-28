@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Pencil, Trash2, User, Loader2, UserPlus, UserMinus } from 'lucide-react'
+import { X, Pencil, Trash2, Loader2, UserPlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ import { DetailField, DetailSection } from '@/components/modals/detail-field'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCrud } from '@/hooks/use-crud'
-import { formatDate, mapTipoAparelho } from '@/lib/utils'
+import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 import { AlocacoesAtivasSection } from './alocacoes-ativas-section'
@@ -175,7 +175,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
 
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
-              <form id="ap-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+              <form id="ap-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e) }} noValidate>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className={lbl}>Modelo</label>
