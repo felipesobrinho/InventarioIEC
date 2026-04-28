@@ -118,7 +118,7 @@ export async function GET(request: Request) {
         ? {
             colaborador: m.alocacoes[0].colaborador,
             tipo_uso: m.alocacoes[0].tipo_uso,
-            whatsapp: r.alocacoes[0].whatsapp,
+            whatsapp: m.alocacoes[0].whatsapp,
             data_inicio: m.alocacoes[0].data_inicio,
           }
           : null,
