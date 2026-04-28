@@ -75,7 +75,19 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
         <div className="flex-1 overflow-y-auto p-5">
           <form id="criar-ramal-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={lbl}>Número do Ramal</label><input type="number" {...register('numero_ramal')} className={inp} /></div>
+              <div><label className={lbl}>Número do Ramal</label><input
+                type="number"
+                {...register('numero_ramal')}
+                className={inp}
+                min="1"
+                onInput={(e) => {
+                  const input = e.currentTarget
+                  // Remove zeros à esquerda convertendo para número e de volta para string
+                  if (input.value) {
+                    input.value = String(parseInt(input.value, 10) || '')
+                  }
+                }}
+              /></div>
               <div><label className={lbl}>Setor</label><input {...register('nome_setor')} className={inp} /></div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>
               <div><label className={lbl}>Disponibilidade</label><input {...register('disponibilidade')} className={inp} /></div>

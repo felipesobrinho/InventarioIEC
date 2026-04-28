@@ -20,8 +20,22 @@ export async function GET(request: Request) {
     const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
     const sort = searchParams.get('sort') || 'numero_ramal'
     const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
+    const whatsappFilter = searchParams.get('whatsapp') || ''
 
     const where: any = {}
+
+    if (whatsappFilter === 'true') {
+      if (!where.alocacoes) {
+        where.alocacoes = {}
+      }
+      where.alocacoes = {
+        some: {
+          ativo: true,
+          whatsapp: true,
+          ramal_id: { not: null },
+        },
+      }
+    }
 
     if (search) {
       where.OR = [
@@ -72,22 +86,44 @@ export async function GET(request: Request) {
       prisma.ramais.count({ where }),
     ])
 
+    const ids = data.map((r: any) => r.id)
+    const ultimasEdicoes = await prisma.audit_log.findMany({
+      where: {
+        registro_id: { in: ids },
+        tabela: 'ramais',
+        acao: 'UPDATE',
+      },
+      orderBy: { created_at: 'desc' },
+      select: { registro_id: true, created_at: true },
+    })
+
+    const ultimaEdicaoMap: Record<string, string> = {}
+    for (const log of ultimasEdicoes) {
+      if (!ultimaEdicaoMap[log.registro_id]) {
+        ultimaEdicaoMap[log.registro_id] = log.created_at?.toISOString() ?? ''
+      }
+    }
+
     const mapped = data.map((m: any) => ({
       ...m,
       alocacoes_ativas: m.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
         tipo_uso: a.tipo_uso,
+        whatsapp: a.whatsapp,
+        canal_adicional: a.canal_adicional,
         data_inicio: a.data_inicio,
       })),
       alocacao_ativa: m.alocacoes[0]
         ? {
             colaborador: m.alocacoes[0].colaborador,
             tipo_uso: m.alocacoes[0].tipo_uso,
+            whatsapp: r.alocacoes[0].whatsapp,
             data_inicio: m.alocacoes[0].data_inicio,
           }
-        : null,
-      alocacoes: undefined,
+          : null,
+        alocacoes: undefined,
+        ultima_revisao: ultimaEdicaoMap[m.id] ?? null,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })

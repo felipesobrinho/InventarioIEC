@@ -116,7 +116,9 @@ export interface Ramal {
 
   alocacao_ativa?: AlocacaoAtiva | null
   alocacoes_ativas?: AlocacaoAtiva[]  
+  ultima_revisao?: string | null
 }
+
 
 export interface Rack {
   id: string

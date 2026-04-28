@@ -30,6 +30,7 @@ export default function RamaisPage() {
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
+  const [whatsappFiltro, setWhatsappFiltro] = useState('')
 
   const cancelledRef = useRef(false)
 
@@ -57,11 +58,6 @@ export default function RamaisPage() {
       cell: ({ row }) => row.original.prefixo_telefonico || '—',
     },
     {
-      accessorKey: 'disponibilidade',
-      header: 'Disponibilidade',
-      cell: ({ row }) => row.original.disponibilidade || '—',
-    },
-    {
       accessorKey: 'fila',
       header: 'Fila',
       cell: ({ row }) => <BoolBadge value={row.original.fila} />,
@@ -70,6 +66,21 @@ export default function RamaisPage() {
       accessorKey: 'contemplacao',
       header: 'Contemplação',
       cell: ({ row }) => <BoolBadge value={row.original.contemplacao} />,
+    },
+    {
+      accessorKey: 'ultima_revisao',
+      header: 'Última Revisão',
+      cell: ({ row }) => {
+        const d = row.original.ultima_revisao
+        if (!d) return <span className="text-slate-400 text-xs">Nunca editado</span>
+        const date = new Date(d)
+        return (
+          <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            {date.toLocaleDateString('pt-BR')}{' '}
+            {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )
+      },
     },
     {
       id: 'alocado',
@@ -115,6 +126,7 @@ export default function RamaisPage() {
       if (disponibilidade) params.set('disponibilidade', disponibilidade)
       if (fila !== '')   params.set('fila',          fila)
       if (alocacao)      params.set('alocacao',      alocacao)
+      if (whatsappFiltro) params.set('whatsapp', whatsappFiltro)
 
       try {
         const res = await fetch(`/api/ramais?${params}`)
@@ -134,7 +146,7 @@ export default function RamaisPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, search, disponibilidade, fila, alocacao, sort, dir, refreshKey])
+  }, [page, search, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey])
 
   // Abrir modal via ?inspect=id (vindo do colaborador)
   useEffect(() => {
@@ -185,6 +197,15 @@ export default function RamaisPage() {
         <option value="">Todos</option>
         <option value="alocado">Alocados</option>
         <option value="livre">Disponíveis</option>
+      </select>
+
+      <select
+        value={whatsappFiltro}
+        onChange={(e) => { setWhatsappFiltro(e.target.value); setPage(1) }}
+        className={inputCls}
+      >
+        <option value="">Com/sem WhatsApp</option>
+        <option value="true">Com WhatsApp</option>
       </select>
 
       <select
