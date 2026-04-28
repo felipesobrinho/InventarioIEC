@@ -105,7 +105,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
 
           {mode === 'edit' && (
             <div className="flex-1 overflow-y-auto p-5">
-              <form id="imp-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+              <form id="imp-form" onSubmit={(e) => { e.preventDefault(); handleSubmit(onSubmit)(e) }} noValidate>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className={lbl}>Nome Host</label><input {...register('nome_host')} className={inp} /></div>
                   <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
