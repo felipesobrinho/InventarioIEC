@@ -39,7 +39,7 @@ export function MovimentacaoModal({ movimentacao, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       identificador_dispositivo: movimentacao.identificador_dispositivo,
       tipo_dispositivo: movimentacao.tipo_dispositivo,

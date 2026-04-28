@@ -40,7 +40,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       nome_switch: rack.nome_switch,
       marca_switch: rack.marca_switch,

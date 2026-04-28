@@ -41,7 +41,7 @@ export function SolicitacaoModal({ solicitacao, onClose, onRefresh }: Props) {
   })
 
   const { register, handleSubmit } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       colaborador_relacionado: solicitacao.colaborador_relacionado,
       solicitante: solicitacao.solicitante,
