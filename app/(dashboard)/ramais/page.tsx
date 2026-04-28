@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
@@ -18,6 +19,8 @@ export default function RamaisPage() {
   const [data, setData] = useState<Ramal[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Ramal[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Ramal | null>(null)
@@ -42,9 +45,12 @@ export default function RamaisPage() {
       accessorKey: 'numero_ramal',
       header: 'Ramal',
       cell: ({ row }) => (
-        <span className="font-medium font-mono">
-          {row.original.numero_ramal != null ? String(row.original.numero_ramal) : '—'}
-        </span>
+        <div>
+          <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+            {row.original.numero_ramal != null ? `Ramal ${row.original.numero_ramal}` : '—'}
+          </span>
+          <p className="text-xs text-slate-400">{row.original.prefixo_telefonico || 'Sem prefixo'}</p>
+        </div>
       ),
     },
     {
@@ -53,38 +59,18 @@ export default function RamaisPage() {
       cell: ({ row }) => row.original.nome_setor || '—',
     },
     {
-      accessorKey: 'prefixo_telefonico',
-      header: 'Prefixo',
-      cell: ({ row }) => row.original.prefixo_telefonico || '—',
-    },
-    {
       accessorKey: 'fila',
-      header: 'Fila',
-      cell: ({ row }) => <BoolBadge value={row.original.fila} />,
-    },
-    {
-      accessorKey: 'contemplacao',
-      header: 'Contemplação',
-      cell: ({ row }) => <BoolBadge value={row.original.contemplacao} />,
-    },
-    {
-      accessorKey: 'ultima_revisao',
-      header: 'Última Revisão',
-      cell: ({ row }) => {
-        const d = row.original.ultima_revisao
-        if (!d) return <span className="text-slate-400 text-xs">Nunca editado</span>
-        const date = new Date(d)
-        return (
-          <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-            {date.toLocaleDateString('pt-BR')}{' '}
-            {date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        )
-      },
+      header: 'Recursos',
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1.5">
+          <BoolBadge value={row.original.fila} labelTrue="Fila" labelFalse="Sem fila" />
+          {row.original.alocacao_ativa?.whatsapp && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">WhatsApp</span>}
+        </div>
+      ),
     },
     {
       id: 'alocado',
-      header: 'Alocado a',
+      header: 'Uso',
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
         if (alocacoes.length === 0) {
@@ -147,6 +133,33 @@ export default function RamaisPage() {
     fetchData()
     return () => { cancelledRef.current = true }
   }, [page, search, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'numero_ramal',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/ramais?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Ramal> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[ramais overview]', err)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   // Abrir modal via ?inspect=id (vindo do colaborador)
   useEffect(() => {
@@ -238,6 +251,22 @@ export default function RamaisPage() {
           <Plus className="w-4 h-4" /> Novo ramal
         </button>
       </PageHeader>
+
+      <DeviceOverviewPanel
+        title="Ramais"
+        total={overviewTotal || total}
+        items={overviewData}
+        selected={selected}
+        accentClassName="bg-emerald-500"
+        getTitle={(item) => item.numero_ramal != null ? `Ramal ${item.numero_ramal}` : 'Ramal'}
+        getSubtitle={(item) => item.nome_setor || item.prefixo_telefonico || 'Sem setor informado'}
+        getMeta={(item) => (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <BoolBadge value={item.fila} labelTrue="Fila" labelFalse="Sem fila" />
+            <BoolBadge value={item.contemplacao} labelTrue="Contemplado" labelFalse="Não contemplado" />
+          </div>
+        )}
+      />
 
       <DataTable
         columns={columns}

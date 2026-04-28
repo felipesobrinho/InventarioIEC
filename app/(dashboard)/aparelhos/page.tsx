@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { AparelhoModal } from '@/components/modals/aparelho-modal'
@@ -14,15 +15,22 @@ import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 const columns: ColumnDef<Aparelho>[] = [
-  { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
-  { accessorKey: 'tipo', header: 'Tipo', cell: ({ getValue }) => mapTipoAparelho(getValue() as number) },
+  {
+    accessorKey: 'modelo',
+    header: 'Aparelho',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.modelo || '—'}</span>
+        <p className="text-xs text-slate-400">{mapTipoAparelho(row.original.tipo)}</p>
+      </div>
+    ),
+  },
   { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'endereco_ip', header: 'IP', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
+  { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   {
     id: 'alocado',
-    header: 'Alocado a',
+    header: 'Uso',
     cell: ({ row }) => {
       const alocacoes = row.original.alocacoes_ativas ?? []
       if (alocacoes.length === 0) {
@@ -53,6 +61,8 @@ export default function AparelhosPage() {
   const [data, setData] = useState<Aparelho[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Aparelho[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Aparelho | null>(null)
@@ -110,6 +120,33 @@ export default function AparelhosPage() {
   }, [page, search, setor, status, chip, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'modelo',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/aparelhos?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Aparelho> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[aparelhos overview]', err)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
+  useEffect(() => {
     if (!inspectId || data.length === 0) return
     const found = data.find(d => d.id === inspectId)
     if (found) setSelected(found)
@@ -117,7 +154,7 @@ export default function AparelhosPage() {
 
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/aparelhos/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
@@ -208,6 +245,22 @@ export default function AparelhosPage() {
         <Plus className="w-4 h-4" /> Novo aparelho
       </button>
     </PageHeader>
+      <DeviceOverviewPanel
+        title="Aparelhos"
+        total={overviewTotal || total}
+        items={overviewData}
+        selected={selected}
+        accentClassName="bg-cyan-500"
+        getTitle={(item) => item.modelo || 'Aparelho'}
+        getSubtitle={(item) => mapTipoAparelho(item.tipo)}
+        getMeta={(item) => (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <BoolBadge value={item.status} labelTrue="Ativo" labelFalse="Inativo" />
+            {item.setor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{item.setor}</span>}
+          </div>
+        )}
+      />
+
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
         onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
       {selected && <AparelhoModal aparelho={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}

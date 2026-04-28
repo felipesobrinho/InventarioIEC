@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
@@ -15,6 +16,8 @@ export default function MaquinasPage() {
   const [data, setData] = useState<Maquina[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Maquina[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Maquina | null>(null)
@@ -72,6 +75,33 @@ export default function MaquinasPage() {
     return () => { cancelled = true }
   }, [page, search, setor, categoria, fabricante, alocacao, sort, dir, refreshKey])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'nome_host',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/maquinas?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Maquina> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[maquinas overview]', err)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
     useEffect(() => {
     if (!inspectId || data.length === 0) return
     const found = data.find(d => d.id === inspectId)
@@ -89,25 +119,18 @@ export default function MaquinasPage() {
   const columns = useMemo<ColumnDef<Maquina, unknown>[]>(() => [
     {
       accessorKey: 'nome_host',
-      header: 'Nome Host',
+      header: 'Máquina',
       cell: ({ row }) => (
-        <span className="font-medium">{row.original.nome_host || '—'}</span>
+        <div>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.identificador || '—'}</span>
+          <p className="text-xs text-slate-400">{row.original.modelo || row.original.fabricante || 'Sem modelo'}</p>
+        </div>
       ),
     },
     {
       accessorKey: 'identificador',
-      header: 'Identificador',
-      cell: ({ row }) => row.original.identificador || '—',
-    },
-    {
-      accessorKey: 'fabricante',
-      header: 'Fabricante',
-      cell: ({ row }) => row.original.fabricante || '—',
-    },
-    {
-      accessorKey: 'modelo',
-      header: 'Modelo',
-      cell: ({ row }) => row.original.modelo || '—',
+      header: 'ID',
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.identificador || '—'}</span>,
     },
     {
       accessorKey: 'categoria',
@@ -121,7 +144,7 @@ export default function MaquinasPage() {
     },
     {
       id: 'alocado',
-      header: 'Alocado a',
+      header: 'Uso',
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
         if (alocacoes.length === 0) {
@@ -232,6 +255,22 @@ export default function MaquinasPage() {
           <Plus className="w-4 h-4" /> Nova máquina
         </button>
       </PageHeader>
+
+      <DeviceOverviewPanel
+        title="Máquinas"
+        total={overviewTotal || total}
+        items={overviewData}
+        selected={selected}
+        accentClassName="bg-blue-500"
+        getTitle={(item) => item.nome_host || item.identificador || 'Máquina'}
+        getSubtitle={(item) => item.modelo || item.fabricante || 'Sem modelo informado'}
+        getMeta={(item) => (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <CategoriaBadge categoria={item.categoria} />
+            {item.setor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{item.setor}</span>}
+          </div>
+        )}
+      />
 
       <DataTable
         columns={columns}
