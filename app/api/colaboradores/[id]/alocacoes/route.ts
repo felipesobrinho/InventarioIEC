@@ -23,6 +23,7 @@ export async function GET(_: Request, { params }: Props) {
             identificador: true,
             fabricante: true,
             modelo: true,
+            categoria: true,
             setor: true,
           },
         },
@@ -73,24 +74,24 @@ export async function GET(_: Request, { params }: Props) {
   ])
 
   return NextResponse.json({
-    maquinas: maquinas.map((a: any) => ({
+    maquinas: maquinas.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       tipo_uso: a.tipo_uso,
       item: a.maquina,
     })),
-    notebooks: notebooks.map((a: any) => ({
+    notebooks: notebooks.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       motivo_alocacao: a.motivo_alocacao,
       item: a.notebook,
     })),
-    aparelhos: aparelhos.map((a: any) => ({
+    aparelhos: aparelhos.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       item: a.aparelho,
     })),
-    ramais: ramais.map((a: any) => ({
+    ramais: ramais.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       whatsapp: a.whatsapp,

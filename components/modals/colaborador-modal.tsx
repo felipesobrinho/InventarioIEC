@@ -128,7 +128,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
 
           {/* Body — view: Informações */}
           {mode === 'view' && tab === 'info' && (
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
               <DetailSection title="Dados do Colaborador">
                 <DetailField label="Nome"             value={colaborador.nome} />
                 <DetailField label="Código de Pessoa" value={colaborador.codigo != null ? String(colaborador.codigo) : null} />
@@ -136,6 +136,17 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
                 <DetailField label="Status"           value={<StatusBadge status={colaborador.status} />} />
                 <DetailField label="Cadastrado em"    value={formatDate(colaborador.created_at)} />
               </DetailSection>
+
+              <section>
+                <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  Alocações atuais
+                </h3>
+                <ColaboradorAlocacoes
+                  colaboradorId={colaborador.id}
+                  interactive={false}
+                  variant="summary"
+                />
+              </section>
             </div>
           )}
 
