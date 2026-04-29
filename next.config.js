@@ -4,10 +4,18 @@ const nextConfig = {
   turbopack: {},
 
   webpack: (config) => {
-    config.resolve.alias.canvas = {
-      ...config.resolve.alias.canvas,
-      canvas: false,
+    if (!config.resolve) {
+      config.resolve = {}
     }
+
+    if (!config.resolve.alias) {
+      config.resolve.alias = {}
+    }
+
+    config.resolve.alias.canvas = false
+
+    return config
   },
 }
+
 module.exports = nextConfig
