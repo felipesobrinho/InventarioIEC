@@ -18,6 +18,7 @@ export default function MaquinasPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [overviewData, setOverviewData] = useState<Maquina[]>([])
   const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Maquina | null>(null)
@@ -77,6 +78,7 @@ export default function MaquinasPage() {
 
   useEffect(() => {
     let cancelled = false
+    setOverviewLoading(true)
 
     async function fetchOverview() {
       try {
@@ -95,6 +97,8 @@ export default function MaquinasPage() {
         }
       } catch (err) {
         console.error('[maquinas overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
       }
     }
 
@@ -260,16 +264,8 @@ export default function MaquinasPage() {
         title="Máquinas"
         total={overviewTotal || total}
         items={overviewData}
-        selected={selected}
         accentClassName="bg-blue-500"
-        getTitle={(item) => item.nome_host || item.identificador || 'Máquina'}
-        getSubtitle={(item) => item.modelo || item.fabricante || 'Sem modelo informado'}
-        getMeta={(item) => (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <CategoriaBadge categoria={item.categoria} />
-            {item.setor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{item.setor}</span>}
-          </div>
-        )}
+        isLoading={overviewLoading}
       />
 
       <DataTable

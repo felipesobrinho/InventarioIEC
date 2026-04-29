@@ -63,6 +63,7 @@ export default function AparelhosPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [overviewData, setOverviewData] = useState<Aparelho[]>([])
   const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Aparelho | null>(null)
@@ -121,6 +122,7 @@ export default function AparelhosPage() {
 
   useEffect(() => {
     let cancelled = false
+    setOverviewLoading(true)
 
     async function fetchOverview() {
       try {
@@ -139,6 +141,8 @@ export default function AparelhosPage() {
         }
       } catch (err) {
         console.error('[aparelhos overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
       }
     }
 
@@ -249,16 +253,8 @@ export default function AparelhosPage() {
         title="Aparelhos"
         total={overviewTotal || total}
         items={overviewData}
-        selected={selected}
         accentClassName="bg-cyan-500"
-        getTitle={(item) => item.modelo || 'Aparelho'}
-        getSubtitle={(item) => mapTipoAparelho(item.tipo)}
-        getMeta={(item) => (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <BoolBadge value={item.status} labelTrue="Ativo" labelFalse="Inativo" />
-            {item.setor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{item.setor}</span>}
-          </div>
-        )}
+        isLoading={overviewLoading}
       />
 
       <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
