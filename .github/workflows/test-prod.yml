@@ -5,6 +5,11 @@ on:
     branches: [prod]
   pull_request:
     branches: [prod]
+    
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   tests:

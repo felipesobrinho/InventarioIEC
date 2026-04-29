@@ -25,6 +25,7 @@ describe('hooks/useFetchData', () => {
     ;(useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
     })
+    jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
