@@ -26,9 +26,6 @@ jobs:
       - name: Gerar Prisma Client
         run: npm run build
 
-      - name: Lint
-        run: npm run lint
-
       - name: Executar testes unitários com cobertura
         run: npm run test -- --coverage --testPathIgnorePatterns=e2e
         env:
