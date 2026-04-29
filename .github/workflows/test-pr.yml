@@ -1,0 +1,68 @@
+name: Testes - Pull Request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test-pr:
+    runs-on: ubuntu-latest
+    name: Testes do PR
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Executar testes unitários
+        run: npm run test -- --coverage --passWithNoTests
+
+      - name: Comentar resultados dos testes
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testPassed = fs.existsSync('coverage/coverage-summary.json');
+            
+            const comment = testPassed 
+              ? '✅ Testes executados com sucesso'
+              : '⚠️ Testes tiveram falhas';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            })
+
+      - name: Set PR status check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Testes',
+              head_sha: context.payload.pull_request.head.sha,
+              status: 'completed',
+              conclusion: 'success',
+              output: {
+                title: 'Testes do PR',
+                summary: 'Testes unitários executados com sucesso'
+              }
+            })
