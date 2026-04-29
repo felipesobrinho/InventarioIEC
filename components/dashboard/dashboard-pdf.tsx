@@ -166,7 +166,7 @@ function Section({ title, color, items, total, getIdentifier, getModelo, getSeto
                   <Text style={s.setorName}>{st.setor}</Text>
                 </View>
                 <Text style={s.setorMeta}>
-                  {st.alocados}/{st.total} alocados · {pct(st.total, items.length)}% do parque
+                  {st.alocados}/{st.total} alocados · {pct(st.total, items.length)}% do total
                 </Text>
                 {/* Progress bar simulado com View */}
                 <View style={s.progressBarBg}>

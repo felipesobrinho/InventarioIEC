@@ -1,16 +1,18 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { ColaboradorOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
 import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
 import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 const columns: ColumnDef<Colaborador>[] = [
   { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
@@ -23,12 +25,14 @@ const columns: ColumnDef<Colaborador>[] = [
 ]
 
 export default function ColaboradoresPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [data, setData] = useState<Colaborador[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Colaborador[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Colaborador | null>(null)
@@ -36,6 +40,12 @@ export default function ColaboradoresPage() {
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [setor, setSetor] = useState(searchParams.get('setor') || '')
   const [status, setStatus] = useState(searchParams.get('status') || '')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
+    label: string
+    predicate: (item: Colaborador) => boolean
+  } | null>(null)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -51,9 +61,92 @@ export default function ColaboradoresPage() {
     setLoading(false)
   }, [page, search, setor, status])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
-  console.log(data)
+  const filteredOverviewData = activeOverviewFilter
+    ? overviewData.filter(activeOverviewFilter.predicate)
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro do overview removido.')
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Colaborador) => boolean }> = {
+      'collaborator-status': {
+        label: `Colaboradores ${filter.value ?? ''}`,
+        predicate: (item) => item.status === filter.value,
+      },
+      'collaborator-sector': {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => (item.setor || 'Sem setor') === filter.value,
+      },
+      'collaborator-without-any': {
+        label: 'Colaboradores sem alocacao',
+        predicate: (item) => !item.alocacoes_maquinas_ativas && !item.alocacoes_notebooks_ativas && !item.alocacoes_aparelhos_ativas && !item.alocacoes_ramais_ativas,
+      },
+      'collaborator-without-machine': {
+        label: 'Colaboradores sem maquina',
+        predicate: (item) => !item.alocacoes_maquinas_ativas,
+      },
+      'collaborator-without-notebook': {
+        label: 'Colaboradores sem notebook',
+        predicate: (item) => !item.alocacoes_notebooks_ativas,
+      },
+      'collaborator-without-phone': {
+        label: 'Colaboradores sem telefone',
+        predicate: (item) => !item.alocacoes_aparelhos_ativas,
+      },
+      'collaborator-without-extension': {
+        label: 'Colaboradores sem ramal',
+        predicate: (item) => !item.alocacoes_ramais_ativas,
+      },
+    }
+
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+
+    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
+    const toastId = toast.loading('Aplicando filtro do overview...', { description })
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilter(nextFilter)
+      setPage(1)
+      setOverviewFilterLoading(false)
+      toast.success('Filtro aplicado.', { id: toastId, description })
+    }, 120)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchOverview() {
+      setOverviewLoading(true)
+      try {
+        const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'nome', dir: 'asc', overview: 'true' })
+        const res = await fetch(`/api/colaboradores?${params}`)
+        const json: PaginatedResponse<Colaborador> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (error) {
+        console.error('[colaboradores overview]', error)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
   
   const filters = (
     <>
@@ -92,19 +185,25 @@ export default function ColaboradoresPage() {
           <Plus className="w-4 h-4" /> Novo colaborador
         </button>
       </PageHeader>
+      <ColaboradorOverviewPanel
+        total={overviewTotal || total}
+        items={overviewData}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
       <DataTable
         columns={columns}
-        data={data}
-        total={total}
+        data={tableData}
+        total={tableTotal}
         page={page}
-        totalPages={totalPages}
+        totalPages={tableTotalPages}
         onPageChange={setPage}
         onRowClick={setSelected}
-        isLoading={loading}
+        isLoading={loading || overviewFilterLoading}
         filters={filters}
       />
-      {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={fetchData}/>}
-      {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
+      {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k + 1)}/>}
+      {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
     </div>
   )
 }

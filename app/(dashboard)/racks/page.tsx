@@ -4,12 +4,14 @@ import React from 'react'
 import { useState, useEffect, useCallback } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { RackOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { RackModal } from '@/components/modals/rack-modal'
 import { Search } from 'lucide-react'
 import type { Rack, PaginatedResponse } from '@/types'
 import { CriarRackModal } from '@/components/modals/criar-rack-modal'
 import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 const columns: ColumnDef<Rack>[] = [
   { accessorKey: 'nome_switch', header: 'Switch', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -29,10 +31,18 @@ const columns: ColumnDef<Rack>[] = [
   } },
 ]
 
+function getRackOccupancy(item: Rack) {
+  if (!item.quantidade_portas) return 0
+  return Math.round(((item.portas_em_uso ?? 0) / item.quantidade_portas) * 100)
+}
+
 export default function RacksPage() {
   const [data, setData] = useState<Rack[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Rack[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Rack | null>(null)
@@ -40,6 +50,11 @@ export default function RacksPage() {
   const [marca, setMarca] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCriar, setShowCriar] = useState(false)
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
+    label: string
+    predicate: (item: Rack) => boolean
+  } | null>(null)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {
@@ -53,7 +68,84 @@ export default function RacksPage() {
     setLoading(false)
   }, [page, search, marca])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey])
+  useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
+
+  const filteredOverviewData = activeOverviewFilter
+    ? overviewData.filter(activeOverviewFilter.predicate)
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro do overview removido.')
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Rack) => boolean }> = {
+      'rack-location': {
+        label: `Setor: ${filter.value ?? 'Sem localizacao'}`,
+        predicate: (item) => (item.localizacao || 'Sem localizacao') === filter.value,
+      },
+      'rack-critical': {
+        label: 'Racks com ocupacao critica',
+        predicate: (item) => !item.quantidade_portas || item.portas_em_uso === null || item.portas_em_uso === undefined || getRackOccupancy(item) >= 85,
+      },
+      'rack-missing-ports': {
+        label: 'Racks sem total de portas',
+        predicate: (item) => !item.quantidade_portas,
+      },
+      'rack-missing-used': {
+        label: 'Racks sem uso informado',
+        predicate: (item) => item.portas_em_uso === null || item.portas_em_uso === undefined,
+      },
+      'rack-id': {
+        label: filter.label ?? 'Rack selecionado',
+        predicate: (item) => item.id === filter.value,
+      },
+    }
+
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+
+    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
+    const toastId = toast.loading('Aplicando filtro do overview...', { description })
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilter(nextFilter)
+      setPage(1)
+      setOverviewFilterLoading(false)
+      toast.success('Filtro aplicado.', { id: toastId, description })
+    }, 120)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchOverview() {
+      setOverviewLoading(true)
+      try {
+        const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'created_at', dir: 'desc' })
+        const res = await fetch(`/api/racks?${params}`)
+        const json: PaginatedResponse<Rack> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (error) {
+        console.error('[racks overview]', error)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   const filters = (
     <>
@@ -75,8 +167,14 @@ export default function RacksPage() {
           <Plus className="w-4 h-4" /> Novo rack
         </button>
       </PageHeader>
-      <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
-        onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
+      <RackOverviewPanel
+        total={overviewTotal || total}
+        items={overviewData}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+      <DataTable columns={columns} data={tableData} total={tableTotal} page={page} totalPages={tableTotalPages}
+        onPageChange={setPage} onRowClick={setSelected} isLoading={loading || overviewFilterLoading} filters={filters} />
       {showCriar && (
         <CriarRackModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
       )}
