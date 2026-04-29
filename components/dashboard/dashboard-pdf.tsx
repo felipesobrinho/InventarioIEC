@@ -195,13 +195,13 @@ function Section({ title, color, items, total, getIdentifier, getModelo, getSeto
           const rowStyle = idx % 2 === 0 ? s.tableRow : s.tableRowAlt
           return (
             <View key={item.id} style={rowStyle}>
-              <Text style={[s.tableCell, { flex: 2 }]} numberOfLines={1}>{getIdentifier(item)}</Text>
-              <Text style={[s.tableCell, { flex: 2 }]} numberOfLines={1}>{getModelo(item)}</Text>
-              <Text style={[s.tableCell, { flex: 2 }]} numberOfLines={1}>{getSetor(item)}</Text>
-              {getExtra && <Text style={[s.tableCell, { flex: 1.5 }]} numberOfLines={1}>{getExtra(item)}</Text>}
+              <Text style={[s.tableCell, { flex: 2 }]}>{getIdentifier(item)}</Text>
+              <Text style={[s.tableCell, { flex: 2 }]}>{getModelo(item)}</Text>
+              <Text style={[s.tableCell, { flex: 2 }]}>{getSetor(item)}</Text>
+              {getExtra && <Text style={[s.tableCell, { flex: 1.5 }]}>{getExtra(item)}</Text>}
               {primeiroColab ? (
                 <View style={{ flex: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={s.tableCellGreen} numberOfLines={1}>{primeiroColab}</Text>
+                  <Text style={s.tableCellGreen}>{primeiroColab}</Text>
                   {alocacoes.length > 1 && (
                     <View style={s.badgeGreen}>
                       <Text style={s.badgeGreenText}>+{alocacoes.length - 1}</Text>
