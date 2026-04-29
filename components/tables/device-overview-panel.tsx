@@ -150,7 +150,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                       <span className="text-xs font-semibold text-slate-400">{sector.occupancy}%</span>
                     </div>
                     <p className="text-[11px] text-slate-400">
-                      {sector.allocated}/{sector.total} alocados · {sector.distribution}% do parque
+                      {sector.allocated}/{sector.total} alocados · {sector.distribution}% do total
                     </p>
                   </div>
                 ))}
