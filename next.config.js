@@ -1,9 +1,13 @@
 const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+
+  turbopack: {},
+
   webpack: (config) => {
-    // react-pdf usa canvas opcionalmente — ignorar se não disponível
-    config.resolve.alias.canvas = false
-    return config
+    config.resolve.alias.canvas = {
+      ...config.resolve.alias.canvas,
+      canvas: false,
+    }
   },
 }
 module.exports = nextConfig
