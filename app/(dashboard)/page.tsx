@@ -84,7 +84,7 @@ export default async function DashboardPage() {
     <div className="p-4 md:p-6 space-y-5 max-w-screen-2xl mx-auto">
 
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Visão geral do inventário de TI</p>

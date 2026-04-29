@@ -105,7 +105,7 @@ export default async function DashboardPage() {
  return (
   <div className="p-6 max-w-7xl mx-auto">
    {/* Header */}
-   <div className="flex items-center justify-between">
+   <div className="flex items-center justify-between mb-5">
     <div>
      <h1 className="text-xl font-bold text-slate-900 dark:text-white">
       Dashboard
