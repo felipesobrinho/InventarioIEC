@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { ImpressoraOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { ImpressoraModal } from '@/components/modals/impressora-modal'
@@ -10,6 +11,7 @@ import { Search } from 'lucide-react'
 import type { Impressora, PaginatedResponse } from '@/types'
 import { CriarImpressoraModal } from '@/components/modals/criar-impressora-modal'
 import { Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 const columns: ColumnDef<Impressora>[] = [
   { accessorKey: 'nome_host', header: 'Nome Host', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
@@ -22,10 +24,28 @@ const columns: ColumnDef<Impressora>[] = [
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
 ]
 
+function isMissing(value: unknown) {
+  return value === null || value === undefined || value === ''
+}
+
+function isRevisionStale(value?: string | null) {
+  if (!value) return true
+  const time = new Date(value).getTime()
+  if (Number.isNaN(time)) return true
+  return Math.floor((Date.now() - time) / 86_400_000) > 90
+}
+
+function hasMissingPrinterData(item: Impressora) {
+  return [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip, item.localidade].some(isMissing)
+}
+
 export default function ImpressorasPage() {
   const [data, setData] = useState<Impressora[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Impressora[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Impressora | null>(null)
@@ -35,7 +55,11 @@ export default function ImpressorasPage() {
   const [status, setStatus] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCriar, setShowCriar] = useState(false)
-  function refresh() { setRefreshKey(k => k + 1) }
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
+    label: string
+    predicate: (item: Impressora) => boolean
+  } | null>(null)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -50,7 +74,104 @@ export default function ImpressorasPage() {
     setLoading(false)
   }, [page, search, localidade, andar, status])
 
-  useEffect(() => { fetchData() }, [fetchData, refreshKey])
+  useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
+
+  const filteredOverviewData = activeOverviewFilter
+    ? overviewData.filter(activeOverviewFilter.predicate)
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro do overview removido.')
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Impressora) => boolean }> = {
+      'printer-status': {
+        label: filter.value === 'false' ? 'Impressoras inativas' : 'Impressoras ativas',
+        predicate: (item) => filter.value === 'false' ? item.status === false : item.status !== false,
+      },
+      'printer-stale': {
+        label: 'Impressoras sem revisao em 3 meses',
+        predicate: (item) => isRevisionStale(item.revisao),
+      },
+      'printer-no-revision': {
+        label: 'Impressoras sem revisao registrada',
+        predicate: (item) => !item.revisao,
+      },
+      'printer-missing-data': {
+        label: 'Impressoras com dados faltantes',
+        predicate: hasMissingPrinterData,
+      },
+      'printer-no-ip': {
+        label: 'Impressoras sem IP',
+        predicate: (item) => isMissing(item.endereco_ip),
+      },
+      'printer-no-sector': {
+        label: 'Impressoras sem setor',
+        predicate: (item) => isMissing(item.localidade),
+      },
+      'printer-no-identity': {
+        label: 'Impressoras sem identificacao',
+        predicate: (item) => isMissing(item.nome_host) || isMissing(item.numero_serie),
+      },
+      'printer-attention': {
+        label: 'Impressoras que requerem atencao',
+        predicate: (item) => item.status === false || isRevisionStale(item.revisao) || hasMissingPrinterData(item),
+      },
+      'printer-sector': {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => (item.localidade || 'Sem setor') === filter.value,
+      },
+      'printer-floor': {
+        label: `Andar: ${filter.value ?? 'Sem andar'}`,
+        predicate: (item) => (item.andar || 'Sem andar') === filter.value,
+      },
+    }
+
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+
+    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
+    const toastId = toast.loading('Aplicando filtro do overview...', { description })
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilter(nextFilter)
+      setPage(1)
+      setOverviewFilterLoading(false)
+      toast.success('Filtro aplicado.', { id: toastId, description })
+    }, 120)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchOverview() {
+      setOverviewLoading(true)
+      try {
+        const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'created_at', dir: 'desc' })
+        const res = await fetch(`/api/impressoras?${params}`)
+        const json: PaginatedResponse<Impressora> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (error) {
+        console.error('[impressoras overview]', error)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   const filters = (
     <>
@@ -80,11 +201,17 @@ export default function ImpressorasPage() {
           <Plus className="w-4 h-4" /> Nova impressora
         </button>
       </PageHeader>
-      <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
-        onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <ImpressoraModal impressora={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
+      <ImpressoraOverviewPanel
+        total={overviewTotal || total}
+        items={overviewData}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+      <DataTable columns={columns} data={tableData} total={tableTotal} page={page} totalPages={tableTotalPages}
+        onPageChange={setPage} onRowClick={setSelected} isLoading={loading || overviewFilterLoading} filters={filters} />
+      {selected && <ImpressoraModal impressora={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k + 1)} />}
       {showCriar && (
-        <CriarImpressoraModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />
+        <CriarImpressoraModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />
       )}
     </div>
   )

@@ -4,13 +4,18 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { DeviceOverviewPanel } from '@/components/tables/device-overview-panel'
+import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
 import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
+import { toast } from 'sonner'
+
+function isAllocated(item: Ramal) {
+  return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
 
 export default function RamaisPage() {
   const searchParams = useSearchParams()
@@ -27,6 +32,11 @@ export default function RamaisPage() {
   const [selected, setSelected] = useState<Ramal | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
+    label: string
+    predicate: (item: Ramal) => boolean
+  } | null>(null)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
@@ -165,6 +175,45 @@ export default function RamaisPage() {
     return () => { cancelled = true }
   }, [refreshKey])
 
+  const filteredOverviewData = activeOverviewFilter
+    ? overviewData.filter(activeOverviewFilter.predicate)
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro do overview removido.')
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Ramal) => boolean }> = {
+      allocated: { label: 'Ramais ocupados', predicate: isAllocated },
+      free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
+      sector: {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => (item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+      },
+    }
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+
+    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
+    const toastId = toast.loading('Aplicando filtro do overview...', { description })
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilter(nextFilter)
+      setPage(1)
+      setOverviewFilterLoading(false)
+      toast.success('Filtro aplicado.', { id: toastId, description })
+    }, 120)
+  }
+
   // Abrir modal via ?inspect=id (vindo do colaborador)
   useEffect(() => {
     if (!inspectId) return
@@ -262,17 +311,18 @@ export default function RamaisPage() {
         items={overviewData}
         accentClassName="bg-emerald-500"
         isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
       />
 
       <DataTable
         columns={columns}
-        data={data}
-        total={total}
+        data={tableData}
+        total={tableTotal}
         page={page}
-        totalPages={totalPages}
+        totalPages={tableTotalPages}
         onPageChange={setPage}
         onRowClick={setSelected}
-        isLoading={loading}
+        isLoading={loading || overviewFilterLoading}
         filters={filters}
       />
 

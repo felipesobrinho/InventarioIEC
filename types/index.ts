@@ -30,6 +30,10 @@ export interface Colaborador {
   setor: string | null
   status: 'Ativo' | 'Inativo'
   created_at: string | null
+  alocacoes_maquinas_ativas?: number
+  alocacoes_notebooks_ativas?: number
+  alocacoes_aparelhos_ativas?: number
+  alocacoes_ramais_ativas?: number
 }
 
 export interface Maquina {
