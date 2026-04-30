@@ -7,8 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { useCreate } from '@/hooks/use-create'
-import { SetorSelect } from './setor-select'
+
 const schema = z.object({
   numero_ramal: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
@@ -27,6 +28,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('ramais')
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
+  const [setorId, setSetorId] = useState<string | null>(null)
   const [whatsapp, setWhatsapp] = useState(false)
   const [savingAlocacao, setSavingAlocacao] = useState(false)
 
@@ -36,7 +38,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   })
 
   async function onSubmit(data: FormData) {
-    const ramal = await create(data)
+    const ramal = await create({ ...data, setor_id: setorId })
     if (!ramal) return
 
     if (colabId) {
@@ -45,7 +47,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
         const res = await fetch('/api/alocacoes/ramais', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ramal_id: ramal.id, colaborador_id: colabId, whatsapp, setor_id: data.setor_id }),
+          body: JSON.stringify({ ramal_id: ramal.id, colaborador_id: colabId, whatsapp }),
         })
         if (!res.ok) throw new Error()
         toast.success('Ramal criado e alocado com sucesso!')
@@ -86,10 +88,10 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
                 }}
               /></div>
               <div>
-              <label className={lbl}>Setor</label>
+                <label className={lbl}>Setor</label>
                 <SetorSelect
-                  value={null}
-                  onChange={() => { }}
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
                 />
               </div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>

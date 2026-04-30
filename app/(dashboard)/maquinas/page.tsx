@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { Maquina, PaginatedResponse } from '@/types'
@@ -37,7 +38,7 @@ export default function MaquinasPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -61,7 +62,7 @@ export default function MaquinasPage() {
         dir,
       })
       if (search)    params.set('search',    search)
-      if (setor)     params.set('setor',     setor)
+      if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
       if (categoria) params.set('categoria', categoria)
       if (fabricante)params.set('fabricante',fabricante)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -84,7 +85,7 @@ export default function MaquinasPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setor, categoria, fabricante, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -240,11 +241,13 @@ export default function MaquinasPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(value) => {
+          setSetorIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por setor..."
       />
 
       {/* Categoria */}

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const dir             = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
-      numero_ramal: true, nome_setor: true,
+      numero_ramal: true, setor_id: true,
       prefixo_telefonico: true, disponibilidade: true, created_at: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
     if (search) {
       const searchConditions: any[] = [
-        { nome_setor: { contains: search, mode: 'insensitive' } },
+        { setor_id: { contains: search } },
         { numero_ramal: { contains: search, mode: 'insensitive' } },
       ]
       

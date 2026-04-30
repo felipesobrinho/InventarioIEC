@@ -8,6 +8,7 @@ import { ColaboradorOverviewPanel, type OverviewFilter, OverviewFilterToastDescr
 import { PageHeader } from '@/components/layout/page-header'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
 import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
@@ -38,7 +39,7 @@ export default function ColaboradoresPage() {
   const [selected, setSelected] = useState<Colaborador | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [setor, setSetor] = useState(searchParams.get('setor') || '')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
@@ -51,7 +52,7 @@ export default function ColaboradoresPage() {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
-    if (setor) params.set('setor', setor)
+    if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
     if (status) params.set('status', status)
     const res = await fetch(`/api/colaboradores?${params}`)
     const json: PaginatedResponse<Colaborador> = await res.json()
@@ -59,7 +60,7 @@ export default function ColaboradoresPage() {
     setTotal(json.total)
     setTotalPages(json.totalPages)
     setLoading(false)
-  }, [page, search, setor, status])
+  }, [page, search, setorIdFiltro, status])
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
@@ -159,11 +160,13 @@ export default function ColaboradoresPage() {
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(value) => {
+          setSetorIdFiltro(value)
+          setPage(1)
+        }}
         placeholder="Filtrar por setor..."
-        className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
       />
       <select
         value={status}

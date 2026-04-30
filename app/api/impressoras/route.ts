@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
-    const localidade = searchParams.get('localidade') || ''
+    const setorId = searchParams.get('setorId') || ''
     const andar = searchParams.get('andar') || ''
     const statusRaw = searchParams.get('status') || ''
     const sortBy = searchParams.get('sort') || 'created_at'
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         { numero_serie: { contains: search, mode: 'insensitive' } },
       ]
     }
-    if (localidade) where.localidade = { contains: localidade, mode: 'insensitive' }
+    if (setorId) where.setor_id = setorId
     if (andar) where.andar = { contains: andar, mode: 'insensitive' }
     if (statusRaw !== '') where.status = statusRaw === 'true'
     const validSort: Record<string, boolean> = {

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const page      = parseInt(searchParams.get('page')  || '1')
     const limit     = parseInt(searchParams.get('limit') || '20')
     const search    = searchParams.get('search')    || ''
-    const setor     = searchParams.get('setor')     || ''
+    const setorId     = searchParams.get('setorId')     || ''
     const categoria = searchParams.get('categoria') || ''
     const fabricante= searchParams.get('fabricante')|| ''
     const alocacao  = searchParams.get('alocacao')  || ''  // 'alocado' | 'livre' | ''
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       ]
     }
 
-    if (setor)     where.setor     = { contains: setor,     mode: 'insensitive' }
+    if (setorId) where.setor_id = setorId
     if (categoria) where.categoria = categoria
     if (fabricante)where.fabricante= { contains: fabricante,mode: 'insensitive' }
 

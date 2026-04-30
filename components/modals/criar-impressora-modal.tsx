@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -25,6 +26,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 
 export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('impressoras', () => { onRefresh(); onClose() })
+  const [setorId, setSetorId] = useState<string | null>(null)
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: true },
@@ -42,7 +44,7 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
           <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <form id="criar-imp-form" onSubmit={handleSubmit(create)} noValidate>
+          <form id="criar-imp-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: setorId }))} noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Nome Host</label><input {...register('nome_host')} className={inp} /></div>
               <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
@@ -54,8 +56,8 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
               <div>
                 <label className={lbl}>Setor</label>
                 <SetorSelect
-                  value={null}
-                  onChange={() => { }}
+                  value={setorId}
+                  onChange={setSetorId}
                 />
               </div>
               <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
-    const setor = searchParams.get('setor') || ''
+    const setorId = searchParams.get('setorId') || ''
     const status = searchParams.get('status') || ''
     const chip = searchParams.get('chip') || ''
     const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       ]
     }
 
-    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
+    if (setorId) where.setor_id = setorId
     if (status !== '') where.status = status === 'true'
     if (chip !== '') where.chip = chip === 'true'
 
