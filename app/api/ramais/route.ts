@@ -12,14 +12,14 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page            = parseInt(searchParams.get('page')  || '1')
-    const limit           = parseInt(searchParams.get('limit') || '20')
-    const search          = searchParams.get('search')          || ''
-    const disponibilidade = searchParams.get('disponibilidade') || ''
-    const fila            = searchParams.get('fila')            || ''
-    const alocacao        = searchParams.get('alocacao')        || ''
-    const whatsapp        = searchParams.get('whatsapp')        || ''
-    const sort            = searchParams.get('sort')            || 'numero_ramal'
+    const page            = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit           = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10)))
+    const search          = (searchParams.get('search') || '').trim().slice(0, 100) // Limit to 100 chars
+    const disponibilidade = (searchParams.get('disponibilidade') || '').trim()
+    const fila            = searchParams.get('fila') || ''
+    const alocacao        = searchParams.get('alocacao') || ''
+    const whatsapp        = searchParams.get('whatsapp') || ''
+    const sort            = searchParams.get('sort') || 'numero_ramal'
     const dir             = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
@@ -31,21 +31,21 @@ export async function GET(request: Request) {
     const AND: any[] = []
 
     if (search) {
-      const numSearch = parseInt(search)
-      AND.push({
-        OR: [
-          { nome_setor: { contains: search, mode: 'insensitive' } },
-          ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
-          {
-            alocacoes: {
-              some: {
-                ativo: true,
-                colaborador: { nome: { contains: search, mode: 'insensitive' } },
-              },
-            },
+      const searchConditions: any[] = [
+        { nome_setor: { contains: search, mode: 'insensitive' } },
+        { numero_ramal: { contains: search, mode: 'insensitive' } },
+      ]
+      
+      searchConditions.push({
+        alocacoes: {
+          some: {
+            ativo: true,
+            colaborador: { nome: { contains: search, mode: 'insensitive' } } ,
           },
-        ],
+        },
       })
+      
+      AND.push({ OR: searchConditions })
     }
 
     if (disponibilidade) {
@@ -131,7 +131,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/ramais]', error)
+    console.error('[GET /api/ramais] Error:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
@@ -157,7 +160,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
-    console.error('[POST /api/ramais]', error)
+    console.error('[POST /api/ramais] Error:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

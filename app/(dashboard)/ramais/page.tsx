@@ -17,6 +17,20 @@ function isAllocated(item: Ramal) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function useDebounce<T>(value: T, delayMs: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delayMs)
+
+    return () => clearTimeout(handler)
+  }, [value, delayMs])
+
+  return debouncedValue
+}
+
 export default function RamaisPage() {
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect')
@@ -46,11 +60,12 @@ export default function RamaisPage() {
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
   const [whatsappFiltro, setWhatsappFiltro] = useState('')
 
+  const debouncedSearch = useDebounce(search, 400)
+
   const cancelledRef = useRef(false)
 
   function refresh() { setRefreshKey(k => k + 1) }
 
-  // Colunas dentro do componente para evitar bug do Turbopack com JSX fora do componente
   const columns = useMemo<ColumnDef<Ramal, unknown>[]>(() => [
     {
       accessorKey: 'numero_ramal',
@@ -119,7 +134,7 @@ export default function RamaisPage() {
         sort,
         dir,
       })
-      if (search)        params.set('search',        search)
+      if (debouncedSearch)        params.set('search',        debouncedSearch)
       if (disponibilidade) params.set('disponibilidade', disponibilidade)
       if (fila !== '')   params.set('fila',          fila)
       if (alocacao)      params.set('alocacao',      alocacao)
@@ -143,7 +158,7 @@ export default function RamaisPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, search, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey])
+  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -237,13 +252,6 @@ export default function RamaisPage() {
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-
-      <input
-        value={disponibilidade}
-        onChange={(e) => { setDisponibilidade(e.target.value); setPage(1) }}
-        placeholder="Disponibilidade..."
-        className={`${inputCls} w-40`}
-      />
 
       <select
         value={fila}
