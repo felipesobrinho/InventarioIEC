@@ -8,11 +8,13 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCreate } from '@/hooks/use-create'
+import { SetorSelect } from './setor-select'
 const schema = z.object({
   numero_ramal: z.string().optional().nullable(),
-  nome_setor: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
+  senha_acesso: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
+  setor_id: z.string().optional().nullable(),
   fila: z.boolean().default(false),
   contemplacao: z.boolean().default(false),
 })
@@ -43,7 +45,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
         const res = await fetch('/api/alocacoes/ramais', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ramal_id: ramal.id, colaborador_id: colabId, whatsapp }),
+          body: JSON.stringify({ ramal_id: ramal.id, colaborador_id: colabId, whatsapp, setor_id: data.setor_id }),
         })
         if (!res.ok) throw new Error()
         toast.success('Ramal criado e alocado com sucesso!')
@@ -80,12 +82,21 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
                 placeholder="Ex: 0028"
                 onInput={(e) => {
                   const input = e.currentTarget
-                  // Aceita apenas dígitos
                   input.value = input.value.replace(/[^0-9]/g, '')
                 }}
               /></div>
-              <div><label className={lbl}>Setor</label><input {...register('nome_setor')} className={inp} /></div>
+              <div>
+              <label className={lbl}>Setor</label>
+                <SetorSelect
+                  value={null}
+                  onChange={() => { }}
+                />
+              </div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>
+              <div className="col-span-2">
+                <label className={lbl}>Senha de Acesso</label>
+                <input type="text" {...register('senha_acesso')} className={inp} placeholder="Senha do ramal" autoComplete="off" />
+              </div>
               <div><label className={lbl}>Disponibilidade</label><input {...register('disponibilidade')} className={inp} /></div>
               <div className="flex items-center gap-2 pt-2">
                 <input type="checkbox" id="fila-criar" {...register('fila')} className="w-4 h-4 rounded border-slate-300 text-blue-600" />

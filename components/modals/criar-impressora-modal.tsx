@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCreate } from '@/hooks/use-create'
+import { SetorSelect } from './setor-select'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
@@ -13,7 +14,7 @@ const schema = z.object({
   numero_serie: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   localidade: z.string().optional().nullable(),
-  andar: z.string().optional().nullable(),
+  setor: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
   tipo_usuario: z.string().optional().nullable(),
   status: z.boolean().optional(),
@@ -50,7 +51,13 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
               <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
               <div><label className={lbl}>Servidor Impressão</label><input {...register('servidor_impressao')} className={inp} /></div>
               <div><label className={lbl}>Localidade</label><input {...register('localidade')} className={inp} /></div>
-              <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>
+              <div>
+                <label className={lbl}>Setor</label>
+                <SetorSelect
+                  value={null}
+                  onChange={() => { }}
+                />
+              </div>
               <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>
               <div className="flex items-center gap-2 pt-4">
                 <input type="checkbox" id="status-imp-criar" {...register('status')} className="w-4 h-4 rounded border-slate-300 text-blue-600" />

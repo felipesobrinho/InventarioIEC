@@ -33,6 +33,13 @@ const columns: ColumnDef<Notebook>[] = [
   { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
   { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
   {
+    id: 'emprestado',
+    header: 'Empréstimo',
+    cell: ({ row }) => row.original.emprestado
+      ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">📦 Emprestado</span>
+      : null,
+  },
+  {
     id: 'alocado',
     header: 'Uso',
     cell: ({ row }) => {

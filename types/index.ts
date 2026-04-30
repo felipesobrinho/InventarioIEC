@@ -70,6 +70,12 @@ export interface Notebook {
   numero_patrimonio: string | null
   setor: string | null
   created_at: string | null
+  setor_id: string | null
+  emprestado: boolean
+  emprestado_colaborador_id: string | null
+  emprestado_setor_id: string | null
+  emprestado_obs: string | null
+  emprestado_desde: string | null
 
   alocacao_ativa?: AlocacaoAtiva | null
   alocacoes_ativas?: AlocacaoAtiva[]  
@@ -97,8 +103,8 @@ export interface Impressora {
   modelo: string | null
   numero_serie: string | null
   endereco_ip: string | null
-  localidade: string | null
   andar: string | null
+  setor: string | null
   servidor_impressao: string | null
   identificador_selb: string | null
   tipo_usuario: string | null
@@ -110,7 +116,7 @@ export interface Impressora {
 export interface Ramal {
   id: string
   numero_ramal: string | null
-  nome_setor: string | null
+  setor: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null
   fila: boolean | null

@@ -15,6 +15,7 @@ import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 import { AlocacoesAtivasSection } from './alocacoes-ativas-section'
+import { SetorSelect } from './setor-select'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
@@ -189,9 +190,12 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                     <label className={lbl}>Endereço MAC</label>
                     <input {...register('endereco_mac')} className={inp} />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className={lbl}>Setor</label>
-                    <input {...register('setor')} className={inp} />
+                    <SetorSelect
+                      value={aparelho.setor}
+                      onChange={(id) => register('setor').onChange({ target: { value: id } } as any)}
+                    />
                   </div>
                   <div className="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="chip-edit" {...register('chip')}

@@ -62,6 +62,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/colaboradores', label: 'Colaboradores', icon: Users },
       { href: '/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
+      { href: '/setores', label: 'Setores', icon: UserCog },
     ],
   },
 ]
