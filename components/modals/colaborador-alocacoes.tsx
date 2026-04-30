@@ -14,6 +14,7 @@ import {
   PackageOpen,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { AdicionarAlocacaoForm } from '@/components/modals/adicionar-alocacao-form'
 
 type AlocacaoItemData = {
   id: string
@@ -327,6 +328,7 @@ export function ColaboradorAlocacoes({
 }: Props) {
   const [data, setData] = useState<AlocacoesData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -346,7 +348,7 @@ export function ColaboradorAlocacoes({
       cancelled = true
       window.clearTimeout(loadingTimer)
     }
-  }, [colaboradorId])
+  }, [colaboradorId, refreshKey])
 
   const total = data
     ? data.maquinas.length + data.notebooks.length + data.aparelhos.length + data.ramais.length
@@ -401,6 +403,10 @@ export function ColaboradorAlocacoes({
               </div>
             </div>
           ))}
+          <AdicionarAlocacaoForm
+            colaboradorId={colaboradorId}
+            onSuccess={() => setRefreshKey(k => k + 1)}
+          />
         </>
       )}
     </div>

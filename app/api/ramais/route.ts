@@ -12,62 +12,66 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
+    const page            = parseInt(searchParams.get('page')  || '1')
+    const limit           = parseInt(searchParams.get('limit') || '20')
+    const search          = searchParams.get('search')          || ''
     const disponibilidade = searchParams.get('disponibilidade') || ''
-    const fila = searchParams.get('fila') || ''
-    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
-    const sort = searchParams.get('sort') || 'numero_ramal'
-    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
-    const whatsappFilter = searchParams.get('whatsapp') || ''
+    const fila            = searchParams.get('fila')            || ''
+    const alocacao        = searchParams.get('alocacao')        || ''
+    const whatsapp        = searchParams.get('whatsapp')        || ''
+    const sort            = searchParams.get('sort')            || 'numero_ramal'
+    const dir             = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: any = {}
-
-    if (whatsappFilter === 'true') {
-      if (!where.alocacoes) {
-        where.alocacoes = {}
-      }
-      where.alocacoes = {
-        some: {
-          ativo: true,
-          whatsapp: true,
-          ramal_id: { not: null },
-        },
-      }
-    }
-
-    if (search) {
-      where.OR = [
-        { numero_ramal: { contains: search, mode: 'insensitive' } },
-        { nome_setor:   { contains: search, mode: 'insensitive' } },
-        {
-          alocacoes: {
-            some: {
-              ativo: true,
-              colaborador: { nome: { contains: search, mode: 'insensitive' } },
-            },
-          },
-        },
-      ]
-    }
-
-    if (disponibilidade) where.disponibilidade = { contains: disponibilidade, mode: 'insensitive' }
-    if (fila !== '') where.fila = fila === 'true'
-
-    if (alocacao === 'alocado') {
-      where.alocacoes = { some: { ativo: true } }
-    } else if (alocacao === 'livre') {
-      where.alocacoes = { none: { ativo: true } }
-    }
-
-    // Campos válidos para ordenação
     const validSortFields: Record<string, boolean> = {
       numero_ramal: true, nome_setor: true,
-      prefixo_telefonico: true, disponibilidade: true,
-      created_at: true,
+      prefixo_telefonico: true, disponibilidade: true, created_at: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
+
+    const AND: any[] = []
+
+    if (search) {
+      const numSearch = parseInt(search)
+      AND.push({
+        OR: [
+          { nome_setor: { contains: search, mode: 'insensitive' } },
+          ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
+          {
+            alocacoes: {
+              some: {
+                ativo: true,
+                colaborador: { nome: { contains: search, mode: 'insensitive' } },
+              },
+            },
+          },
+        ],
+      })
+    }
+
+    if (disponibilidade) {
+      AND.push({ disponibilidade: { contains: disponibilidade, mode: 'insensitive' } })
+    }
+
+    if (fila !== '') {
+      AND.push({ fila: fila === 'true' })
+    }
+
+    // Filtro de alocação e whatsapp precisam de condições separadas em AND
+    if (alocacao === 'alocado') {
+      AND.push({ alocacoes: { some: { ativo: true, ramal_id: { not: null } } } })
+    } else if (alocacao === 'livre') {
+      AND.push({ alocacoes: { none: { ativo: true, ramal_id: { not: null } } } })
+    }
+
+    if (whatsapp === 'true') {
+      AND.push({
+        alocacoes: {
+          some: { ativo: true, whatsapp: true, ramal_id: { not: null } },
+        },
+      })
+    }
+
+    const where: any = AND.length > 0 ? { AND } : {}
 
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
@@ -86,50 +90,49 @@ export async function GET(request: Request) {
       prisma.ramais.count({ where }),
     ])
 
+    // Buscar última edição do audit_log
     const ids = data.map((r: any) => r.id)
-    const ultimasEdicoes = await prisma.audit_log.findMany({
-      where: {
-        registro_id: { in: ids },
-        tabela: 'ramais',
-        acao: 'UPDATE',
-      },
-      orderBy: { created_at: 'desc' },
-      select: { registro_id: true, created_at: true },
-    })
+    const ultimasEdicoes = ids.length > 0
+      ? await prisma.audit_log.findMany({
+          where: { registro_id: { in: ids }, tabela: 'ramais', acao: 'UPDATE' },
+          orderBy: { created_at: 'desc' },
+          select: { registro_id: true, created_at: true },
+        })
+      : []
 
     const ultimaEdicaoMap: Record<string, string> = {}
     for (const log of ultimasEdicoes) {
-      if (!ultimaEdicaoMap[log.registro_id]) {
+      if (log.registro_id && !ultimaEdicaoMap[log.registro_id]) {
         ultimaEdicaoMap[log.registro_id] = log.created_at?.toISOString() ?? ''
       }
     }
 
-    const mapped = data.map((m: any) => ({
-      ...m,
-      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+    const mapped = data.map((r: any) => ({
+      ...r,
+      alocacoes_ativas: r.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
-        tipo_uso: a.tipo_uso,
+        tipo_base: a.tipo_base,
         whatsapp: a.whatsapp,
         canal_adicional: a.canal_adicional,
         data_inicio: a.data_inicio,
       })),
-      alocacao_ativa: m.alocacoes[0]
+      alocacao_ativa: r.alocacoes[0]
         ? {
-            colaborador: m.alocacoes[0].colaborador,
-            tipo_uso: m.alocacoes[0].tipo_uso,
-            whatsapp: m.alocacoes[0].whatsapp,
-            data_inicio: m.alocacoes[0].data_inicio,
+            colaborador: r.alocacoes[0].colaborador,
+            tipo_base: r.alocacoes[0].tipo_base,
+            whatsapp: r.alocacoes[0].whatsapp,
+            data_inicio: r.alocacoes[0].data_inicio,
           }
-          : null,
-        alocacoes: undefined,
-        ultima_revisao: ultimaEdicaoMap[m.id] ?? null,
+        : null,
+      ultima_revisao: ultimaEdicaoMap[r.id] ?? null,
+      alocacoes: undefined,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
     console.error('[GET /api/ramais]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
