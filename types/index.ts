@@ -109,7 +109,7 @@ export interface Impressora {
 
 export interface Ramal {
   id: string
-  numero_ramal: number | null
+  numero_ramal: string | null
   nome_setor: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null

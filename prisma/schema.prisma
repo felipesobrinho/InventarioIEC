@@ -113,7 +113,7 @@ model impressoras {
 
 model ramais {
   id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  numero_ramal        Int?
+  numero_ramal        String?
   nome_setor          String?
   prefixo_telefonico  String?
   disponibilidade     String?
@@ -235,6 +235,23 @@ model solicitacoes {
   created_at                DateTime? @default(now()) @db.Timestamptz(6)
 }
 
+model audit_log {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tabela           String
+  registro_id      String
+  acao             String
+  descricao        String?
+  dados_anteriores Json?
+  dados_novos      Json?
+  usuario_id       String?   @db.Uuid
+  usuario_nome     String?
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([tabela], map: "idx_audit_log_tabela")
+  @@index([registro_id], map: "idx_audit_log_registro_id")
+  @@index([created_at(sort: Desc)], map: "idx_audit_log_created_at")
+}
+
 enum categoria_equipamento {
   Administrativa
   Academica
@@ -243,20 +260,4 @@ enum categoria_equipamento {
 enum status_colaborador {
   Ativo
   Inativo
-}
-model audit_log {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tabela            String
-  registro_id       String
-  acao              String
-  descricao         String?
-  dados_anteriores  Json?
-  dados_novos       Json?
-  usuario_id        String?  @db.Uuid
-  usuario_nome      String?
-  created_at        DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@index([tabela], map: "idx_audit_log_tabela")
-  @@index([registro_id], map: "idx_audit_log_registro_id")
-  @@index([created_at], map: "idx_audit_log_created_at")
 }

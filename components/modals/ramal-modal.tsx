@@ -15,12 +15,11 @@ import { DetailField, DetailSection } from "@/components/modals/detail-field";
 import { ConfirmDialog } from "@/components/modals/confirm-dialog";
 import { useCrud } from "@/hooks/use-crud";
 import type { Ramal } from "@/types";
-import { optionalInt } from "@/lib/zod-helpers";
 import { HistoricoPanel } from "./historico-panel";
 import { AlocacoesAtivasSection } from "@/components/modals/alocacoes-ativas-section";
 
 const schema = z.object({
- numero_ramal: optionalInt,
+ numero_ramal: z.string().optional().nullable(),
  nome_setor: z.string().optional().nullable(),
  prefixo_telefonico: z.string().optional().nullable(),
  disponibilidade: z.string().optional().nullable(),
@@ -142,7 +141,17 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
         <div className="grid grid-cols-2 gap-3">
          <div>
           <label className={lbl}>Número do Ramal</label>
-          <input type="number" {...register("numero_ramal")} className={inp} />
+          <input 
+            type="text" 
+            {...register("numero_ramal")} 
+            className={inp}
+            placeholder="Ex: 0028"
+            onInput={(e) => {
+              const input = e.currentTarget
+              // Aceita apenas dígitos
+              input.value = input.value.replace(/[^0-9]/g, '')
+            }}
+          />
          </div>
          <div>
           <label className={lbl}>Setor</label>

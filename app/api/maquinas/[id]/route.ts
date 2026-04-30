@@ -10,10 +10,41 @@ type Props = { params: Promise<{ id: string }> }
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
   const { id } = await params
-  const item = await prisma.maquinas.findUnique({ where: { id } })
+
+  const item = await prisma.maquinas.findUnique({
+    where: { id },
+    include: {
+      alocacoes: {
+        where: { ativo: true },
+        include: { colaborador: { select: { nome: true, setor: true } } },
+        orderBy: { data_inicio: 'asc' },
+      },
+    },
+  })
+
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  return NextResponse.json(item)
+
+  const result = {
+    ...item,
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({
+      id: a.id,
+      colaborador: a.colaborador,
+      tipo_uso: a.tipo_uso,
+      data_inicio: a.data_inicio,
+    })),
+    alocacao_ativa: item.alocacoes[0]
+      ? {
+          colaborador: item.alocacoes[0].colaborador,
+          tipo_uso: item.alocacoes[0].tipo_uso,
+          data_inicio: item.alocacoes[0].data_inicio,
+        }
+      : null,
+    alocacoes: undefined,
+  }
+
+  return NextResponse.json(result)
 }
 
 export async function PUT(request: Request, { params }: Props) {

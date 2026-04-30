@@ -10,12 +10,44 @@ type Props = { params: Promise<{ id: string }> }
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  const { id } = await params
-  const item = await prisma.notebooks.findUnique({ where: { id } })
-  if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  return NextResponse.json(item)
-}
 
+  const { id } = await params
+
+  const item = await prisma.notebooks.findUnique({
+    where: { id },
+    include: {
+      alocacoes: {
+        where: { ativo: true },
+        include: { colaborador: { select: { nome: true, setor: true } } },
+        orderBy: { data_inicio: 'asc' },
+      },
+    },
+  })
+
+  if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+
+  const result = {
+    ...item,
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({
+      id: a.id,
+      colaborador: a.colaborador,
+      motivo_alocacao: a.motivo_alocacao,
+      tipo_posse: a.tipo_posse,
+      data_inicio: a.data_inicio,
+    })),
+    alocacao_ativa: item.alocacoes[0]
+      ? {
+          colaborador: item.alocacoes[0].colaborador,
+          motivo_alocacao: item.alocacoes[0].motivo_alocacao,
+          tipo_posse: item.alocacoes[0].tipo_posse,
+          data_inicio: item.alocacoes[0].data_inicio,
+        }
+      : null,
+    alocacoes: undefined,
+  }
+
+  return NextResponse.json(result)
+}
 export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })

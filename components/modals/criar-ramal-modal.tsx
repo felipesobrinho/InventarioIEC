@@ -8,10 +8,8 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { useCreate } from '@/hooks/use-create'
-import { optionalInt } from '@/lib/zod-helpers'
-
 const schema = z.object({
-  numero_ramal: optionalInt,
+  numero_ramal: z.string().optional().nullable(),
   nome_setor: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
@@ -76,16 +74,14 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
           <form id="criar-ramal-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Número do Ramal</label><input
-                type="number"
+                type="text"
                 {...register('numero_ramal')}
                 className={inp}
-                min="1"
+                placeholder="Ex: 0028"
                 onInput={(e) => {
                   const input = e.currentTarget
-                  // Remove zeros à esquerda convertendo para número e de volta para string
-                  if (input.value) {
-                    input.value = String(parseInt(input.value, 10) || '')
-                  }
+                  // Aceita apenas dígitos
+                  input.value = input.value.replace(/[^0-9]/g, '')
                 }}
               /></div>
               <div><label className={lbl}>Setor</label><input {...register('nome_setor')} className={inp} /></div>
