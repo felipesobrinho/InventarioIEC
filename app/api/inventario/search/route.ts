@@ -86,12 +86,11 @@ export async function GET(request: Request) {
       }
 
       case 'ramais': {
-        const numQuery = parseInt(query)
         const items = await prisma.ramais.findMany({
           where: {
             OR: [
               { nome_setor: { contains: query, mode: 'insensitive' } },
-              ...(!isNaN(numQuery) ? [{ numero_ramal: numQuery }] : []),
+              { numero_ramal: { contains: query, mode: 'insensitive' } },
             ],
           },
           select: { id: true, numero_ramal: true, nome_setor: true, prefixo_telefonico: true },
