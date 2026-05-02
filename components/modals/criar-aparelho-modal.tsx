@@ -14,7 +14,6 @@ const schema = z.object({
   modelo: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   endereco_mac: z.string().optional().nullable(),
-  setor_id: z.string().optional().nullable(),
   chip: z.boolean().optional(),
   status: z.boolean().optional(),
 })
@@ -27,13 +26,15 @@ export function CriarAparelhoModal({ onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(null)
+
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { chip: false, status: true },
   })
 
   async function onSubmit(data: FormData) {
-    const aparelho = await create({ ...data })
+    const aparelho = await create({ ...data, setor_id: setorId })
     if (!aparelho) return
 
     if (colabId) {
@@ -42,7 +43,7 @@ export function CriarAparelhoModal({ onClose, onRefresh }: Props) {
         const res = await fetch('/api/alocacoes/aparelhos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ aparelho_id: aparelho.id, colaborador_id: colabId, setor_id: data.setor_id }),
+          body: JSON.stringify({ aparelho_id: aparelho.id, colaborador_id: colabId }),
         })
         if (!res.ok) throw new Error()
         toast.success('Aparelho criado e alocado com sucesso!')
@@ -78,8 +79,8 @@ export function CriarAparelhoModal({ onClose, onRefresh }: Props) {
               <div className="col-span-2">
                 <label className={lbl}>Setor</label>
                 <SetorSelect
-                  value={null}
-                  onChange={() => { }}
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
                 />
               </div>
               <div className="flex items-center gap-2 pt-2">

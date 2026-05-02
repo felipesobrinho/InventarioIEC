@@ -15,7 +15,6 @@ const schema = z.object({
   fabricante: z.string().optional().nullable(),
   categoria: z.enum(['Administrativa', 'Academica']).optional().nullable(),
   processador: z.string().optional().nullable(),
-  setor_id: z.string().optional().nullable(),
   memoria: z.string().optional().nullable(),
   armazenamento: z.string().optional().nullable(),
   numero_patrimonio: z.string().optional().nullable(),
@@ -29,11 +28,12 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
-    const notebook = await create({ ...data, setor_id: data.setor_id })
+    const notebook = await create({ ...data, setor_id: setorId })
     if (!notebook) return
 
     if (colabId) {
@@ -42,7 +42,7 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
         const res = await fetch('/api/alocacoes/notebooks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notebook_id: notebook.id, colaborador_id: colabId, setor_id: data.setor_id }),
+          body: JSON.stringify({ notebook_id: notebook.id, colaborador_id: colabId }),
         })
         if (!res.ok) throw new Error()
         toast.success('Notebook criado e alocado com sucesso!')
@@ -89,8 +89,8 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
               <div>
                 <label className={lbl}>Setor</label>
                 <SetorSelect
-                  value={null}
-                  onChange={() => { }}
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
                 />
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">

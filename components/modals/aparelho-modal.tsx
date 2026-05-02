@@ -19,7 +19,6 @@ import { SetorSelect } from './setor-select'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
-  setor: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   endereco_mac: z.string().optional().nullable(),
   chip: z.boolean().optional().nullable(),
@@ -40,6 +39,9 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(
+    (aparelho as any).setor_id ?? null
+  )
 
   const { update, remove, saving, deleting } = useCrud('aparelhos', () => {
     onRefresh()
@@ -50,7 +52,6 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       modelo: aparelho.modelo,
-      setor: aparelho.setor,
       endereco_ip: aparelho.endereco_ip,
       endereco_mac: aparelho.endereco_mac,
       chip: aparelho.chip,
@@ -59,7 +60,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(aparelho.id, data)
+    update(aparelho.id, {...data, setor_id: setorId})
   }
 
   async function alocar() {
@@ -193,8 +194,8 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                   <div>
                     <label className={lbl}>Setor</label>
                     <SetorSelect
-                      value={aparelho.setor}
-                      onChange={(id) => register('setor').onChange({ target: { value: id } } as any)}
+                      value={setorId}
+                      onChange={(id) => setSetorId(id)}
                     />
                   </div>
                   <div className="flex items-center gap-2 pt-2">

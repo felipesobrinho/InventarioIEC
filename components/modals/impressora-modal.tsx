@@ -20,7 +20,6 @@ const schema = z.object({
   numero_serie: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   andar: z.string().optional().nullable(),
-  setor: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
   tipo_usuario: z.string().optional().nullable(),
   status: z.boolean().optional().nullable(),
@@ -32,6 +31,9 @@ interface Props { impressora: Impressora; onClose: () => void; onRefresh: () => 
 export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(
+    (impressora as any).setor_id ?? null
+  )
 
   const { update, remove, saving, deleting } = useCrud('impressoras', () => {
     onRefresh()
@@ -55,7 +57,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(impressora.id, data)
+    update(impressora.id, {...data, setor_id: setorId})
   }
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -117,8 +119,8 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                   <div>
                     <label className={lbl}>Setor</label>
                     <SetorSelect
-                      value={impressora.setor}
-                      onChange={(id) => register('setor').onChange({ target: { value: id } } as any)}
+                      value={setorId}
+                      onChange={(id) => setSetorId(id)}
                     />
                   </div>
                   <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>

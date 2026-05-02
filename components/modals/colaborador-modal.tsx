@@ -19,7 +19,6 @@ import { SetorSelect } from "./setor-select";
 const schema = z.object({
  nome: z.string().min(1, "Nome obrigatório"),
  codigo: z.union([z.number(), z.null()]).optional(),
- setor: z.string().optional().nullable(),
  status: z.enum(["Ativo", "Inativo"]),
 });
 type FormData = z.infer<typeof schema>;
@@ -37,6 +36,9 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [tab, setTab] = useState<Tab>("info");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+ const [setorId, setSetorId] = useState<string | null>(
+  (colaborador as any).setor_id ?? null
+)
 
  const { update, remove, saving, deleting } = useCrud("colaboradores", () => {
   onRefresh();
@@ -52,13 +54,12 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
   defaultValues: {
    nome: colaborador.nome,
    codigo: colaborador.codigo,
-   setor: colaborador.setor,
    status: colaborador.status,
   },
  });
 
  function onSubmit(data: FormData) {
-  update(colaborador.id, data);
+  update(colaborador.id, {...data, setor_id: setorId});
  }
 
  // Navegar para o item na respectiva página — fecha o modal e abre a página
@@ -227,9 +228,9 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
         <div>
          <label className={lbl}>Setor</label>
          <SetorSelect
-          value={colaborador.setor}
+          value={setorId}
           onChange={(id) =>
-           register("setor").onChange({ target: { value: id } } as any)
+           setSetorId(id)
           }
          />
         </div>

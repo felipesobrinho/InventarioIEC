@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
-    const setorId = searchParams.get('setorId') || ''
+    const setorId = searchParams.get('setor_id') || ''
     const status = searchParams.get('status') || ''
     const sortBy = searchParams.get('sort') || 'created_at'
     const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)

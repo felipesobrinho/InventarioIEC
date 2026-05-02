@@ -16,7 +16,6 @@ import { SetorSelect } from "./setor-select";
 
 const schema = z.object({
  numero_ramal: z.string().optional().nullable(),
- setor: z.string().optional().nullable(),
  prefixo_telefonico: z.string().optional().nullable(),
  senha_acesso: z.string().optional().nullable(),
  disponibilidade: z.string().optional().nullable(),
@@ -35,6 +34,9 @@ interface Props {
 export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+ const [setorId, setSetorId] = useState<string | null>(
+    (ramal as any).setor_id ?? null
+  )
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -46,7 +48,6 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
   resolver: zodResolver(schema) as any,
   defaultValues: {
    numero_ramal: ramal.numero_ramal,
-   setor: ramal.setor,
    prefixo_telefonico: ramal.prefixo_telefonico,
    senha_acesso: ramal.senha_acesso,
    disponibilidade: ramal.disponibilidade,
@@ -56,7 +57,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(ramal.id, data);
+  update(ramal.id, {...data, setor_id: setorId});
  }
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -161,9 +162,9 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          <div>
           <label className={lbl}>Setor</label>
           <SetorSelect
-           value={ramal.setor}
+           value={setorId}
            onChange={(id) =>
-            register("setor").onChange({ target: { value: id } } as any)
+            setSetorId(id)
            }
           />
          </div>

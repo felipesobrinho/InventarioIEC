@@ -48,13 +48,23 @@ export async function GET(_: Request, { params }: Props) {
 
   return NextResponse.json(result)
 }
+
 export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, ...data } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, ...rest } = body
+
+  // Converter campos de data string para Date
+  const data: any = { ...rest }
+  if (data.emprestado_desde) {
+    // "2026-04-30" → Date válido para o Prisma
+    data.emprestado_desde = new Date(data.emprestado_desde + 'T00:00:00.000Z')
+  } else if (data.emprestado_desde === '' || data.emprestado_desde === null) {
+    data.emprestado_desde = null
+  }
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   const item = await prisma.notebooks.update({ where: { id }, data })

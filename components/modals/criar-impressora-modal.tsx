@@ -14,8 +14,7 @@ const schema = z.object({
   modelo: z.string().optional().nullable(),
   numero_serie: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
-  localidade: z.string().optional().nullable(),
-  setor: z.string().optional().nullable(),
+  andar: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
   tipo_usuario: z.string().optional().nullable(),
   status: z.boolean().optional(),
@@ -52,12 +51,12 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
               <div><label className={lbl}>Nº de Série</label><input {...register('numero_serie')} className={inp} /></div>
               <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
               <div><label className={lbl}>Servidor Impressão</label><input {...register('servidor_impressao')} className={inp} /></div>
-              <div><label className={lbl}>Localidade</label><input {...register('localidade')} className={inp} /></div>
+              <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>
               <div>
                 <label className={lbl}>Setor</label>
                 <SetorSelect
                   value={setorId}
-                  onChange={setSetorId}
+                  onChange={(id) => setSetorId(id)}
                 />
               </div>
               <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>

@@ -11,11 +11,11 @@ interface SetorOption {
 }
 
 interface Props {
-  value: string | null       // setor_id selecionado
+  value: string | null
   onChange: (id: string | null, nome: string | null) => void
   placeholder?: string
   disabled?: boolean
-  allowCreate?: boolean      // permite criar novo setor inline
+  allowCreate?: boolean
   className?: string
 }
 
@@ -122,7 +122,7 @@ export function SetorSelect({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => { setOpen(false); setSearch('') }} />
-          <div className="absolute z-40 top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden">
+          <div className="absolute z-40 top-full mt-1 left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden">
             {/* Busca */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
               {loading

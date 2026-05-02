@@ -27,8 +27,6 @@ const schema = z.object({
  memoria_ram: z.string().optional().nullable(),
  armazenamento: z.string().optional().nullable(),
  endereco_ip: z.string().optional().nullable(),
- localizacao: z.string().optional().nullable(),
- setor: z.string().optional().nullable(),
  patrimonio_cpu: z.string().optional().nullable(),
  patrimonio_monitor: z.string().optional().nullable(),
 });
@@ -47,6 +45,9 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
  const [colabId, setColabId] = useState("");
  const [colabNome, setColabNome] = useState("");
  const [savingAlocacao, setSavingAlocacao] = useState(false);
+ const [setorId, setSetorId] = useState<string | null>(
+  (maquina as any).setor_id ?? null
+ )
 
  const { update, remove, saving, deleting } = useCrud("maquinas", () => {
   onRefresh();
@@ -65,15 +66,13 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
    memoria_ram: maquina.memoria_ram,
    armazenamento: maquina.armazenamento,
    endereco_ip: maquina.endereco_ip,
-   localizacao: maquina.localizacao,
-   setor: maquina.setor,
    patrimonio_cpu: maquina.patrimonio_cpu,
    patrimonio_monitor: maquina.patrimonio_monitor,
   },
  });
 
  function onSubmit(data: FormData) {
-  update(maquina.id, data);
+  update(maquina.id, {...data, setor_id: setorId});
  }
 
  async function alocar() {
@@ -220,7 +219,6 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
        </DetailSection>
        <DetailSection title="Rede e Localização">
         <DetailField label="Endereço IP" value={maquina.endereco_ip} />
-        <DetailField label="Localização" value={maquina.localizacao} />
         <DetailField label="Setor" value={maquina.setor} />
         <DetailField
          label="Categoria"
@@ -287,15 +285,11 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
           <input {...register("endereco_ip")} className={inp} />
          </div>
          <div>
-          <label className={lbl}>Localização</label>
-          <input {...register("localizacao")} className={inp} />
-         </div>
-         <div>
           <label className={lbl}>Setor</label>
           <SetorSelect
-           value={maquina.setor}
+           value={setorId}
            onChange={(id) =>
-            register("setor").onChange({ target: { value: id } } as any)
+            setSetorId(id)
            }
           />
          </div>

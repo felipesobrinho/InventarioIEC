@@ -15,9 +15,8 @@ const schema = z.object({
   prefixo_telefonico: z.string().optional().nullable(),
   senha_acesso: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
-  setor_id: z.string().optional().nullable(),
   fila: z.boolean().default(false),
-  contemplacao: z.boolean().default(false),
+  contemplacao: z.boolean().default(false),                
 })
 
 type FormData = z.infer<typeof schema>

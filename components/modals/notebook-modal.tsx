@@ -25,7 +25,6 @@ const schema = z.object({
  memoria: z.string().optional().nullable(),
  armazenamento: z.string().optional().nullable(),
  numero_patrimonio: z.string().optional().nullable(),
- setor: z.string().optional().nullable(),
  emprestado_setor_id: z.string().optional().nullable(),
  emprestado_colaborador_id: z.string().optional().nullable(),
  emprestado_obs: z.string().optional().nullable(),
@@ -58,6 +57,10 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
  const [empObs, setEmpObs] = useState(notebook.emprestado_obs ?? "");
  const [savingEmp, setSavingEmp] = useState(false);
 
+ const [setorId, setSetorId] = useState<string | null>(
+    (notebook as any).setor_id ?? null
+  )
+
  const { update, remove, saving, deleting } = useCrud("notebooks", () => {
   onRefresh();
   onClose();
@@ -73,13 +76,12 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
    memoria: notebook.memoria,
    armazenamento: notebook.armazenamento,
    numero_patrimonio: notebook.numero_patrimonio,
-   setor: notebook.setor,
   },
  });
 
  // Chamado APENAS pelo botão type="submit" form="nb-form"
  function onSubmit(data: FormData) {
-  update(notebook.id, data);
+  update(notebook.id, {...data, setor_id: setorId});
  }
 
  async function alocar() {
@@ -368,7 +370,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
       </div>
      )}
 
-     {/* Body — modo edit: form com id único, SEM botões de submit aqui dentro */}
+     {/* Body — modo edit */}
      {mode === "edit" && (
       <div className="flex-1 overflow-y-auto p-5">
        <form
@@ -412,9 +414,12 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <label className={lbl}>Nº Patrimônio</label>
           <input {...register("numero_patrimonio")} className={inp} />
          </div>
-         <div>
-          <label className={lbl}>Setor</label>
-          <input {...register("setor")} className={inp} />
+         <div className="col-span-2">
+         <label className={lbl}>Setor</label>
+            <SetorSelect
+               value={setorId}
+               onChange={(id) => setSetorId(id)}
+            />
          </div>
         </div>
        </form>

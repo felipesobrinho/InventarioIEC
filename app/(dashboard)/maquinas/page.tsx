@@ -41,7 +41,7 @@ export default function MaquinasPage() {
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
-  const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
+  const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('nome_host')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 

@@ -12,7 +12,6 @@ const schema = z.object({
   nome:   z.string().min(1, 'Nome obrigatório'),
   codigo: z.union([z.number(), z.null()]).optional(),
   status: z.enum(['Ativo', 'Inativo']),
-  setor_id: z.string().optional().nullable(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -20,6 +19,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 
 export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('colaboradores', () => { onRefresh(); onClose() })
+  const [setorId, setSetorId] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'Ativo' },
@@ -40,7 +40,7 @@ export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <form id="criar-colab-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: data.setor_id }))} noValidate className="space-y-3">
+          <form id="criar-colab-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: setorId }))} noValidate className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className={lbl}>Nome *</label>
@@ -54,8 +54,8 @@ export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
               <div>
                 <label className={lbl}>Setor</label>
                 <SetorSelect
-                  value={null}
-                  onChange={() => { }}
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
                 />
               </div>  
               <div>

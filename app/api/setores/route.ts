@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const search  = searchParams.get('search') || ''
     const ativo   = searchParams.get('ativo')  || ''
-    const all     = searchParams.get('all')    === 'true' // retornar todos sem paginação
+    const all     = searchParams.get('all')    === 'true'
     const page    = parseInt(searchParams.get('page')  || '1')
     const limit   = parseInt(searchParams.get('limit') || '50')
 
