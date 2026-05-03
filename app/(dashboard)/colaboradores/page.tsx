@@ -18,7 +18,11 @@ import { toast } from 'sonner'
 const columns: ColumnDef<Colaborador>[] = [
   { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
   { accessorKey: 'nome', header: 'Nome', cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
   {
     accessorKey: 'status', header: 'Status',
     cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,

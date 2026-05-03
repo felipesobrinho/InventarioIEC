@@ -261,7 +261,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
-        <DetailField label="Setor" value={notebook.setor} />
+        <DetailField label="Setor" value={(notebook as any).setor_nome ?? notebook.setor ?? '—'} />
        </DetailSection>
        {notebook.emprestado ? (
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">

@@ -21,6 +21,7 @@ export async function GET(_: Request, { params }: Props) {
         include: { colaborador: { select: { nome: true, setor: true } } },
         orderBy: { data_inicio: 'asc' },
       },
+      setor_rel: { select: { id: true, nome: true } },
     },
   })
 
@@ -44,6 +45,7 @@ export async function GET(_: Request, { params }: Props) {
         }
       : null,
     alocacoes: undefined,
+    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
   }
 
   return NextResponse.json(result)

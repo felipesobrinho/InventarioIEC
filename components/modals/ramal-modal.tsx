@@ -114,7 +114,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          label="Número"
          value={ramal.numero_ramal != null ? String(ramal.numero_ramal) : null}
         />
-        <DetailField label="Setor" value={ramal.setor} />
+        <DetailField label="Setor" value={(ramal as any).setor_nome ?? ramal.nome_setor ?? '—'} />
         <DetailField
          label="Prefixo Telefônico"
          value={ramal.prefixo_telefonico}

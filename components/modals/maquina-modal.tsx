@@ -219,7 +219,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
        </DetailSection>
        <DetailSection title="Rede e Localização">
         <DetailField label="Endereço IP" value={maquina.endereco_ip} />
-        <DetailField label="Setor" value={maquina.setor} />
+        <DetailField label="Setor" value={(maquina as any).setor_nome ?? maquina.setor ?? '—'} />
         <DetailField
          label="Categoria"
          value={<CategoriaBadge categoria={maquina.categoria} />}

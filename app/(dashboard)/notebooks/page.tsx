@@ -32,7 +32,11 @@ const columns: ColumnDef<Notebook>[] = [
   },
   { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string || '—'}</span> },
   { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
   {
     id: 'emprestado',
     header: 'Empréstimo',

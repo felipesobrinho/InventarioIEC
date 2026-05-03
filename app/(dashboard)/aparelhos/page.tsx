@@ -31,7 +31,11 @@ const columns: ColumnDef<Aparelho>[] = [
       </div>
     ),
   },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
   { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   {

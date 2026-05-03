@@ -99,7 +99,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                 <DetailField label="Endereço IP" value={impressora.endereco_ip} />
                 <DetailField label="Servidor Impressão" value={impressora.servidor_impressao} />
                 <DetailField label="Andar" value={impressora.andar} />
-                <DetailField label="Setor" value={impressora.setor} />
+                <DetailField label="Localidade/Setor" value={(impressora as any).setor_nome ?? impressora.setor ?? '—'} />
                 <DetailField label="Tipo de Usuário" value={impressora.tipo_usuario} />
                 <DetailField label="Revisão" value={formatDate(impressora.revisao)} />
               </DetailSection>

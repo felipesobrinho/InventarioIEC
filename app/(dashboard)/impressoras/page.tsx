@@ -47,9 +47,9 @@ const columns: ColumnDef<Impressora>[] = [
   cell: ({ getValue }) => getValue() || "—",
  },
  {
-  accessorKey: "localidade",
-  header: "Localidade",
-  cell: ({ getValue }) => getValue() || "—",
+  accessorKey: 'setor',
+  header: 'Setor',
+  cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
  },
  {
   accessorKey: "andar",

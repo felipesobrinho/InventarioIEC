@@ -29,6 +29,8 @@ export interface Colaborador {
   nome: string
   setor: string | null
   status: 'Ativo' | 'Inativo'
+  setor_id?:   string | null
+  setor_nome?: string | null
   created_at: string | null
   alocacoes_maquinas_ativas?: number
   alocacoes_notebooks_ativas?: number
@@ -48,8 +50,9 @@ export interface Maquina {
   memoria_ram: string | null
   armazenamento: string | null
   endereco_ip: string | null
-  localizacao: string | null
   setor: string | null
+  setor_id?:   string | null
+  setor_nome?: string | null
   patrimonio_cpu: string | null
   patrimonio_monitor: string | null
   data_revisao: string | null
@@ -71,6 +74,7 @@ export interface Notebook {
   setor: string | null
   created_at: string | null
   setor_id: string | null
+  setor_nome?: string | null
   emprestado: boolean
   emprestado_colaborador_id: string | null
   emprestado_setor_id: string | null
@@ -89,6 +93,8 @@ export interface Aparelho {
   endereco_ip: string | null
   endereco_mac: string | null
   setor: string | null
+  setor_id?:   string | null
+  setor_nome?: string | null
   status: boolean | null
   created_at: string | null
 
@@ -105,6 +111,8 @@ export interface Impressora {
   endereco_ip: string | null
   andar: string | null
   setor: string | null
+  setor_id?:   string | null
+  setor_nome?: string | null
   servidor_impressao: string | null
   identificador_selb: string | null
   tipo_usuario: string | null
@@ -117,6 +125,8 @@ export interface Ramal {
   id: string
   numero_ramal: string | null
   setor: string | null
+  setor_id?:   string | null
+  setor_nome?: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null
   fila: boolean | null

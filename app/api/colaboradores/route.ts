@@ -13,82 +13,60 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
+    const page    = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
-    const status = searchParams.get('status') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
-    const overview = searchParams.get('overview') === 'true'
+    const status  = searchParams.get('status')   || ''
+    const sort    = searchParams.get('sort')     || 'nome'
+    const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: Prisma.colaboradoresWhereInput = {}
-    if (search) where.nome = { contains: search, mode: 'insensitive' }
-    if (setorId) where.setor_id = setorId
-    if (status === 'Ativo' || status === 'Inativo') where.status = status
-
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
+    const validSortFields: Record<string, boolean> = {
+      nome: true, codigo: true, created_at: true,
     }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+    const safeSort = validSortFields[sort] ? sort : 'nome'
 
-    const totalPromise = prisma.colaboradores.count({ where })
+    const AND: any[] = []
 
-    if (overview) {
-      type ColaboradorOverview = Prisma.colaboradoresGetPayload<{
-        include: {
-          alocacoes_maquinas: { select: { id: true } }
-          alocacoes_notebooks: { select: { id: true } }
-          alocacoes_aparelhos: { select: { id: true } }
-          alocacoes_ramais: { select: { id: true } }
-        }
-      }>
-
-      const [data, total] = await Promise.all([
-        prisma.colaboradores.findMany({
-          where,
-          skip: (page - 1) * limit,
-          take: limit,
-          orderBy: { [safeSort]: sortDir },
-          include: {
-            alocacoes_maquinas: { where: { ativo: true }, select: { id: true } },
-            alocacoes_notebooks: { where: { ativo: true }, select: { id: true } },
-            alocacoes_aparelhos: { where: { ativo: true }, select: { id: true } },
-            alocacoes_ramais: { where: { ativo: true }, select: { id: true } },
-          },
-        }),
-        totalPromise,
-      ])
-
-      const mapped = (data as ColaboradorOverview[]).map((colaborador) => ({
-          ...colaborador,
-          alocacoes_maquinas_ativas: colaborador.alocacoes_maquinas.length,
-          alocacoes_notebooks_ativas: colaborador.alocacoes_notebooks.length,
-          alocacoes_aparelhos_ativas: colaborador.alocacoes_aparelhos.length,
-          alocacoes_ramais_ativas: colaborador.alocacoes_ramais.length,
-          alocacoes_maquinas: undefined,
-          alocacoes_notebooks: undefined,
-          alocacoes_aparelhos: undefined,
-          alocacoes_ramais: undefined,
-        }))
-
-      return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
+    if (search) {
+      const codigo = parseInt(search, 10)
+      AND.push({
+        OR: [
+          { nome: { contains: search, mode: 'insensitive' } },
+          { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          ...(!isNaN(codigo) ? [{ codigo }] : []),
+        ],
+      })
     }
+
+    if (setorId)   AND.push({ setor_id: setorId })
+    if (status)    AND.push({ status })
+
+    const where: any = AND.length > 0 ? { AND } : {}
+    const orderBy = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
       prisma.colaboradores.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: sortDir },
+        orderBy,
+        include: {
+          setor_rel: { select: { id: true, nome: true } },
+        },
       }),
-      totalPromise,
+      prisma.colaboradores.count({ where }),
     ])
 
-    return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+    const mapped = data.map((c: any) => ({
+      ...c,
+      setor_nome: c.setor_rel?.nome ?? c.setor ?? null,
+    }))
+
+    return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/colaboradores]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[GET /api/colaboradores]', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 

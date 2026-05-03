@@ -194,7 +194,7 @@ export default function MaquinasPage() {
     {
       accessorKey: 'setor',
       header: 'Setor',
-      cell: ({ row }) => row.original.setor || '—',
+      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
     },
     {
       id: 'alocado',

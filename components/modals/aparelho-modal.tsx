@@ -169,7 +169,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
               <DetailSection title="Rede">
                 <DetailField label="Endereço IP" value={aparelho.endereco_ip} />
                 <DetailField label="Endereço MAC" value={aparelho.endereco_mac} />
-                <DetailField label="Setor" value={aparelho.setor} />
+                <DetailField label="Setor" value={(aparelho as any).setor_nome ?? aparelho.setor ?? '—'} />
               </DetailSection>
               <HistoricoPanel registroId={aparelho.id} tabela="aparelhos" />
             </div>
