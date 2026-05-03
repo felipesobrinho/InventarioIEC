@@ -215,7 +215,7 @@ export default function RamaisPage() {
       free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     const whatsapp        = searchParams.get('whatsapp')   || ''
     const setorId         = searchParams.get('setor_id')   || ''   // ← ADICIONADO
     const sort            = searchParams.get('sort')       || 'numero_ramal'
-    const dir             = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+    const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
       numero_ramal: true, nome_setor: true,

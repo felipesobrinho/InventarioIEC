@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
     const sort      = searchParams.get('sort')       || 'nome_host'
-    const dir       = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+    const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
       nome_host: true, identificador: true, fabricante: true,

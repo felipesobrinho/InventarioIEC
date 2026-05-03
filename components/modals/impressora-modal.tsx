@@ -49,7 +49,6 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
       numero_serie: impressora.numero_serie,
       endereco_ip: impressora.endereco_ip,
       andar: impressora.andar,
-      setor: impressora.setor,
       servidor_impressao: impressora.servidor_impressao,
       tipo_usuario: impressora.tipo_usuario,
       status: impressora.status,

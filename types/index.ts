@@ -110,6 +110,7 @@ export interface Impressora {
   numero_serie: string | null
   endereco_ip: string | null
   andar: string | null
+  localidade: string | null
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
@@ -127,6 +128,7 @@ export interface Ramal {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  nome_setor: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null
   fila: boolean | null

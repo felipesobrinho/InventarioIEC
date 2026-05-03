@@ -87,7 +87,6 @@ function hasMissingPrinterData(item: Impressora) {
   item.modelo,
   item.numero_serie,
   item.endereco_ip,
-  item.localidade,
  ].some(isMissing);
 }
 
@@ -117,7 +116,6 @@ export default function ImpressorasPage() {
   setLoading(true);
   const params = new URLSearchParams({ page: String(page), limit: "20" });
   if (search) params.set("search", search);
-  if (localidade) params.set("localidade", localidade);
   if (andar) params.set("andar", andar);
   if (status !== "") params.set("status", status);
   const res = await fetch(`/api/impressoras?${params}`);
@@ -126,7 +124,7 @@ export default function ImpressorasPage() {
   setTotal(json.total);
   setTotalPages(json.totalPages);
   setLoading(false);
- }, [page, search, localidade, andar, status]);
+ }, [page, search, andar, status]);
 
  useEffect(() => {
   void Promise.resolve().then(fetchData);
@@ -179,7 +177,7 @@ export default function ImpressorasPage() {
    },
    "printer-no-sector": {
     label: "Impressoras sem setor",
-    predicate: (item) => isMissing(item.localidade),
+    predicate: (item) => isMissing(item.setor),
    },
    "printer-no-identity": {
     label: "Impressoras sem identificacao",
@@ -195,7 +193,7 @@ export default function ImpressorasPage() {
    },
    "printer-sector": {
     label: `Setor: ${filter.value ?? "Sem setor"}`,
-    predicate: (item) => (item.localidade || "Sem setor") === filter.value,
+    predicate: (item) => (item.setor || "Sem setor") === filter.value,
    },
    "printer-floor": {
     label: `Andar: ${filter.value ?? "Sem andar"}`,
