@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
- X,
- Pencil,
- Trash2,
- Loader2,
-} from "lucide-react";
+import { X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,11 +12,12 @@ import { useCrud } from "@/hooks/use-crud";
 import type { Ramal } from "@/types";
 import { HistoricoPanel } from "./historico-panel";
 import { AlocacoesAtivasSection } from "@/components/modals/alocacoes-ativas-section";
+import { SetorSelect } from "./setor-select";
 
 const schema = z.object({
  numero_ramal: z.string().optional().nullable(),
- nome_setor: z.string().optional().nullable(),
  prefixo_telefonico: z.string().optional().nullable(),
+ senha_acesso: z.string().optional().nullable(),
  disponibilidade: z.string().optional().nullable(),
  fila: z.boolean().optional().nullable(),
  contemplacao: z.boolean().optional().nullable(),
@@ -38,6 +34,9 @@ interface Props {
 export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+ const [setorId, setSetorId] = useState<string | null>(
+    (ramal as any).setor_id ?? null
+  )
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -49,8 +48,8 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
   resolver: zodResolver(schema) as any,
   defaultValues: {
    numero_ramal: ramal.numero_ramal,
-   nome_setor: ramal.nome_setor,
    prefixo_telefonico: ramal.prefixo_telefonico,
+   senha_acesso: ramal.senha_acesso,
    disponibilidade: ramal.disponibilidade,
    fila: ramal.fila,
    contemplacao: ramal.contemplacao,
@@ -58,7 +57,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(ramal.id, data);
+  update(ramal.id, {...data, setor_id: setorId});
  }
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -68,7 +67,10 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  return (
   <>
    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+    <div
+     className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+     onClick={onClose}
+    />
     <section className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
      <div className="flex items-start justify-between p-5 border-b border-slate-100 dark:border-slate-800">
       <div>
@@ -79,7 +81,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        </h2>
        {mode === "view" && (
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-         {ramal.nome_setor || "—"}
+         {ramal.setor || "—"}
         </p>
        )}
       </div>
@@ -112,10 +114,14 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          label="Número"
          value={ramal.numero_ramal != null ? String(ramal.numero_ramal) : null}
         />
-        <DetailField label="Setor" value={ramal.nome_setor} />
+        <DetailField label="Setor" value={(ramal as any).setor_nome ?? ramal.nome_setor ?? '—'} />
         <DetailField
          label="Prefixo Telefônico"
          value={ramal.prefixo_telefonico}
+        />
+        <DetailField
+         label="Senha de Acesso"
+         value={ramal.senha_acesso || "—"}
         />
         <DetailField label="Disponibilidade" value={ramal.disponibilidade} />
         <DetailField label="Fila" value={<BoolBadge value={ramal.fila} />} />
@@ -141,25 +147,40 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
         <div className="grid grid-cols-2 gap-3">
          <div>
           <label className={lbl}>Número do Ramal</label>
-          <input 
-            type="text" 
-            {...register("numero_ramal")} 
-            className={inp}
-            placeholder="Ex: 0028"
-            onInput={(e) => {
-              const input = e.currentTarget
-              // Aceita apenas dígitos
-              input.value = input.value.replace(/[^0-9]/g, '')
-            }}
+          <input
+           type="text"
+           {...register("numero_ramal")}
+           className={inp}
+           placeholder="Ex: 0028"
+           onInput={(e) => {
+            const input = e.currentTarget;
+            // Aceita apenas dígitos
+            input.value = input.value.replace(/[^0-9]/g, "");
+           }}
           />
          </div>
          <div>
           <label className={lbl}>Setor</label>
-          <input {...register("nome_setor")} className={inp} />
+          <SetorSelect
+           value={setorId}
+           onChange={(id) =>
+            setSetorId(id)
+           }
+          />
          </div>
          <div>
           <label className={lbl}>Prefixo Telefônico</label>
           <input {...register("prefixo_telefonico")} className={inp} />
+         </div>
+         <div className="col-span-2">
+          <label className={lbl}>Senha de Acesso</label>
+          <input
+           type="text"
+           {...register("senha_acesso")}
+           className={inp}
+           placeholder="Senha do ramal"
+           autoComplete="off"
+          />
          </div>
          <div>
           <label className={lbl}>Disponibilidade</label>

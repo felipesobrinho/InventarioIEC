@@ -15,10 +15,10 @@ import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 import { AlocacoesAtivasSection } from './alocacoes-ativas-section'
+import { SetorSelect } from './setor-select'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
-  setor: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   endereco_mac: z.string().optional().nullable(),
   chip: z.boolean().optional().nullable(),
@@ -39,6 +39,9 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(
+    (aparelho as any).setor_id ?? null
+  )
 
   const { update, remove, saving, deleting } = useCrud('aparelhos', () => {
     onRefresh()
@@ -49,7 +52,6 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       modelo: aparelho.modelo,
-      setor: aparelho.setor,
       endereco_ip: aparelho.endereco_ip,
       endereco_mac: aparelho.endereco_mac,
       chip: aparelho.chip,
@@ -58,7 +60,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(aparelho.id, data)
+    update(aparelho.id, {...data, setor_id: setorId})
   }
 
   async function alocar() {
@@ -167,7 +169,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
               <DetailSection title="Rede">
                 <DetailField label="Endereço IP" value={aparelho.endereco_ip} />
                 <DetailField label="Endereço MAC" value={aparelho.endereco_mac} />
-                <DetailField label="Setor" value={aparelho.setor} />
+                <DetailField label="Setor" value={(aparelho as any).setor_nome ?? aparelho.setor ?? '—'} />
               </DetailSection>
               <HistoricoPanel registroId={aparelho.id} tabela="aparelhos" />
             </div>
@@ -189,9 +191,12 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                     <label className={lbl}>Endereço MAC</label>
                     <input {...register('endereco_mac')} className={inp} />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className={lbl}>Setor</label>
-                    <input {...register('setor')} className={inp} />
+                    <SetorSelect
+                      value={setorId}
+                      onChange={(id) => setSetorId(id)}
+                    />
                   </div>
                   <div className="flex items-center gap-2 pt-2">
                     <input type="checkbox" id="chip-edit" {...register('chip')}

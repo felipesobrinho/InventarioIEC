@@ -7,6 +7,7 @@ import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescriptio
 import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
 import type { Notebook, PaginatedResponse } from '@/types'
 import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
@@ -31,7 +32,18 @@ const columns: ColumnDef<Notebook>[] = [
   },
   { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string || '—'}</span> },
   { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
+  {
+    id: 'emprestado',
+    header: 'Empréstimo',
+    cell: ({ row }) => row.original.emprestado
+      ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">📦 Emprestado</span>
+      : null,
+  },
   {
     id: 'alocado',
     header: 'Uso',
@@ -81,7 +93,7 @@ export default function NotebooksPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -101,7 +113,7 @@ export default function NotebooksPage() {
       dir,
     })
     if (search)    params.set('search',    search)
-    if (setor)     params.set('setor',     setor)
+    if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
     if (categoria) params.set('categoria', categoria)
     if (fabricante)params.set('fabricante',fabricante)
     if (alocacao)  params.set('alocacao',  alocacao)
@@ -120,7 +132,7 @@ export default function NotebooksPage() {
     } finally {
       if (!cancelledRef.current) setLoading(false)
     }
-  }, [page, search, setor, categoria, fabricante, alocacao, sort, dir])
+  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir])
 
   useEffect(() => {
     cancelledRef.current = false
@@ -229,11 +241,13 @@ export default function NotebooksPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(value) => {
+          setSetorIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por setor..."
       />
 
       {/* Categoria */}

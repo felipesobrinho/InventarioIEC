@@ -104,15 +104,16 @@ function getItemLabel(tipo: keyof typeof TIPO_CONFIG, item: AlocacaoItemData): s
 }
 
 function getItemSub(tipo: keyof typeof TIPO_CONFIG, item: AlocacaoItemData): string {
+  const setor = String((item as any).setor_nome ?? item.setor ?? item.nome_setor ?? '')
   switch (tipo) {
     case 'maquinas':
-      return [item.fabricante, item.modelo].filter(Boolean).map(String).join(' ') || String(item.setor ?? '')
+      return [item.fabricante, item.modelo].filter(Boolean).map(String).join(' ') || setor
     case 'notebooks':
       return [item.fabricante, item.modelo].filter(Boolean).map(String).join(' ') || ''
     case 'aparelhos':
-      return String(item.setor ?? '')
+      return setor
     case 'ramais':
-      return String(item.nome_setor ?? '')
+      return setor
   }
 }
 

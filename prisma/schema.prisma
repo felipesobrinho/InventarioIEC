@@ -18,26 +18,38 @@ model usuarios {
 }
 
 model setores {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  nome         String
-  gestor       String?
-  encarregado1 String?
-  encarregado2 String?
-  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  id                    String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nome                  String          @unique
+  descricao             String?
+  ativo                 Boolean         @default(true)
+  created_at            DateTime?       @default(now()) @db.Timestamptz(6)
+  aparelhos             aparelhos[]
+  colaboradores         colaboradores[]
+  impressoras           impressoras[]
+  maquinas              maquinas[]
+  notebooks_emprestados notebooks[]     @relation("EmprestimoSetor")
+  notebooks             notebooks[]
+  ramais                ramais[]
+
+  @@index([ativo], map: "idx_setores_ativo")
+  @@index([nome], map: "idx_setores_nome")
 }
 
 model colaboradores {
-  id                  String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  codigo              Int?
-  nome                String
-  setor               String?
-  status              status_colaborador    @default(Ativo)
-  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
-  alocacoes_aparelhos alocacoes_aparelhos[]
-  alocacoes_maquinas  alocacoes_maquinas[]
-  alocacoes_notebooks alocacoes_notebooks[]
-  alocacoes_ramais    alocacoes_ramais[]
-  movimentacoes       movimentacoes[]
+  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  codigo                Int?
+  nome                  String
+  setor                 String?
+  status                status_colaborador    @default(Ativo)
+  created_at            DateTime?             @default(now()) @db.Timestamptz(6)
+  setor_id              String?               @db.Uuid
+  alocacoes_aparelhos   alocacoes_aparelhos[]
+  alocacoes_maquinas    alocacoes_maquinas[]
+  alocacoes_notebooks   alocacoes_notebooks[]
+  alocacoes_ramais      alocacoes_ramais[]
+  setor_rel             setores?              @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+  movimentacoes         movimentacoes[]
+  notebooks_emprestados notebooks[]           @relation("EmprestimoColaborador")
 
   @@index([nome], map: "idx_colaboradores_nome")
   @@index([setor], map: "idx_colaboradores_setor")
@@ -61,24 +73,37 @@ model maquinas {
   patrimonio_monitor String?
   data_revisao       DateTime?              @db.Date
   created_at         DateTime?              @default(now()) @db.Timestamptz(6)
+  setor_id           String?                @db.Uuid
   alocacoes          alocacoes_maquinas[]
+  setor_rel          setores?               @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 
   @@index([identificador], map: "idx_maquinas_identificador")
   @@index([setor], map: "idx_maquinas_setor")
 }
 
 model notebooks {
-  id                String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  modelo            String?
-  fabricante        String?
-  categoria         categoria_equipamento?
-  processador       String?
-  memoria           String?
-  armazenamento     String?
-  numero_patrimonio String?
-  setor             String?
-  created_at        DateTime?              @default(now()) @db.Timestamptz(6)
-  alocacoes         alocacoes_notebooks[]
+  id                        String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelo                    String?
+  fabricante                String?
+  categoria                 categoria_equipamento?
+  processador               String?
+  memoria                   String?
+  armazenamento             String?
+  numero_patrimonio         String?
+  setor                     String?
+  created_at                DateTime?              @default(now()) @db.Timestamptz(6)
+  setor_id                  String?                @db.Uuid
+  emprestado                Boolean                @default(false)
+  emprestado_setor_id       String?                @db.Uuid
+  emprestado_colaborador_id String?                @db.Uuid
+  emprestado_desde          DateTime?              @db.Date
+  emprestado_obs            String?
+  alocacoes                 alocacoes_notebooks[]
+  emprestado_colaborador    colaboradores?         @relation("EmprestimoColaborador", fields: [emprestado_colaborador_id], references: [id], onUpdate: NoAction)
+  emprestado_setor          setores?               @relation("EmprestimoSetor", fields: [emprestado_setor_id], references: [id], onUpdate: NoAction)
+  setor_rel                 setores?               @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+
+  @@index([emprestado_colaborador_id], map: "idx_notebooks_emprestado_colab")
 }
 
 model aparelhos {
@@ -91,7 +116,9 @@ model aparelhos {
   setor        String?
   status       Boolean?              @default(true)
   created_at   DateTime?             @default(now()) @db.Timestamptz(6)
+  setor_id     String?               @db.Uuid
   alocacoes    alocacoes_aparelhos[]
+  setor_rel    setores?              @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 }
 
 model impressoras {
@@ -109,6 +136,8 @@ model impressoras {
   revisao            DateTime? @db.Timestamptz(6)
   status             Boolean?  @default(true)
   created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  setor_id           String?   @db.Uuid
+  setor_rel          setores?  @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 }
 
 model ramais {
@@ -122,7 +151,10 @@ model ramais {
   status_contemplacao Int?
   senha_acesso        String?
   created_at          DateTime?          @default(now()) @db.Timestamptz(6)
+  setor_id            String?            @db.Uuid
+  password            String?
   alocacoes           alocacoes_ramais[]
+  setor_rel           setores?           @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 }
 
 model racks {

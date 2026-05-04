@@ -7,6 +7,7 @@ import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescriptio
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { AparelhoModal } from '@/components/modals/aparelho-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
 import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
@@ -30,7 +31,11 @@ const columns: ColumnDef<Aparelho>[] = [
       </div>
     ),
   },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
   { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   {
@@ -82,7 +87,7 @@ export default function AparelhosPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [chip, setChip] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -105,7 +110,7 @@ export default function AparelhosPage() {
         dir,
       })
       if (search)    params.set('search',    search)
-      if (setor)     params.set('setor',     setor)
+      if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
       if (status !== '') params.set('status', status)
       if (chip !== '') params.set('chip', chip)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -128,7 +133,7 @@ export default function AparelhosPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setor, status, chip, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, status, chip, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -229,11 +234,12 @@ export default function AparelhosPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
+        placeholder="Filtrar por setor..."
+        allowCreate={false}
+        className="w-52"
       />
 
       {/* Status */}
@@ -285,7 +291,7 @@ export default function AparelhosPage() {
         <option value="created_at:desc">Mais recentes</option>
         <option value="created_at:asc">Mais antigos</option>
         <option value="tipo:asc">Tipo A→Z</option>
-        <option value="setor:asc">Setor A→Z</option>
+        <option value="setor_id:asc">Setor A→Z</option>
       </select>
     </>
   )

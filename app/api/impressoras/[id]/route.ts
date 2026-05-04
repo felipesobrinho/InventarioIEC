@@ -11,9 +11,15 @@ export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const item = await prisma.impressoras.findUnique({ where: { id } })
+  const item = await prisma.impressoras.findUnique({ where: { id }, include: {setor_rel: { select: { id: true, nome: true } },} })
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  return NextResponse.json(item)
+  
+    const result = {
+    ...item,
+    setor_nome: item.setor_rel?.nome ?? item.localidade ?? null,
+  }
+
+  return NextResponse.json(result)
 }
 
 export async function PUT(request: Request, { params }: Props) {

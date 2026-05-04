@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 
@@ -13,14 +14,15 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const page            = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
-    const limit           = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10)))
-    const search          = (searchParams.get('search') || '').trim().slice(0, 100) // Limit to 100 chars
+    const limit           = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search          = (searchParams.get('search') || '').trim()
     const disponibilidade = (searchParams.get('disponibilidade') || '').trim()
-    const fila            = searchParams.get('fila') || ''
-    const alocacao        = searchParams.get('alocacao') || ''
-    const whatsapp        = searchParams.get('whatsapp') || ''
-    const sort            = searchParams.get('sort') || 'numero_ramal'
-    const dir             = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+    const fila            = searchParams.get('fila')       || ''
+    const alocacao        = searchParams.get('alocacao')   || ''
+    const whatsapp        = searchParams.get('whatsapp')   || ''
+    const setorId         = searchParams.get('setor_id')   || ''   // ← ADICIONADO
+    const sort            = searchParams.get('sort')       || 'numero_ramal'
+    const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
       numero_ramal: true, nome_setor: true,
@@ -30,22 +32,34 @@ export async function GET(request: Request) {
 
     const AND: any[] = []
 
+    // Filtro de texto — NÃO inclui setor_id (UUID não aceita contains)
     if (search) {
-      const searchConditions: any[] = [
-        { nome_setor: { contains: search, mode: 'insensitive' } },
-        { numero_ramal: { contains: search, mode: 'insensitive' } },
-      ]
-      
-      searchConditions.push({
-        alocacoes: {
-          some: {
-            ativo: true,
-            colaborador: { nome: { contains: search, mode: 'insensitive' } } ,
+      const numSearch = parseInt(search, 10)
+      AND.push({
+        OR: [
+          { nome_setor: { contains: search, mode: 'insensitive' } },
+          ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
+          {
+            alocacoes: {
+              some: {
+                ativo: true,
+                colaborador: { nome: { contains: search, mode: 'insensitive' } },
+              },
+            },
           },
-        },
+          // Busca por nome do setor via relação
+          {
+            setor_rel: {
+              nome: { contains: search, mode: 'insensitive' },
+            },
+          },
+        ],
       })
-      
-      AND.push({ OR: searchConditions })
+    }
+
+    // Filtro por setor selecionado no SetorSelect — comparação exata por UUID
+    if (setorId) {
+      AND.push({ setor_id: setorId })
     }
 
     if (disponibilidade) {
@@ -56,7 +70,6 @@ export async function GET(request: Request) {
       AND.push({ fila: fila === 'true' })
     }
 
-    // Filtro de alocação e whatsapp precisam de condições separadas em AND
     if (alocacao === 'alocado') {
       AND.push({ alocacoes: { some: { ativo: true, ramal_id: { not: null } } } })
     } else if (alocacao === 'livre') {
@@ -73,24 +86,29 @@ export async function GET(request: Request) {
 
     const where: any = AND.length > 0 ? { AND } : {}
 
+    // Ordenação — setor via relação precisa de sintaxe diferente
+    const orderBy = safeSort === 'nome_setor'
+      ? { setor_rel: { nome: dir } }
+      : { [safeSort]: dir }
+
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: dir },
+        orderBy,
         include: {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
             orderBy: { data_inicio: 'asc' },
           },
+          setor_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.ramais.count({ where }),
     ])
 
-    // Buscar última edição do audit_log
     const ids = data.map((r: any) => r.id)
     const ultimasEdicoes = ids.length > 0
       ? await prisma.audit_log.findMany({
@@ -109,6 +127,7 @@ export async function GET(request: Request) {
 
     const mapped = data.map((r: any) => ({
       ...r,
+      setor_nome: r.setor_rel?.nome ?? r.nome_setor ?? r.setor ?? null,
       alocacoes_ativas: r.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
@@ -131,10 +150,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/ramais] Error:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
+    console.error('[GET /api/ramais]', error instanceof Error ? error.message : error)
     return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }

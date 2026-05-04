@@ -4,12 +4,13 @@ import { X, Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { useCreate } from '@/hooks/use-create'
+import { useState } from 'react'
 
 const schema = z.object({
   nome:   z.string().min(1, 'Nome obrigatório'),
   codigo: z.union([z.number(), z.null()]).optional(),
-  setor:  z.string().optional().nullable(),
   status: z.enum(['Ativo', 'Inativo']),
 })
 type FormData = z.infer<typeof schema>
@@ -18,6 +19,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 
 export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('colaboradores', () => { onRefresh(); onClose() })
+  const [setorId, setSetorId] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'Ativo' },
@@ -38,7 +40,7 @@ export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <form id="criar-colab-form" onSubmit={handleSubmit(create)} noValidate className="space-y-3">
+          <form id="criar-colab-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: setorId }))} noValidate className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className={lbl}>Nome *</label>
@@ -50,15 +52,18 @@ export function CriarColaboradorModal({ onClose, onRefresh }: Props) {
                 <input type="number" {...register('codigo', { valueAsNumber: true })} className={inp} placeholder="Ex: 12345" />
               </div>
               <div>
+                <label className={lbl}>Setor</label>
+                <SetorSelect
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
+                />
+              </div>  
+              <div>
                 <label className={lbl}>Status</label>
                 <select {...register('status')} className={inp}>
                   <option value="Ativo">Ativo</option>
                   <option value="Inativo">Inativo</option>
                 </select>
-              </div>
-              <div className="col-span-2">
-                <label className={lbl}>Setor</label>
-                <input {...register('setor')} className={inp} placeholder="Ex: Informática" />
               </div>
             </div>
           </form>

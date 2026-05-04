@@ -12,6 +12,7 @@ import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
 import { toast } from 'sonner'
+import { SetorSelect } from '@/components/modals/setor-select'
 
 function isAllocated(item: Ramal) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
@@ -54,6 +55,7 @@ export default function RamaisPage() {
 
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
   const [fila, setFila] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')
@@ -82,7 +84,7 @@ export default function RamaisPage() {
     {
       accessorKey: 'nome_setor',
       header: 'Setor',
-      cell: ({ row }) => row.original.nome_setor || '—',
+      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
     },
     {
       accessorKey: 'fila',
@@ -136,6 +138,7 @@ export default function RamaisPage() {
       })
       if (debouncedSearch)        params.set('search',        debouncedSearch)
       if (disponibilidade) params.set('disponibilidade', disponibilidade)
+      if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
       if (fila !== '')   params.set('fila',          fila)
       if (alocacao)      params.set('alocacao',      alocacao)
       if (whatsappFiltro) params.set('whatsapp', whatsappFiltro)
@@ -158,7 +161,7 @@ export default function RamaisPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey])
+  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey, setorIdFiltro])
 
   useEffect(() => {
     let cancelled = false
@@ -212,7 +215,7 @@ export default function RamaisPage() {
       free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]
@@ -242,64 +245,86 @@ export default function RamaisPage() {
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
   const filters = (
-    <>
-      <div className="relative flex-1 min-w-[200px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Ramal, setor ou colaborador..."
-          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
+   <>
+    <div className="relative flex-1 min-w-[200px]">
+     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+     <input
+      value={search}
+      onChange={(e) => {
+       setSearch(e.target.value);
+       setPage(1);
+      }}
+      placeholder="Ramal, setor ou colaborador..."
+      className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+     />
+    </div>
 
-      <select
-        value={fila}
-        onChange={(e) => { setFila(e.target.value); setPage(1) }}
-        className={inputCls}
-      >
-        <option value="">Com/sem fila</option>
-        <option value="true">Com fila</option>
-        <option value="false">Sem fila</option>
-      </select>
+    {/* Setor */}
+    <SetorSelect
+     value={setorIdFiltro}
+     onChange={(value) => {
+      setSetorIdFiltro(value);
+      setPage(1);
+     }}
+     placeholder="Filtrar por setor..."
+    />
 
-      <select
-        value={alocacao}
-        onChange={(e) => { setAlocacao(e.target.value); setPage(1) }}
-        className={inputCls}
-      >
-        <option value="">Todos</option>
-        <option value="alocado">Alocados</option>
-        <option value="livre">Disponíveis</option>
-      </select>
+    <select
+     value={fila}
+     onChange={(e) => {
+      setFila(e.target.value);
+      setPage(1);
+     }}
+     className={inputCls}
+    >
+     <option value="">Com/sem fila</option>
+     <option value="true">Com fila</option>
+     <option value="false">Sem fila</option>
+    </select>
 
-      <select
-        value={whatsappFiltro}
-        onChange={(e) => { setWhatsappFiltro(e.target.value); setPage(1) }}
-        className={inputCls}
-      >
-        <option value="">Com/sem WhatsApp</option>
-        <option value="true">Com WhatsApp</option>
-      </select>
+    <select
+     value={alocacao}
+     onChange={(e) => {
+      setAlocacao(e.target.value);
+      setPage(1);
+     }}
+     className={inputCls}
+    >
+     <option value="">Todos</option>
+     <option value="alocado">Alocados</option>
+     <option value="livre">Disponíveis</option>
+    </select>
 
-      <select
-        value={`${sort}:${dir}`}
-        onChange={(e) => {
-          const [s, d] = e.target.value.split(':')
-          setSort(s)
-          setDir(d as 'asc' | 'desc')
-          setPage(1)
-        }}
-        className={inputCls}
-      >
-        <option value="numero_ramal:asc">Ramal ↑</option>
-        <option value="numero_ramal:desc">Ramal ↓</option>
-        <option value="created_at:desc">Mais recentes</option>
-        <option value="created_at:asc">Mais antigos</option>
-        <option value="nome_setor:asc">Setor A→Z</option>
-      </select>
-    </>
-  )
+    <select
+     value={whatsappFiltro}
+     onChange={(e) => {
+      setWhatsappFiltro(e.target.value);
+      setPage(1);
+     }}
+     className={inputCls}
+    >
+     <option value="">Com/sem WhatsApp</option>
+     <option value="true">Com WhatsApp</option>
+    </select>
+
+    <select
+     value={`${sort}:${dir}`}
+     onChange={(e) => {
+      const [s, d] = e.target.value.split(":");
+      setSort(s);
+      setDir(d as "asc" | "desc");
+      setPage(1);
+     }}
+     className={inputCls}
+    >
+     <option value="numero_ramal:asc">Ramal ↑</option>
+     <option value="numero_ramal:desc">Ramal ↓</option>
+     <option value="created_at:desc">Mais recentes</option>
+     <option value="created_at:asc">Mais antigos</option>
+     <option value="nome_setor:asc">Setor A→Z</option>
+    </select>
+   </>
+  );
 
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
