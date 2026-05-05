@@ -34,11 +34,10 @@ export async function GET(request: Request) {
 
     // Filtro de texto — NÃO inclui setor_id (UUID não aceita contains)
     if (search) {
-      const numSearch = parseInt(search, 10)
       AND.push({
         OR: [
+          { numero_ramal: { contains: search, mode: 'insensitive' } },
           { nome_setor: { contains: search, mode: 'insensitive' } },
-          ...(!isNaN(numSearch) ? [{ numero_ramal: numSearch }] : []),
           {
             alocacoes: {
               some: {

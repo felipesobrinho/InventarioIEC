@@ -13,6 +13,7 @@ import Link from "next/link";
 import { ClipboardList, ArrowLeftRight, AlertCircle, TrendingUp } from "lucide-react";
 import { UltimasAuditoriasCard } from "@/components/dashboard/last-audits";
 import { ExportPdfButton } from "@/components/dashboard/export-pdf-button";
+import { GlobalSearch } from '@/components/layout/global-search'
 
 export const dynamic = "force-dynamic";
 
@@ -105,23 +106,29 @@ export default async function DashboardPage() {
  return (
   <div className="p-6 max-w-7xl mx-auto">
    {/* Header */}
-   <div className="flex items-center justify-between mb-5">
-    <div>
-     <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+   <div className="flex items-center gap-4 mb-5">
+  {/* Título — lado esquerdo */}
+  <div className="shrink-0">
+    <h1 className="text-xl font-bold text-slate-900 dark:text-white">
       Dashboard
-     </h1>
-     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+    </h1>
+    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
       Visão geral do inventário de TI
-     </p>
-    </div>
-    <div className="flex items-center gap-2">
-     <div className="flex items-center gap-2 text-xs text-slate-400 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-1.5">
+    </p>
+  </div>
+
+  {/* Search — centro, cresce para preencher o espaço disponível */}
+  <GlobalSearch className="flex-1 min-w-0" />
+
+  {/* Ações — lado direito */}
+  <div className="flex items-center gap-2 shrink-0">
+    <div className="flex items-center gap-2 text-xs text-slate-400 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg px-3 py-1.5">
       <TrendingUp className="w-3.5 h-3.5" />
       Atualizado agora
-     </div>
-     <ExportPdfButton />
     </div>
-   </div>
+    <ExportPdfButton />
+  </div>
+</div>
 
    {/* Stats */}
    <StatsCards stats={stats} />
