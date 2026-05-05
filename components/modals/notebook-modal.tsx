@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Pencil, Trash2, Loader2, UserPlus } from "lucide-react";
+import { X, Pencil, Trash2, Loader2, UserPlus, Box } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -124,6 +124,17 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
  async function salvarEmprestimo(ativo: boolean) {
   setSavingEmp(true);
   try {
+   if (ativo && !empSetorId) {
+    toast.error("Selecione um setor de destino");
+    setSavingEmp(false);
+    return;
+   }
+   if (!notebook.id) {
+    toast.error("Erro: ID do notebook não disponível");
+    setSavingEmp(false);
+    return;
+   }
+   console.log('Salvando empréstimo para notebook ID:', notebook.id);
    const res = await fetch(`/api/notebooks/${notebook.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -145,12 +156,16 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         },
     ),
    });
-   if (!res.ok) throw new Error();
+   if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+    throw new Error(error.error || `Erro ${res.status}`);
+   }
    toast.success(ativo ? "Empréstimo registrado!" : "Empréstimo encerrado!");
    setEditandoEmprestimo(false);
    onRefresh();
-  } catch {
-   toast.error("Erro ao salvar empréstimo.");
+  } catch (err) {
+   const message = err instanceof Error ? err.message : "Erro ao salvar empréstimo.";
+   toast.error(message);
   } finally {
    setSavingEmp(false);
   }
@@ -273,9 +288,9 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
            type="button"
            onClick={() => salvarEmprestimo(false)}
            disabled={savingEmp}
-           className="text-xs text-red-500 hover:text-red-700 transition"
+           className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           >
-           Encerrar empréstimo
+            <Box /> Encerrar empréstimo
           </button>
          </div>
          {notebook.emprestado_colaborador_id && (

@@ -55,9 +55,15 @@ export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
+  
+  if (!id) return NextResponse.json({ error: 'ID do notebook não fornecido' }, { status: 400 })
+  
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
   const { alocacoes, alocacao_ativa, created_at, id: _id, ...rest } = body
+
+  const anterior = await prisma.notebooks.findUnique({ where: { id } })
+  if (!anterior) return NextResponse.json({ error: `Notebook não encontrado (ID: ${id})` }, { status: 404 })
 
   // Converter campos de data string para Date
   const data: any = { ...rest }
@@ -68,7 +74,26 @@ export async function PUT(request: Request, { params }: Props) {
     data.emprestado_desde = null
   }
 
-  const anterior = await prisma.notebooks.findUnique({ where: { id } })
+  // Validar colaborador se for atualizar empréstimo
+  if (data.emprestado_colaborador_id) {
+    const colaborador = await prisma.colaboradores.findUnique({
+      where: { id: data.emprestado_colaborador_id },
+    })
+    if (!colaborador) {
+      return NextResponse.json({ error: 'Colaborador não encontrado' }, { status: 404 })
+    }
+  }
+
+  // Validar setor se for atualizar empréstimo
+  if (data.emprestado_setor_id) {
+    const setor = await prisma.setores.findUnique({
+      where: { id: data.emprestado_setor_id },
+    })
+    if (!setor) {
+      return NextResponse.json({ error: 'Setor não encontrado' }, { status: 404 })
+    }
+  }
+
   const item = await prisma.notebooks.update({ where: { id }, data })
 
   await registrarAuditoria({
