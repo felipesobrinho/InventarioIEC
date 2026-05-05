@@ -73,24 +73,6 @@ jobs:
           name: codecov-main
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Slack Notification on Success
-        if: success()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: '✅ Testes passaram para main'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          fields: repo,message,commit,author
-
-      - name: Slack Notification on Failure
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: '❌ Testes falharam para main - Merge bloqueado'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          fields: repo,message,commit,author
-
   # Job que falha se validate falhar - para bloquear merges
   require-tests:
     runs-on: ubuntu-latest

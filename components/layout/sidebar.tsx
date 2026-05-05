@@ -414,7 +414,7 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
       {/* Mobile drawer */}
       <aside
         className={cn(
-          'lg:hidden fixed top-0 left-0 bottom-0 z-50 w-64 bg-slate-900 flex flex-col transition-transform duration-300',
+          'sidebar lg:hidden fixed top-0 left-0 bottom-0 z-50 w-64 bg-slate-900 flex flex-col transition-transform duration-300',
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -449,7 +449,7 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
       <aside
         onClick={handleSidebarBlankClick}
         className={cn(
-          'hidden lg:flex flex-col h-screen bg-slate-900 text-white transition-all duration-300 shrink-0',
+          'sidebar hidden lg:flex flex-col h-screen bg-slate-900 text-white transition-all duration-300 shrink-0',
           collapsed ? 'w-14 overflow-visible' : 'w-56'
         )}
       >
