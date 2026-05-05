@@ -20,23 +20,23 @@ export async function GET(request: Request) {
     const categoria = searchParams.get('categoria')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
-    const sort      = searchParams.get('sort')       || 'nome_host'
-    const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
+    const sort      = searchParams.get('sort')       || 'modelo'
+    const dir       = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
-      nome_host: true, identificador: true, fabricante: true,
-      modelo: true, created_at: true,
+      modelo: true, fabricante: true, numero_patrimonio: true,
+      created_at: true,
     }
-    const safeSort = validSortFields[sort] ? sort : 'nome_host'
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
 
     const AND: any[] = []
 
     if (search) {
       AND.push({
         OR: [
-          { nome_host:    { contains: search, mode: 'insensitive' } },
-          { identificador:{ contains: search, mode: 'insensitive' } },
-          { fabricante:   { contains: search, mode: 'insensitive' } },
+          { modelo:           { contains: search, mode: 'insensitive' } },
+          { fabricante:       { contains: search, mode: 'insensitive' } },
+          { numero_patrimonio:{ contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
@@ -55,19 +55,16 @@ export async function GET(request: Request) {
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
 
     if (alocacao === 'alocado') {
-      AND.push({ alocacoes: { some: { ativo: true, maquina_id: { not: null } } } })
+      AND.push({ alocacoes: { some: { ativo: true, notebook_id: { not: null } } } })
     } else if (alocacao === 'livre') {
-      AND.push({ alocacoes: { none: { ativo: true, maquina_id: { not: null } } } })
+      AND.push({ alocacoes: { none: { ativo: true, notebook_id: { not: null } } } })
     }
 
     const where: any = AND.length > 0 ? { AND } : {}
-
-    const orderBy = safeSort === 'setor_id'
-      ? { setor_rel: { nome: dir } }
-      : { [safeSort]: dir }
+    const orderBy = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
-      prisma.maquinas.findMany({
+      prisma.notebooks.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
@@ -81,23 +78,25 @@ export async function GET(request: Request) {
           setor_rel: { select: { id: true, nome: true } },
         },
       }),
-      prisma.maquinas.count({ where }),
+      prisma.notebooks.count({ where }),
     ])
 
-    const mapped = data.map((m: any) => ({
-      ...m,
-      setor_nome: m.setor_rel?.nome ?? m.setor ?? null,
-      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+    const mapped = data.map((n: any) => ({
+      ...n,
+      setor_nome: n.setor_rel?.nome ?? n.setor ?? null,
+      alocacoes_ativas: n.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
-        tipo_uso: a.tipo_uso,
+        motivo_alocacao: a.motivo_alocacao,
+        tipo_posse: a.tipo_posse,
         data_inicio: a.data_inicio,
       })),
-      alocacao_ativa: m.alocacoes[0]
+      alocacao_ativa: n.alocacoes[0]
         ? {
-            colaborador: m.alocacoes[0].colaborador,
-            tipo_uso: m.alocacoes[0].tipo_uso,
-            data_inicio: m.alocacoes[0].data_inicio,
+            colaborador: n.alocacoes[0].colaborador,
+            motivo_alocacao: n.alocacoes[0].motivo_alocacao,
+            tipo_posse: n.alocacoes[0].tipo_posse,
+            data_inicio: n.alocacoes[0].data_inicio,
           }
         : null,
       alocacoes: undefined,
@@ -105,7 +104,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/maquinas]', error instanceof Error ? error.message : error)
+    console.error('[GET /api/notebooks]', error instanceof Error ? error.message : error)
     return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
