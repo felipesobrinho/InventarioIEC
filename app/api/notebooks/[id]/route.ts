@@ -22,6 +22,8 @@ export async function GET(_: Request, { params }: Props) {
         orderBy: { data_inicio: 'asc' },
       },
       setor_rel: { select: { id: true, nome: true } },
+      emprestado_colaborador: { select: { nome: true } },
+      emprestado_setor:       { select: { nome: true } },
     },
   })
 
@@ -46,6 +48,10 @@ export async function GET(_: Request, { params }: Props) {
       : null,
     alocacoes: undefined,
     setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    emprestado_colaborador_nome: (item as any).emprestado_colaborador?.nome ?? null,
+    emprestado_setor_nome:       (item as any).emprestado_setor?.nome ?? null,
+    emprestado_colaborador: undefined,
+    emprestado_setor: undefined,
   }
 
   return NextResponse.json(result)

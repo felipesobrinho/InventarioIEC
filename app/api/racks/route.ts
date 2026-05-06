@@ -12,40 +12,62 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const marca = searchParams.get('marca') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
+    const page    = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search  = (searchParams.get('search') || '').trim()
+    const setorId = searchParams.get('setor_id') || ''
+    const sort    = searchParams.get('sort') || 'nome_switch'
+    const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: any = {}
+    const validSortFields: Record<string, boolean> = {
+      nome_switch: true, marca_switch: true,
+      localizacao: true, created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'nome_switch'
+
+    const AND: any[] = []
+
     if (search) {
-      where.OR = [
-        { nome_switch: { contains: search, mode: 'insensitive' } },
-        { localizacao: { contains: search, mode: 'insensitive' } },
-      ]
+      AND.push({
+        OR: [
+          { nome_switch:    { contains: search, mode: 'insensitive' } },
+          { marca_switch:   { contains: search, mode: 'insensitive' } },
+          { localizacao:    { contains: search, mode: 'insensitive' } },
+          { numero_patrimonio: { contains: search, mode: 'insensitive' } },
+          { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+        ],
+      })
     }
-    if (marca) where.marca_switch = { contains: marca, mode: 'insensitive' }
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
-    }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+
+    if (setorId) AND.push({ setor_id: setorId })
+
+    const where: any = AND.length > 0 ? { AND } : {}
 
     const [data, total] = await Promise.all([
       prisma.racks.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: sortDir },
+        orderBy: { [safeSort]: dir },
+        include: {
+          setor_rel: { select: { id: true, nome: true } },
+        },
       }),
       prisma.racks.count({ where }),
     ])
 
-    return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+    const mapped = data.map((r: any) => ({
+      ...r,
+      setor_nome: r.setor_rel?.nome ?? r.localizacao ?? null,
+      portas_livres: r.quantidade_portas != null && r.portas_em_uso != null
+        ? Math.max(0, r.quantidade_portas - r.portas_em_uso)
+        : null,
+    }))
+
+    return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/racks]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[GET /api/racks]', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
@@ -56,7 +78,11 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
-    const item = await prisma.racks.create({ data: body })
+
+    // Nunca salvar portas_livres — é calculado
+    const { portas_livres, ...data } = body
+
+    const item = await prisma.racks.create({ data })
 
     await registrarAuditoria({
       tabela: 'racks',
@@ -68,9 +94,14 @@ export async function POST(request: Request) {
       usuario_nome,
     })
 
-    return NextResponse.json(item, { status: 201 })
+    return NextResponse.json({
+      ...item,
+      portas_livres: item.quantidade_portas != null && item.portas_em_uso != null
+        ? Math.max(0, item.quantidade_portas - item.portas_em_uso)
+        : null,
+    }, { status: 201 })
   } catch (error) {
-    console.error('[POST /api/racks]', error)
+    console.error('[POST /api/racks]', error instanceof Error ? error.message : error)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

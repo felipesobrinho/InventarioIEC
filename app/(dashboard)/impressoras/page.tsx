@@ -77,7 +77,7 @@ export default function ImpressorasPage() {
 
  useEffect(() => {
   void Promise.resolve().then(fetchData);
- }, [fetchData, refreshKey]);
+ }, [fetchData, refreshKey, setorIdFiltro]);
 
  const filteredOverviewData = activeOverviewFilter
   ? overviewData.filter(activeOverviewFilter.predicate)

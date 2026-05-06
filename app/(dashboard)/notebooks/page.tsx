@@ -202,16 +202,24 @@ export default function NotebooksPage() {
     cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
   },
   {
-    id: 'emprestado',
-    header: 'Empréstimo',
-    cell: ({ row }) => row.original.emprestado
-      ? (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-          📦 Emprestado
-        </span>
-      )
-      : null,
+  id: 'emprestado',
+  header: 'Empréstimo',
+  cell: ({ row }) => {
+    const nb = row.original
+    if (!nb.emprestado) return null
+
+    // Montar label: colaborador tem prioridade sobre setor
+    const label = (nb as any).emprestado_colaborador_nome
+      ?? (nb as any).emprestado_setor_nome
+      ?? 'Emprestado'
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 max-w-[160px]">
+        📦 <span className="truncate">{label}</span>
+      </span>
+    )
   },
+},
   {
     id: 'alocado',
     header: 'Uso',

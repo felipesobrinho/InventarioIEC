@@ -296,7 +296,11 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
          {notebook.emprestado_colaborador_id && (
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
            {/* Nome do colaborador — buscar via colaborador_select ou exibir ID */}
-           Colaborador vinculado
+           Colaborador vinculado: {
+            (notebook as any).emprestado_colaborador_nome ??
+            (notebook as any).emprestado_colaborador_setor ??
+            "Emprestado"
+            }
           </p>
          )}
          {notebook.emprestado_obs && (
