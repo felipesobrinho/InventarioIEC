@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
     const categoria = searchParams.get('categoria')  || ''
+    const enderecoIp = searchParams.get('endereco_ip')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
     const sort      = searchParams.get('sort')       || 'nome_host'
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 
     const validSortFields: Record<string, boolean> = {
       nome_host: true, identificador: true, fabricante: true,
-      modelo: true, created_at: true,
+      modelo: true, created_at: true, enderecoIp: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'nome_host'
 
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
           { nome_host:    { contains: search, mode: 'insensitive' } },
           { identificador:{ contains: search, mode: 'insensitive' } },
           { fabricante:   { contains: search, mode: 'insensitive' } },
+          { endereco_ip:   { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
@@ -53,6 +55,7 @@ export async function GET(request: Request) {
     if (setorId)   AND.push({ setor_id: setorId })
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
+    if (enderecoIp) AND.push({ endereco_ip: { contains: enderecoIp, mode: 'insensitive' } })
 
     if (alocacao === 'alocado') {
       AND.push({ alocacoes: { some: { ativo: true, maquina_id: { not: null } } } })
