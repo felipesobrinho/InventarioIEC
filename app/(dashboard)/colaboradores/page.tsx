@@ -52,6 +52,8 @@ export default function ColaboradoresPage() {
   } | null>(null)
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
+  console.log(data)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
