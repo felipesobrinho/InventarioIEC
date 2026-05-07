@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
-import type { Prisma } from '@prisma/client'
+import { status_colaborador, type Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     }
     const safeSort = validSortFields[sort] ? sort : 'nome'
 
-    const AND: any[] = []
+    const AND: Prisma.colaboradoresWhereInput[] = []
 
     if (search) {
       const codigo = parseInt(search, 10)
@@ -39,11 +39,13 @@ export async function GET(request: Request) {
       })
     }
 
-    if (setorId)   AND.push({ setor_id: setorId })
-    if (status)    AND.push({ status })
+    if (setorId) AND.push({ setor_id: setorId })
+    if (status === status_colaborador.Ativo || status === status_colaborador.Inativo) {
+      AND.push({ status })
+    }
 
-    const where: any = AND.length > 0 ? { AND } : {}
-    const orderBy = { [safeSort]: dir }
+    const where: Prisma.colaboradoresWhereInput = AND.length > 0 ? { AND } : {}
+    const orderBy: Prisma.colaboradoresOrderByWithRelationInput = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
       prisma.colaboradores.findMany({
@@ -53,14 +55,28 @@ export async function GET(request: Request) {
         orderBy,
         include: {
           setor_rel: { select: { id: true, nome: true } },
+          _count: {
+            select: {
+              alocacoes_maquinas: { where: { ativo: true } },
+              alocacoes_notebooks: { where: { ativo: true } },
+              notebooks_emprestados: { where: { emprestado: true } },
+              alocacoes_aparelhos: { where: { ativo: true } },
+              alocacoes_ramais: { where: { ativo: true } },
+            },
+          },
         },
       }),
       prisma.colaboradores.count({ where }),
     ])
 
-    const mapped = data.map((c: any) => ({
+    const mapped = data.map((c) => ({
       ...c,
       setor_nome: c.setor_rel?.nome ?? c.setor ?? null,
+      alocacoes_maquinas_ativas: c._count?.alocacoes_maquinas ?? 0,
+      alocacoes_notebooks_ativas: (c._count?.alocacoes_notebooks ?? 0) + (c._count?.notebooks_emprestados ?? 0),
+      alocacoes_aparelhos_ativas: c._count?.alocacoes_aparelhos ?? 0,
+      alocacoes_ramais_ativas: c._count?.alocacoes_ramais ?? 0,
+      _count: undefined,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
@@ -76,7 +92,7 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
-    const body = await request.json()
+    const body = await request.json() as Prisma.colaboradoresCreateInput
     const item = await prisma.colaboradores.create({ data: body })
 
     await registrarAuditoria({

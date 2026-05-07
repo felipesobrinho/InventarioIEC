@@ -4,15 +4,19 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
+import { DeviceOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
 import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
-import { toast } from 'sonner'
 import { SetorSelect } from '@/components/modals/setor-select'
+
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Ramal) => boolean
+}
 
 function isAllocated(item: Ramal) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
@@ -47,10 +51,7 @@ export default function RamaisPage() {
   const [selected, setSelected] = useState<Ramal | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
-    label: string
-    predicate: (item: Ramal) => boolean
-  } | null>(null)
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -193,8 +194,8 @@ export default function RamaisPage() {
     return () => { cancelled = true }
   }, [refreshKey])
 
-  const filteredOverviewData = activeOverviewFilter
-    ? overviewData.filter(activeOverviewFilter.predicate)
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
     : null
   const tableData = filteredOverviewData
     ? filteredOverviewData.slice((page - 1) * 20, page * 20)
@@ -204,9 +205,9 @@ export default function RamaisPage() {
 
   function applyOverviewFilter(filter: OverviewFilter) {
     if (filter.kind === 'all') {
-      setActiveOverviewFilter(null)
+      setActiveOverviewFilters([])
       setPage(1)
-      toast.success('Filtro do overview removido.')
+      notifyOverviewFilter([])
       return
     }
 
@@ -220,17 +221,43 @@ export default function RamaisPage() {
     }
     const nextFilter = predicates[filter.kind]
     if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
 
-    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
-    const toastId = toast.loading('Aplicando filtro do overview...', { description })
     setOverviewFilterLoading(true)
     window.setTimeout(() => {
-      setActiveOverviewFilter(nextFilter)
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
       setPage(1)
       setOverviewFilterLoading(false)
-      toast.success('Filtro aplicado.', { id: toastId, description })
     }, 120)
   }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const sectorName = overviewData.find(item => item.setor_id === setorIdFiltro)?.setor_nome
+      ?? overviewData.find(item => item.setor_id === setorIdFiltro)?.setor
+    if (!sectorName) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        if (currentFilters.some(filter => filter.key === `sector:${sectorName}`)) return currentFilters
+        return [...currentFilters, {
+          kind: 'sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `sector:${sectorName}`,
+          predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === sectorName,
+        }]
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
   // Abrir modal via ?inspect=id (vindo do colaborador)
   useEffect(() => {
@@ -343,6 +370,7 @@ export default function RamaisPage() {
         total={overviewTotal || total}
         items={overviewData}
         accentClassName="bg-emerald-500"
+        activeFilters={activeOverviewFilters}
         isLoading={overviewLoading}
         onFilter={applyOverviewFilter}
       />
@@ -370,5 +398,28 @@ export default function RamaisPage() {
         />
       )}
     </div>
+  )
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Ramal, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

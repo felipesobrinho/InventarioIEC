@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 import { cn, formatDate } from '@/lib/utils'
 import type { AlocacaoAtiva } from '@/types'
 import { ACAO_LABELS, type AuditLog } from '@/lib/audit-constants'
+import { toast } from 'sonner'
 
 export interface DeviceOverviewItem {
   id: string
@@ -59,11 +60,20 @@ interface OverviewListSection {
   layout?: 'full' | 'half'
 }
 
+interface ActiveOverviewFilterState {
+  kind: string
+  value?: string
+  label?: string
+  color?: string
+  tone?: 'default' | 'success' | 'warning' | 'danger'
+}
+
 interface DeviceOverviewPanelProps<T extends DeviceOverviewItem> {
   title: string
   total: number
   items: T[]
   accentClassName: string
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -106,12 +116,25 @@ interface ColaboradorOverviewPanelProps {
   items: Array<{
     id: string
     setor: string | null
+    setor_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number
     alocacoes_aparelhos_ativas?: number
     alocacoes_ramais_ativas?: number
   }>
+  metricTotal?: number
+  metricItems?: Array<{
+    id: string
+    setor: string | null
+    setor_nome?: string | null
+    status: string
+    alocacoes_maquinas_ativas?: number
+    alocacoes_notebooks_ativas?: number
+    alocacoes_aparelhos_ativas?: number
+    alocacoes_ramais_ativas?: number
+  }>
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -123,7 +146,30 @@ interface AuditOverviewPanelProps {
   onFilter?: (filter: OverviewFilter) => void
 }
 
-const chartColors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444']
+type PieChartItem = {
+  distribution: number
+  color: string
+  label?: string
+}
+
+const chartColors = [
+  '#3b82f6',
+  '#8b5cf6',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#14b8a6',
+  '#6366f1',
+  '#ec4899',
+  '#84cc16',
+  '#f97316',
+  '#22c55e',
+  '#0ea5e9',
+  '#a855f7',
+  '#eab308',
+  '#64748b',
+]
 
 function getSetor(item: DeviceOverviewItem) {
   return item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
@@ -142,7 +188,27 @@ function pct(value: number, total: number) {
   return Math.round((value / total) * 100)
 }
 
-function buildPieGradient(sectors: Array<{ distribution: number; color: string }>) {
+function getOverviewFilterKey(filter: { kind: string; value?: string }) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function getFilterColor(filter?: { color?: string; tone?: 'default' | 'success' | 'warning' | 'danger' }) {
+  if (filter?.color) return filter.color
+  if (filter?.tone === 'success') return '#10b981'
+  if (filter?.tone === 'warning') return '#f59e0b'
+  if (filter?.tone === 'danger') return '#ef4444'
+  return '#3b82f6'
+}
+
+function getSectorColor(seed: string) {
+  let hash = 0
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) % 9973
+  }
+  return chartColors[hash % chartColors.length]
+}
+
+function buildPieGradient(sectors: PieChartItem[]) {
   let cursor = 0
   const stops = sectors.map((sector) => {
     const start = cursor
@@ -172,15 +238,14 @@ function groupByLabel<T>(items: T[], getLabel: (item: T) => string, total: numbe
       return map
     }, new Map<string, number>())
   )
-    .map(([label, count], index) => ({
+    .map(([label, count]) => ({
       label,
       value: String(count),
       detail: `${pct(count, total)}% do total`,
-      color: chartColors[index % chartColors.length],
+      color: getSectorColor(label),
       distribution: pct(count, total),
     }))
     .sort((a, b) => Number(b.value) - Number(a.value))
-    .slice(0, 6)
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -202,6 +267,7 @@ function OverviewShell({
   listItems,
   emptyMessage,
   listSections,
+  activeFilters,
   onFilter,
   isLoading = false,
 }: {
@@ -212,11 +278,12 @@ function OverviewShell({
   chartTitle: string
   chartCenter: string
   chartCaption: string
-  chartItems: Array<{ distribution: number; color: string }>
+  chartItems: PieChartItem[]
   listTitle?: string
   listItems?: OverviewListItem[]
   emptyMessage?: string
   listSections?: OverviewListSection[]
+  activeFilters?: ActiveOverviewFilterState[]
   onFilter?: (filter: OverviewFilter) => void
   isLoading?: boolean
 }) {
@@ -226,6 +293,7 @@ function OverviewShell({
     items: listItems ?? [],
     emptyMessage: emptyMessage ?? 'Sem dados para compor este painel.',
   }]
+  const activeFilterKeys = new Set((activeFilters ?? []).map(getOverviewFilterKey))
 
   return (
     <section className="mb-5 rounded-xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -245,7 +313,12 @@ function OverviewShell({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
             {metrics.map(metric => (
-              <Metric key={metric.label} {...metric} onFilter={onFilter} />
+              <Metric
+                key={metric.label}
+                {...metric}
+                isSelected={metric.filter ? activeFilterKeys.has(getOverviewFilterKey(metric.filter)) : false}
+                onFilter={onFilter}
+              />
             ))}
           </div>
 
@@ -278,8 +351,13 @@ function OverviewShell({
                   <SectionTitle icon={section.icon ?? <Activity className="h-3.5 w-3.5" />} label={section.title} />
                   {section.items.length > 0 ? (
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {section.items.slice(0, 9).map((item) => (
-                        <OverviewListCard key={item.label} item={item} onFilter={onFilter} />
+                      {section.items.map((item) => (
+                        <OverviewListCard
+                          key={item.label}
+                          item={item}
+                          isSelected={item.filter ? activeFilterKeys.has(getOverviewFilterKey(item.filter)) : false}
+                          onFilter={onFilter}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -300,6 +378,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   total,
   items,
   accentClassName,
+  activeFilters = [],
   isLoading = false,
   onFilter,
 }: DeviceOverviewPanelProps<T>) {
@@ -318,15 +397,16 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
       return map
     }, new Map<string, { total: number; allocated: number }>())
   )
-    .map(([setor, value], index) => ({
+    .map(([setor, value]) => ({
       setor,
       ...value,
       distribution: pct(value.total, analyzedTotal),
       occupancy: pct(value.allocated, value.total),
-      color: chartColors[index % chartColors.length],
+      color: getSectorColor(setor),
     }))
+    .filter(sector => sector.total > 0)
     .sort((a, b) => b.total - a.total)
-    .slice(0, 6)
+  const activeFilterKeys = new Set(activeFilters.map(getOverviewFilterKey))
 
   const latestRevision = items
     .map(getRevisionDate)
@@ -351,8 +431,8 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
           <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={total.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
-          <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} onFilter={onFilter} />
-          <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} onFilter={onFilter} />
+          <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
+          <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
           <Metric icon={<Users className="h-3.5 w-3.5" />} label="Ocupação" value={`${occupancy}%`} tone={occupancy >= 90 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'} />
           <Metric
             icon={<CalendarClock className="h-3.5 w-3.5" />}
@@ -386,6 +466,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                   <OverviewListCard
                     key={sector.setor}
                     onFilter={onFilter}
+                    isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'sector', value: sector.setor }))}
                     item={{
                       label: sector.setor,
                       value: `${sector.occupancy}%`,
@@ -557,14 +638,25 @@ export function RackOverviewPanel({ total, items, isLoading = false, onFilter }:
   )
 }
 
-export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFilter }: ColaboradorOverviewPanelProps) {
-  const active = items.filter(item => item.status === 'Ativo').length
-  const sectors = groupByLabel(items, item => item.setor || 'Sem setor', items.length)
-  const withoutMachine = items.filter(item => !item.alocacoes_maquinas_ativas).length
-  const withoutNotebook = items.filter(item => !item.alocacoes_notebooks_ativas).length
-  const withoutPhone = items.filter(item => !item.alocacoes_aparelhos_ativas).length
-  const withoutExtension = items.filter(item => !item.alocacoes_ramais_ativas).length
-  const withoutAny = items.filter(item =>
+export function ColaboradorOverviewPanel({
+  total,
+  items,
+  metricTotal = total,
+  metricItems = items,
+  activeFilters = [],
+  isLoading = false,
+  onFilter,
+}: ColaboradorOverviewPanelProps) {
+  const activeItems = items.filter(item => item.status === 'Ativo')
+  const metricActiveItems = metricItems.filter(item => item.status === 'Ativo')
+  const active = metricActiveItems.length
+  const sectors = groupByLabel(items, item => item.setor_nome ?? item.setor ?? 'Sem setor', items.length)
+  const metricSectors = groupByLabel(metricItems, item => item.setor_nome ?? item.setor ?? 'Sem setor', metricItems.length)
+  const withoutMachine = activeItems.filter(item => !item.alocacoes_maquinas_ativas).length
+  const withoutNotebook = activeItems.filter(item => !item.alocacoes_notebooks_ativas).length
+  const withoutPhone = activeItems.filter(item => !item.alocacoes_aparelhos_ativas).length
+  const withoutExtension = activeItems.filter(item => !item.alocacoes_ramais_ativas).length
+  const metricWithoutAny = metricActiveItems.filter(item =>
     !item.alocacoes_maquinas_ativas &&
     !item.alocacoes_notebooks_ativas &&
     !item.alocacoes_aparelhos_ativas &&
@@ -577,11 +669,11 @@ export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFi
       accentClassName="bg-emerald-500"
       icon={<Users className="h-4 w-4" />}
       metrics={[
-        { icon: <Users className="h-3.5 w-3.5" />, label: 'Cadastrados', value: total.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Users className="h-3.5 w-3.5" />, label: 'Em registro', value: metricTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Ativos', value: active.toLocaleString('pt-BR'), tone: 'success', filter: { kind: 'collaborator-status', value: 'Ativo' } },
-        { icon: <MapPin className="h-3.5 w-3.5" />, label: 'Setores', value: sectors.length.toLocaleString('pt-BR') },
-        { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Sem alocacao', value: withoutAny.toLocaleString('pt-BR'), tone: withoutAny > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-any' } },
-        { icon: <Activity className="h-3.5 w-3.5" />, label: 'Cobertura', value: `${pct(total - withoutAny, total)}%`, tone: withoutAny > 0 ? 'warning' : 'success' },
+        { icon: <MapPin className="h-3.5 w-3.5" />, label: 'Setores', value: metricSectors.length.toLocaleString('pt-BR') },
+        { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Sem alocacao', value: metricWithoutAny.toLocaleString('pt-BR'), tone: metricWithoutAny > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-any' } },
+        { icon: <Activity className="h-3.5 w-3.5" />, label: 'Cobertura', value: `${pct(active - metricWithoutAny, active)}%`, tone: metricWithoutAny > 0 ? 'warning' : 'success' },
       ]}
       chartTitle="Setores"
       chartCenter={sectors.length.toLocaleString('pt-BR')}
@@ -598,18 +690,67 @@ export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFi
           title: 'Ausencias por tipo',
           icon: <Activity className="h-3.5 w-3.5" />,
           items: [
-            { label: 'Sem maquina', value: String(withoutMachine), detail: `${pct(withoutMachine, total)}% dos colaboradores`, tone: withoutMachine > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-machine' } },
-            { label: 'Sem notebook', value: String(withoutNotebook), detail: `${pct(withoutNotebook, total)}% dos colaboradores`, tone: withoutNotebook > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-notebook' } },
-            { label: 'Sem telefone', value: String(withoutPhone), detail: `${pct(withoutPhone, total)}% dos colaboradores`, tone: withoutPhone > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-phone' } },
-            { label: 'Sem ramal', value: String(withoutExtension), detail: `${pct(withoutExtension, total)}% dos colaboradores`, tone: withoutExtension > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-extension' } },
+            { label: 'Sem maquina', value: String(withoutMachine), detail: `${pct(withoutMachine, activeItems.length)}% dos colaboradores ativos`, tone: withoutMachine > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-machine' } },
+            { label: 'Sem notebook', value: String(withoutNotebook), detail: `${pct(withoutNotebook, activeItems.length)}% dos colaboradores ativos`, tone: withoutNotebook > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-notebook' } },
+            { label: 'Sem telefone', value: String(withoutPhone), detail: `${pct(withoutPhone, activeItems.length)}% dos colaboradores ativos`, tone: withoutPhone > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-phone' } },
+            { label: 'Sem ramal', value: String(withoutExtension), detail: `${pct(withoutExtension, activeItems.length)}% dos colaboradores ativos`, tone: withoutExtension > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-extension' } },
           ],
           emptyMessage: 'Sem ausencias por tipo.',
         },
       ]}
+      activeFilters={activeFilters}
       onFilter={onFilter}
       isLoading={isLoading}
     />
   )
+}
+
+export function notifyOverviewFilter(filters: ActiveOverviewFilterState[]) {
+  const toastId = 'overview-filter-toast'
+  const activeFilters = filters.filter(filter => filter.kind !== 'all')
+  const title = activeFilters.length === 0
+    ? 'Overview em visão geral'
+    : activeFilters.length === 1
+      ? `Overview focado em ${activeFilters[0].label ?? 'recorte selecionado'}`
+      : `Overview com ${activeFilters.length} filtros ativos`
+  const detail = activeFilters.length === 0
+    ? 'Tabela exibindo todos os colaboradores.'
+    : activeFilters.length === 1
+      ? 'Tabela filtrada pelo recorte selecionado no overview.'
+      : `Tabela filtrada por ${activeFilters.map(filter => filter.label ?? 'recorte').join(', ')}.`
+  const colors = activeFilters.length > 0
+    ? activeFilters.map(getFilterColor)
+    : ['#3b82f6']
+
+  toast.custom((id) => (
+    <div className="flex w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+      <span className="flex w-1.5 shrink-0 flex-col">
+        {colors.map((color, index) => (
+          <span
+            key={`${color}-${index}`}
+            className="min-h-1 flex-1"
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </span>
+      <div className="min-w-0 flex-1 px-3 py-2.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{detail}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => toast.dismiss(id)}
+            className="rounded-md px-1.5 text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Fechar notificação"
+          >
+            x
+          </button>
+        </div>
+      </div>
+    </div>
+  ), { id: toastId })
 }
 
 export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }: AuditOverviewPanelProps) {
@@ -723,6 +864,7 @@ function Metric({
   value,
   tone = 'default',
   filter,
+  isSelected = false,
   onFilter,
 }: {
   icon: ReactNode
@@ -730,6 +872,7 @@ function Metric({
   value: string
   tone?: 'default' | 'success' | 'warning' | 'danger'
   filter?: OverviewFilter
+  isSelected?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }) {
   const toneClassName = {
@@ -740,16 +883,27 @@ function Metric({
   }[tone]
 
   const Component = filter && onFilter ? 'button' : 'div'
+  const selectionColor = getFilterColor({ color: filter?.color, tone })
 
   return (
     <Component
       type={Component === 'button' ? 'button' : undefined}
       onClick={filter && onFilter ? () => onFilter({ ...filter, label, tone }) : undefined}
       className={cn(
-        'w-full rounded-lg border border-slate-100 bg-slate-50 p-3 text-left dark:border-slate-800 dark:bg-slate-950/40',
+        'relative w-full rounded-lg border bg-slate-50 p-3 text-left dark:bg-slate-950/40',
+        isSelected ? 'border-transparent ring-2' : 'border-slate-100 dark:border-slate-800',
         filter && onFilter && 'transition hover:border-blue-300 hover:bg-blue-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:border-blue-700 dark:hover:bg-blue-950/20'
       )}
+      style={isSelected ? { '--tw-ring-color': selectionColor } as CSSProperties : undefined}
     >
+      {isSelected && (
+        <span
+          className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: selectionColor }}
+        >
+          x
+        </span>
+      )}
       <div className="mb-2 flex items-center gap-1.5 text-slate-400">
         {icon}
         <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
@@ -759,7 +913,15 @@ function Metric({
   )
 }
 
-function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter?: (filter: OverviewFilter) => void }) {
+function OverviewListCard({
+  item,
+  isSelected = false,
+  onFilter,
+}: {
+  item: OverviewListItem
+  isSelected?: boolean
+  onFilter?: (filter: OverviewFilter) => void
+}) {
   const toneClassName = {
     default: 'text-slate-400',
     success: 'text-emerald-600 dark:text-emerald-300',
@@ -768,6 +930,7 @@ function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter
   }[item.tone ?? 'default']
 
   const Component = item.filter && onFilter ? 'button' : 'div'
+  const selectionColor = getFilterColor({ color: item.color, tone: item.tone })
 
   return (
     <Component
@@ -781,10 +944,20 @@ function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter
           })
         : undefined}
       className={cn(
-        'w-full rounded-md bg-white px-3 py-2 text-left dark:bg-slate-900',
+        'relative w-full rounded-md border bg-white px-3 py-2 text-left dark:bg-slate-900',
+        isSelected ? 'border-transparent ring-2' : 'border-transparent',
         item.filter && onFilter && 'transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-blue-950/20'
       )}
+      style={isSelected ? { '--tw-ring-color': selectionColor } as CSSProperties : undefined}
     >
+      {isSelected && (
+        <span
+          className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: selectionColor }}
+        >
+          x
+        </span>
+      )}
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
           <span

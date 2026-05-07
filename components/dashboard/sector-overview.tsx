@@ -115,7 +115,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
       .map((row) => ({
         ...row,
         total: row.counts.colaboradores,
-        color: getSectorColor(`${row.id}-${row.nome}`),
+        color: getSectorColor(row.nome),
       }))
       .sort((a, b) => b.total - a.total)
       .map((row) => ({
@@ -305,7 +305,7 @@ function notifyFocusChange(filter: SectorFilter | null, setores: SectorOverviewR
     ? setores.find(row => row.id === filter.setorId)
     : null
   const color = sector
-    ? getSectorColor(`${sector.id}-${sector.nome}`)
+    ? getSectorColor(sector.nome)
     : filter?.kind === 'active'
       ? '#10b981'
       : '#3b82f6'
