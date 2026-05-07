@@ -7,6 +7,20 @@ import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
+async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
+  if (!snapshot) return snapshot
+  const { setor_id, ...rest } = snapshot
+  let setor_nome: string | null = null
+  if (setor_id) {
+    const setor = await prisma.setores.findUnique({
+      where: { id: setor_id },
+      select: { nome: true },
+    })
+    setor_nome = setor?.nome ?? setor_id
+  }
+  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+}
+
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -21,6 +35,8 @@ export async function GET(_: Request, { params }: Props) {
         include: { colaborador: { select: { nome: true, setor: true } } },
         orderBy: { data_inicio: 'asc' },
       },
+      // FIX: inclui setor_rel para resolver setor_nome
+      setor_rel: { select: { id: true, nome: true } },
     },
   })
 
@@ -44,6 +60,9 @@ export async function GET(_: Request, { params }: Props) {
         }
       : null,
     alocacoes: undefined,
+    // FIX: expõe setor_nome resolvido
+    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_rel: undefined,
   }
 
   return NextResponse.json(result)
@@ -55,18 +74,26 @@ export async function PUT(request: Request, { params }: Props) {
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, ...data } = body
+
+  // FIX: também descarta setor_nome (campo virtual) para não tentar persistir no banco
+  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, ...data } = body
 
   const anterior = await prisma.aparelhos.findUnique({ where: { id } })
   const item = await prisma.aparelhos.update({ where: { id }, data })
+
+  // FIX: enriquece snapshots com setor_nome legível antes de gravar na auditoria
+  const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
+    enrichAuditSnapshot(anterior as any),
+    enrichAuditSnapshot(data as any),
+  ])
 
   await registrarAuditoria({
     tabela: 'aparelhos',
     registro_id: id,
     acao: 'UPDATE',
-    descricao: descricaoDiff(anterior as any, data),
-    dados_anteriores: anterior as any,
-    dados_novos: data,
+    descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
+    dados_anteriores: anteriorEnriquecido as any,
+    dados_novos: novoEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
@@ -83,12 +110,15 @@ export async function DELETE(request: Request, { params }: Props) {
   const anterior = await prisma.aparelhos.findUnique({ where: { id } })
   await prisma.aparelhos.delete({ where: { id } })
 
+  // FIX: enriquece o snapshot anterior com setor_nome legível
+  const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
+
   await registrarAuditoria({
     tabela: 'aparelhos',
     registro_id: id,
     acao: 'DELETE',
     descricao: `Aparelho "${anterior?.modelo ?? id}" excluído`,
-    dados_anteriores: anterior as any,
+    dados_anteriores: anteriorEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
