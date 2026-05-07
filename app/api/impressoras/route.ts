@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import type { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
     const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
     const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
+    const andar   = (searchParams.get('andar') || '').trim()
+    const status  = searchParams.get('status') || ''
     const sort    = searchParams.get('sort')     || 'modelo'
     const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
     }
     const safeSort = validSortFields[sort] ? sort : 'modelo'
 
-    const AND: any[] = []
+    const AND: Prisma.impressorasWhereInput[] = []
 
     if (search) {
       AND.push({
@@ -39,8 +42,11 @@ export async function GET(request: Request) {
     }
 
     if (setorId) AND.push({ setor_id: setorId })
+    if (andar) AND.push({ andar: { contains: andar, mode: 'insensitive' } })
+    if (status === 'true') AND.push({ status: true })
+    if (status === 'false') AND.push({ status: false })
 
-    const where: any = AND.length > 0 ? { AND } : {}
+    const where: Prisma.impressorasWhereInput = AND.length > 0 ? { AND } : {}
     const orderBy = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
@@ -56,9 +62,9 @@ export async function GET(request: Request) {
       prisma.impressoras.count({ where }),
     ])
 
-    const mapped = data.map((i: any) => ({
+    const mapped = data.map((i) => ({
       ...i,
-      setor_nome: i.setor_rel?.nome ?? i.localidade ?? i.setor ?? null,
+      setor_nome: i.setor_rel?.nome ?? null,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
@@ -82,7 +88,7 @@ export async function POST(request: Request) {
       registro_id: item.id,
       acao: 'CREATE',
       descricao: `Impressora "${item.nome_host ?? item.numero_serie ?? item.id}" criada`,
-      dados_novos: item as any,
+      dados_novos: item as unknown as Record<string, unknown>,
       usuario_id,
       usuario_nome,
     })

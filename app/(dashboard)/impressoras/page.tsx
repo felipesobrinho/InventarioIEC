@@ -6,7 +6,7 @@ import { DataTable } from "@/components/tables/data-table";
 import {
  ImpressoraOverviewPanel,
  type OverviewFilter,
- OverviewFilterToastDescription,
+ notifyOverviewFilter,
 } from "@/components/tables/device-overview-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { BoolBadge } from "@/components/dashboard/status-badge";
@@ -15,8 +15,12 @@ import { Search } from "lucide-react";
 import type { Impressora, PaginatedResponse } from "@/types";
 import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal";
 import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { SetorSelect } from "@/components/modals/setor-select";
+
+type ActiveOverviewFilter = OverviewFilter & {
+ key: string;
+ predicate: (item: Impressora) => boolean;
+};
 
 function isMissing(value: unknown) {
  return value === null || value === undefined || value === "";
@@ -55,16 +59,14 @@ export default function ImpressorasPage() {
  const [status, setStatus] = useState("");
  const [refreshKey, setRefreshKey] = useState(0);
  const [showCriar, setShowCriar] = useState(false);
- const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
-  label: string;
-  predicate: (item: Impressora) => boolean;
- } | null>(null);
+ const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([]);
  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false);
 
  const fetchData = useCallback(async () => {
   setLoading(true);
   const params = new URLSearchParams({ page: String(page), limit: "20" });
   if (search) params.set("search", search);
+  if (setorIdFiltro) params.set("setor_id", setorIdFiltro);
   if (andar) params.set("andar", andar);
   if (status) params.set("status", status);
   const res = await fetch(`/api/impressoras?${params}`);
@@ -73,14 +75,14 @@ export default function ImpressorasPage() {
   setTotal(json.total);
   setTotalPages(json.totalPages);
   setLoading(false);
- }, [page, search, andar, status]);
+ }, [page, search, setorIdFiltro, andar, status]);
 
  useEffect(() => {
   void Promise.resolve().then(fetchData);
- }, [fetchData, refreshKey, setorIdFiltro]);
+ }, [fetchData, refreshKey]);
 
- const filteredOverviewData = activeOverviewFilter
-  ? overviewData.filter(activeOverviewFilter.predicate)
+ const filteredOverviewData = activeOverviewFilters.length > 0
+  ? overviewData.filter((item) => matchesOverviewFilters(item, activeOverviewFilters))
   : null;
  const tableData = filteredOverviewData
   ? filteredOverviewData.slice((page - 1) * 20, page * 20)
@@ -92,9 +94,9 @@ export default function ImpressorasPage() {
 
  function applyOverviewFilter(filter: OverviewFilter) {
   if (filter.kind === "all") {
-   setActiveOverviewFilter(null);
+   setActiveOverviewFilters([]);
    setPage(1);
-   toast.success("Filtro do overview removido.");
+   notifyOverviewFilter([]);
    return;
   }
 
@@ -125,8 +127,8 @@ export default function ImpressorasPage() {
     predicate: (item) => isMissing(item.endereco_ip),
    },
    "printer-no-sector": {
-    label: "Impressoras sem setor",
-    predicate: (item) => isMissing(item.setor),
+    label: "Impressoras sem setor registrado",
+    predicate: (item) => !item.setor_id || !item.setor_nome,
    },
    "printer-no-identity": {
     label: "Impressoras sem identificacao",
@@ -141,30 +143,30 @@ export default function ImpressorasPage() {
      hasMissingPrinterData(item),
    },
    "printer-sector": {
-    label: `Setor: ${filter.value ?? "Sem setor"}`,
-    predicate: (item) => (item.setor || "Sem setor") === filter.value,
-   },
-   "printer-floor": {
-    label: `Andar: ${filter.value ?? "Sem andar"}`,
-    predicate: (item) => (item.andar || "Sem andar") === filter.value,
+    label: `Setor: ${filter.value ?? "Sem setor registrado"}`,
+    predicate: (item) =>
+     (item.setor_id && item.setor_nome ? item.setor_nome : "Sem setor registrado") === filter.value,
    },
   };
 
   const nextFilter = predicates[filter.kind];
   if (!nextFilter) return;
+  const candidate: ActiveOverviewFilter = {
+   ...filter,
+   key: getOverviewFilterKey(filter),
+   label: nextFilter.label,
+   predicate: nextFilter.predicate,
+  };
 
-  const description = (
-   <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
-  );
-  const toastId = toast.loading("Aplicando filtro do overview...", {
-   description,
-  });
   setOverviewFilterLoading(true);
   window.setTimeout(() => {
-   setActiveOverviewFilter(nextFilter);
+   setActiveOverviewFilters((currentFilters) => {
+    const nextFilters = toggleOverviewFilter(currentFilters, candidate);
+    notifyOverviewFilter(nextFilters);
+    return nextFilters;
+   });
    setPage(1);
    setOverviewFilterLoading(false);
-   toast.success("Filtro aplicado.", { id: toastId, description });
   }, 120);
  }
 
@@ -309,6 +311,7 @@ export default function ImpressorasPage() {
    <ImpressoraOverviewPanel
     total={overviewTotal || total}
     items={overviewData}
+    activeFilters={activeOverviewFilters}
     isLoading={overviewLoading}
     onFilter={applyOverviewFilter}
    />
@@ -337,5 +340,28 @@ export default function ImpressorasPage() {
     />
    )}
   </div>
+ );
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+ return `${filter.kind}:${filter.value ?? ""}`;
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+ const exists = filters.some((filter) => filter.key === candidate.key);
+ if (exists) return filters.filter((filter) => filter.key !== candidate.key);
+ return [...filters, candidate];
+}
+
+function matchesOverviewFilters(item: Impressora, filters: ActiveOverviewFilter[]) {
+ const filtersByKind = filters.reduce((map, filter) => {
+  const group = map.get(filter.kind) ?? [];
+  group.push(filter);
+  map.set(filter.kind, group);
+  return map;
+ }, new Map<string, ActiveOverviewFilter[]>());
+
+ return Array.from(filtersByKind.values()).every((group) =>
+  group.some((filter) => filter.predicate(item))
  );
 }

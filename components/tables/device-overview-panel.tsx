@@ -87,11 +87,14 @@ interface ImpressoraOverviewPanelProps {
     modelo: string | null
     numero_serie: string | null
     endereco_ip: string | null
-    localidade: string | null
     andar: string | null
+    setor: string | null
+    setor_id?: string | null
+    setor_nome?: string | null
     revisao: string | null
     status: boolean | null
   }>
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -488,7 +491,13 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   )
 }
 
-export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFilter }: ImpressoraOverviewPanelProps) {
+export function ImpressoraOverviewPanel({
+  total,
+  items,
+  activeFilters = [],
+  isLoading = false,
+  onFilter,
+}: ImpressoraOverviewPanelProps) {
   const active = items.filter(item => item.status !== false).length
   const inactive = items.filter(item => item.status === false).length
   const stale = items.filter(item => {
@@ -496,18 +505,21 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
     return days === null || days > 90
   }).length
   const missingData = items.filter(item =>
-    [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip, item.localidade].some(missing)
+    [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
   ).length
   const attention = items.filter(item => {
     const days = daysSince(item.revisao)
-    const hasMissingData = [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip, item.localidade].some(missing)
+    const hasMissingData = [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
     return item.status === false || days === null || days > 90 || hasMissingData
   }).length
-  const sectors = groupByLabel(items, item => item.localidade || 'Sem setor', items.length)
-  const floors = groupByLabel(items, item => item.andar || 'Sem andar', items.length)
+  const sectors = groupByLabel(
+    items,
+    item => item.setor_id && item.setor_nome ? item.setor_nome : 'Sem setor registrado',
+    items.length
+  )
   const noRevision = items.filter(item => !item.revisao).length
   const noIp = items.filter(item => missing(item.endereco_ip)).length
-  const noLocation = items.filter(item => missing(item.localidade)).length
+  const noSector = items.filter(item => !item.setor_id || !item.setor_nome).length
   const noIdentity = items.filter(item => missing(item.nome_host) || missing(item.numero_serie)).length
 
   return (
@@ -539,17 +551,6 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
           layout: 'half',
         },
         {
-          title: 'Impressoras por andar',
-          icon: <MapPin className="h-3.5 w-3.5" />,
-          items: floors.map(item => ({
-            ...item,
-            detail: `${item.detail} · ${item.value} impressoras`,
-            filter: { kind: 'printer-floor', value: item.label },
-          })),
-          emptyMessage: 'Sem dados para compor andares.',
-          layout: 'half',
-        },
-        {
           title: 'Pontos de atencao',
           icon: <ShieldAlert className="h-3.5 w-3.5" />,
           items: [
@@ -557,13 +558,14 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
             { label: 'Sem revisao registrada', value: String(noRevision), detail: 'campo de revisao vazio', tone: noRevision > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-revision' } },
             { label: 'Dados faltantes', value: String(missingData), detail: 'campos essenciais incompletos', tone: missingData > 0 ? 'warning' : 'success', filter: { kind: 'printer-missing-data' } },
             { label: 'Sem IP', value: String(noIp), detail: 'endereco de rede ausente', tone: noIp > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-ip' } },
-            { label: 'Sem setor', value: String(noLocation), detail: 'localidade nao informada', tone: noLocation > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-sector' } },
+            { label: 'Sem setor registrado', value: String(noSector), detail: 'setor ausente no cadastro', tone: noSector > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-sector' } },
             { label: 'Sem identificacao', value: String(noIdentity), detail: 'host ou serie ausentes', tone: noIdentity > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-identity' } },
             { label: 'Inativas', value: String(inactive), detail: `${pct(inactive, items.length)}% do parque`, tone: inactive > 0 ? 'danger' : 'success', filter: { kind: 'printer-status', value: 'false' } },
           ],
           emptyMessage: 'Nenhum ponto de atencao encontrado.',
         },
       ]}
+      activeFilters={activeFilters}
       onFilter={onFilter}
       isLoading={isLoading}
     />
@@ -714,7 +716,7 @@ export function notifyOverviewFilter(filters: ActiveOverviewFilterState[]) {
       ? `Overview focado em ${activeFilters[0].label ?? 'recorte selecionado'}`
       : `Overview com ${activeFilters.length} filtros ativos`
   const detail = activeFilters.length === 0
-    ? 'Tabela exibindo todos os colaboradores.'
+    ? 'Tabela exibindo todos os registros.'
     : activeFilters.length === 1
       ? 'Tabela filtrada pelo recorte selecionado no overview.'
       : `Tabela filtrada por ${activeFilters.map(filter => filter.label ?? 'recorte').join(', ')}.`

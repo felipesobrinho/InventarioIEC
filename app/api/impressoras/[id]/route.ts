@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import type { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
@@ -16,7 +17,7 @@ export async function GET(_: Request, { params }: Props) {
   
     const result = {
     ...item,
-    setor_nome: item.setor_rel?.nome ?? item.localidade ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
   }
 
   return NextResponse.json(result)
@@ -27,18 +28,23 @@ export async function PUT(request: Request, { params }: Props) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
-  const body = await request.json()
-  const { created_at, id: _id, ...data } = body
+  const body = await request.json() as Record<string, unknown>
+  const data = { ...body } as Record<string, unknown>
+  delete data.created_at
+  delete data.id
 
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
-  const item = await prisma.impressoras.update({ where: { id }, data })
+  const item = await prisma.impressoras.update({
+    where: { id },
+    data: data as Prisma.impressorasUncheckedUpdateInput,
+  })
 
   await registrarAuditoria({
     tabela: 'impressoras',
     registro_id: id,
     acao: 'UPDATE',
-    descricao: descricaoDiff(anterior as any, data),
-    dados_anteriores: anterior as any,
+    descricao: descricaoDiff(anterior as Record<string, unknown>, data),
+    dados_anteriores: anterior as Record<string, unknown>,
     dados_novos: data,
     usuario_id,
     usuario_nome,
@@ -61,7 +67,7 @@ export async function DELETE(request: Request, { params }: Props) {
     registro_id: id,
     acao: 'DELETE',
     descricao: `Impressora "${anterior?.nome_host ?? id}" excluída`,
-    dados_anteriores: anterior as any,
+    dados_anteriores: anterior as Record<string, unknown>,
     usuario_id,
     usuario_nome,
   })
