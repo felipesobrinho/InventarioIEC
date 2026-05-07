@@ -7,6 +7,20 @@ import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
+async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
+  if (!snapshot) return snapshot
+  const { setor_id, ...rest } = snapshot
+  let setor_nome: string | null = null
+  if (setor_id) {
+    const setor = await prisma.setores.findUnique({
+      where: { id: setor_id },
+      select: { nome: true },
+    })
+    setor_nome = setor?.nome ?? setor_id
+  }
+  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+}
+
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -22,6 +36,8 @@ export async function GET(_: Request, { params }: Props) {
         orderBy: { data_inicio: 'asc' },
       },
       setor_rel: { select: { id: true, nome: true } },
+      emprestado_colaborador: { select: { nome: true } },
+      emprestado_setor:       { select: { nome: true } },
     },
   })
 
@@ -46,6 +62,10 @@ export async function GET(_: Request, { params }: Props) {
       : null,
     alocacoes: undefined,
     setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    emprestado_colaborador_nome: (item as any).emprestado_colaborador?.nome ?? null,
+    emprestado_setor_nome:       (item as any).emprestado_setor?.nome ?? null,
+    emprestado_colaborador: undefined,
+    emprestado_setor: undefined,
   }
 
   return NextResponse.json(result)
@@ -60,13 +80,18 @@ export async function PUT(request: Request, { params }: Props) {
   
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, ...rest } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, ...rest } = body
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   if (!anterior) return NextResponse.json({ error: `Notebook não encontrado (ID: ${id})` }, { status: 404 })
 
-  // Converter campos de data string para Date
+    
+    // Converter campos de data string para Date
   const data: any = { ...rest }
+  const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
+    enrichAuditSnapshot(anterior as any),
+    enrichAuditSnapshot(data as any),
+  ])
   if (data.emprestado_desde) {
     // "2026-04-30" → Date válido para o Prisma
     data.emprestado_desde = new Date(data.emprestado_desde + 'T00:00:00.000Z')
@@ -100,9 +125,9 @@ export async function PUT(request: Request, { params }: Props) {
     tabela: 'notebooks',
     registro_id: id,
     acao: 'UPDATE',
-    descricao: descricaoDiff(anterior as any, data),
-    dados_anteriores: anterior as any,
-    dados_novos: data,
+    descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
+    dados_anteriores: anteriorEnriquecido as any,
+    dados_novos: novoEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
@@ -119,12 +144,14 @@ export async function DELETE(request: Request, { params }: Props) {
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   await prisma.notebooks.delete({ where: { id } })
 
+  const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
+
   await registrarAuditoria({
     tabela: 'notebooks',
     registro_id: id,
     acao: 'DELETE',
     descricao: `Notebook "${anterior?.modelo ?? id}" excluído`,
-    dados_anteriores: anterior as any,
+    dados_anteriores: anteriorEnriquecido as any,
     usuario_id,
     usuario_nome,
   })

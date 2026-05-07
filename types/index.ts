@@ -155,6 +155,9 @@ export interface Rack {
   portas_academicas: string | null
   portas_vlan_impressoras: string | null
   created_at: string | null
+  setor: string | null
+  setor_id?:   string | null
+  setor_nome?: string | null
 }
 
 export interface Movimentacao {

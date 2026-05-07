@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
 import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
@@ -18,60 +18,6 @@ import { toast } from 'sonner'
 function isAllocated(item: Notebook) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
-
-const columns: ColumnDef<Notebook>[] = [
-  {
-    accessorKey: 'modelo',
-    header: 'Notebook',
-    cell: ({ row }) => (
-      <div>
-        <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.modelo || row.original.numero_patrimonio || '—'}</span>
-        <p className="text-xs text-slate-400">{row.original.fabricante || 'Sem fabricante'}</p>
-      </div>
-    ),
-  },
-  { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as string || '—'}</span> },
-  { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
-  {
-    accessorKey: 'setor',
-    header: 'Setor',
-    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
-  },
-  {
-    id: 'emprestado',
-    header: 'Empréstimo',
-    cell: ({ row }) => row.original.emprestado
-      ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">📦 Emprestado</span>
-      : null,
-  },
-  {
-    id: 'alocado',
-    header: 'Uso',
-    cell: ({ row }) => {
-      const alocacoes = row.original.alocacoes_ativas ?? []
-      if (alocacoes.length === 0) {
-        return <span className="text-slate-400 text-xs">Livre</span>
-      }
-      if (alocacoes.length === 1) {
-        return (
-          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
-            {alocacoes[0].colaborador.nome}
-          </span>
-        )
-      }
-      return (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
-            {alocacoes[0].colaborador.nome}
-          </span>
-          <span className="bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-            +{alocacoes.length - 1}
-          </span>
-        </span>
-      )
-    },
-  },
-]
 
 export default function NotebooksPage() {
   const [data, setData] = useState<Notebook[]>([])
@@ -224,6 +170,84 @@ export default function NotebooksPage() {
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
   }, [inspectId])
+
+  const columns = useMemo<ColumnDef<Notebook, unknown>[]>(() => [
+  {
+    accessorKey: 'modelo',
+    header: 'Notebook',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium text-slate-900 dark:text-slate-100">
+          {row.original.modelo || row.original.numero_patrimonio || '—'}
+        </span>
+        <p className="text-xs text-slate-400">{row.original.fabricante || 'Sem fabricante'}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'numero_patrimonio',
+    header: 'Patrimônio',
+    cell: ({ row }) => (
+      <span className="font-mono text-xs">{row.original.numero_patrimonio || '—'}</span>
+    ),
+  },
+  {
+    accessorKey: 'categoria',
+    header: 'Categoria',
+    cell: ({ row }) => <CategoriaBadge categoria={row.original.categoria} />,
+  },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
+  {
+  id: 'emprestado',
+  header: 'Empréstimo',
+  cell: ({ row }) => {
+    const nb = row.original
+    if (!nb.emprestado) return null
+
+    // Montar label: colaborador tem prioridade sobre setor
+    const label = (nb as any).emprestado_colaborador_nome
+      ?? (nb as any).emprestado_setor_nome
+      ?? 'Emprestado'
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 max-w-[160px]">
+        📦 <span className="truncate">{label}</span>
+      </span>
+    )
+  },
+},
+  {
+    id: 'alocado',
+    header: 'Uso',
+    cell: ({ row }) => {
+      const alocacoes = row.original.alocacoes_ativas ?? []
+      if (alocacoes.length === 0) {
+        return <span className="text-slate-400 text-xs">Livre</span>
+      }
+      if (alocacoes.length === 1) {
+        return (
+          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+            {alocacoes[0].colaborador.nome}
+          </span>
+        )
+      }
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+            {alocacoes[0].colaborador.nome}
+          </span>
+          <span className="bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            +{alocacoes.length - 1}
+          </span>
+        </span>
+      )
+    },
+  },
+], [])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 

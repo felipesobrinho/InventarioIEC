@@ -76,6 +76,8 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
+          emprestado_colaborador: { select: { nome: true } },
+          emprestado_setor:       { select: { nome: true } },
         },
       }),
       prisma.notebooks.count({ where }),
@@ -84,6 +86,11 @@ export async function GET(request: Request) {
     const mapped = data.map((n: any) => ({
       ...n,
       setor_nome: n.setor_rel?.nome ?? n.setor ?? null,
+      emprestado_colaborador_nome: n.emprestado_colaborador?.nome ?? null,
+      emprestado_setor_nome:       n.emprestado_setor?.nome ?? null,
+      // limpar relações aninhadas
+      emprestado_colaborador: undefined,
+      emprestado_setor: undefined,
       alocacoes_ativas: n.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,

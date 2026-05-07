@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/tables/data-table";
 import {
@@ -17,57 +17,6 @@ import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { SetorSelect } from "@/components/modals/setor-select";
-
-const columns: ColumnDef<Impressora>[] = [
- {
-  accessorKey: "nome_host",
-  header: "Nome Host",
-  cell: ({ getValue }) => (
-   <span className="font-medium">{(getValue() as string) || "—"}</span>
-  ),
- },
- {
-  accessorKey: "fabricante",
-  header: "Fabricante",
-  cell: ({ getValue }) => getValue() || "—",
- },
- {
-  accessorKey: "modelo",
-  header: "Modelo",
-  cell: ({ getValue }) => getValue() || "—",
- },
- {
-  accessorKey: "numero_serie",
-  header: "Nº Série",
-  cell: ({ getValue }) => getValue() || "—",
- },
- {
-  accessorKey: "endereco_ip",
-  header: "IP",
-  cell: ({ getValue }) => getValue() || "—",
- },
- {
-  accessorKey: 'setor',
-  header: 'Setor',
-  cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
- },
- {
-  accessorKey: "andar",
-  header: "Andar",
-  cell: ({ getValue }) => getValue() || "—",
- },
- {
-  accessorKey: "status",
-  header: "Status",
-  cell: ({ getValue }) => (
-   <BoolBadge
-    value={getValue() as boolean}
-    labelTrue="Ativo"
-    labelFalse="Inativo"
-   />
-  ),
- },
-];
 
 function isMissing(value: unknown) {
  return value === null || value === undefined || value === "";
@@ -117,7 +66,7 @@ export default function ImpressorasPage() {
   const params = new URLSearchParams({ page: String(page), limit: "20" });
   if (search) params.set("search", search);
   if (andar) params.set("andar", andar);
-  if (status !== "") params.set("status", status);
+  if (status) params.set("status", status);
   const res = await fetch(`/api/impressoras?${params}`);
   const json: PaginatedResponse<Impressora> = await res.json();
   setData(json.data);
@@ -128,7 +77,7 @@ export default function ImpressorasPage() {
 
  useEffect(() => {
   void Promise.resolve().then(fetchData);
- }, [fetchData, refreshKey]);
+ }, [fetchData, refreshKey, setorIdFiltro]);
 
  const filteredOverviewData = activeOverviewFilter
   ? overviewData.filter(activeOverviewFilter.predicate)
@@ -294,6 +243,57 @@ export default function ImpressorasPage() {
    </select>
   </>
  );
+
+ const columns = useMemo<ColumnDef<Impressora, unknown>[]>(() => [
+ {
+  accessorKey: "nome_host",
+  header: "Nome Host",
+  cell: ({ getValue }) => (
+   <span className="font-medium">{(getValue() as string) || "—"}</span>
+  ),
+ },
+ {
+  accessorKey: "fabricante",
+  header: "Fabricante",
+  cell: ({ getValue }) => getValue() || "—",
+ },
+ {
+  accessorKey: "modelo",
+  header: "Modelo",
+  cell: ({ getValue }) => getValue() || "—",
+ },
+ {
+  accessorKey: "numero_serie",
+  header: "Nº Série",
+  cell: ({ getValue }) => getValue() || "—",
+ },
+ {
+  accessorKey: "endereco_ip",
+  header: "IP",
+  cell: ({ getValue }) => getValue() || "—",
+ },
+ {
+  accessorKey: 'setor',
+  header: 'Setor',
+  cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+ },
+ {
+  accessorKey: "andar",
+  header: "Andar",
+  cell: ({ getValue }) => getValue() || "—",
+ },
+ {
+  accessorKey: "status",
+  header: "Status",
+  cell: ({ getValue }) => (
+   <BoolBadge
+    value={getValue() as boolean}
+    labelTrue="Ativo"
+    labelFalse="Inativo"
+   />
+  ),
+ },
+], []);
 
  return (
   <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">

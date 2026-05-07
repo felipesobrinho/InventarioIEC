@@ -177,7 +177,7 @@ export default function MaquinasPage() {
       cell: ({ row }) => (
         <div>
           <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.identificador || '—'}</span>
-          <p className="text-xs text-slate-400">{row.original.modelo || row.original.fabricante || 'Sem modelo'}</p>
+          <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
         </div>
       ),
     },

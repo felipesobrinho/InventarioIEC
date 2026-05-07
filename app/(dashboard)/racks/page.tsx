@@ -1,161 +1,155 @@
 'use client'
-import React from 'react'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { RackOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { RackModal } from '@/components/modals/rack-modal'
-import { Search } from 'lucide-react'
-import type { Rack, PaginatedResponse } from '@/types'
 import { CriarRackModal } from '@/components/modals/criar-rack-modal'
-import { Plus } from 'lucide-react'
-import { toast } from 'sonner'
-
-const columns: ColumnDef<Rack>[] = [
-  { accessorKey: 'nome_switch', header: 'Switch', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
-  { accessorKey: 'marca_switch', header: 'Marca', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'localizacao', header: 'Localização', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'quantidade_portas', header: 'Total Portas', cell: ({ getValue }) => getValue() ?? '—' },
-  { accessorKey: 'portas_em_uso', header: 'Em Uso', cell: ({ getValue }) => getValue() ?? '—' },
-  { accessorKey: 'portas_livres', header: 'Livres', cell: ({ getValue }): React.ReactNode => {
-    const v = getValue() as number | null
-    if (v === null || v === undefined) return '—'
-    return (
-      <span className={v > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-500 font-medium'}>
-        {v}
-      </span>
-    )
-  } },
-]
-
-function getRackOccupancy(item: Rack) {
-  if (!item.quantidade_portas) return 0
-  return Math.round(((item.portas_em_uso ?? 0) / item.quantidade_portas) * 100)
-}
+import { SetorSelect } from '@/components/modals/setor-select'
+import { Search, Plus } from 'lucide-react'
+import type { Rack, PaginatedResponse } from '@/types'
 
 export default function RacksPage() {
-  const [data, setData] = useState<Rack[]>([])
-  const [total, setTotal] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
+
+  const [data, setData]         = useState<Rack[]>([])
+  const [total, setTotal]       = useState(0)
   const [totalPages, setTotalPages] = useState(1)
-  const [overviewData, setOverviewData] = useState<Rack[]>([])
-  const [overviewTotal, setOverviewTotal] = useState(0)
-  const [overviewLoading, setOverviewLoading] = useState(true)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [page, setPage]         = useState(1)
+  const [loading, setLoading]   = useState(true)
   const [selected, setSelected] = useState<Rack | null>(null)
-  const [search, setSearch] = useState('')
-  const [marca, setMarca] = useState('')
-  const [refreshKey, setRefreshKey] = useState(0)
   const [showCriar, setShowCriar] = useState(false)
-  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
-    label: string
-    predicate: (item: Rack) => boolean
-  } | null>(null)
-  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const [search, setSearch]             = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [sort, setSort]                 = useState('nome_switch')
+  const [dir, setDir]                   = useState<'asc' | 'desc'>('asc')
+
+  const cancelledRef = useRef(false)
   function refresh() { setRefreshKey(k => k + 1) }
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '20' })
-    if (search) params.set('search', search)
-    if (marca) params.set('marca', marca)
-    const res = await fetch(`/api/racks?${params}`)
-    const json: PaginatedResponse<Rack> = await res.json()
-    setData(json.data); setTotal(json.total); setTotalPages(json.totalPages)
-    setLoading(false)
-  }, [page, search, marca])
+  const columns = useMemo<ColumnDef<Rack, unknown>[]>(() => [
+    {
+      accessorKey: 'nome_switch',
+      header: 'Switch',
+      cell: ({ row }) => (
+        <div>
+          <span className="font-medium text-slate-800 dark:text-slate-200">
+            {row.original.nome_switch || '—'}
+          </span>
+          <p className="text-xs text-slate-400">{row.original.marca_switch || ''}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'setor_nome',
+      header: 'Setor / Localidade',
+      cell: ({ row }) => row.original.setor_nome ?? row.original.localizacao ?? '—',
+    },
+    {
+      accessorKey: 'numero_patrimonio',
+      header: 'Patrimônio',
+      cell: ({ row }) => (
+        <span className="font-mono text-xs">{row.original.numero_patrimonio || '—'}</span>
+      ),
+    },
+    {
+      id: 'portas',
+      header: 'Portas',
+      cell: ({ row }) => {
+        const total = row.original.quantidade_portas
+        const emUso = row.original.portas_em_uso
+        const livres = row.original.portas_livres
 
-  useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
-
-  const filteredOverviewData = activeOverviewFilter
-    ? overviewData.filter(activeOverviewFilter.predicate)
-    : null
-  const tableData = filteredOverviewData
-    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
-    : data
-  const tableTotal = filteredOverviewData?.length ?? total
-  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
-
-  function applyOverviewFilter(filter: OverviewFilter) {
-    if (filter.kind === 'all') {
-      setActiveOverviewFilter(null)
-      setPage(1)
-      toast.success('Filtro do overview removido.')
-      return
-    }
-
-    const predicates: Record<string, { label: string; predicate: (item: Rack) => boolean }> = {
-      'rack-location': {
-        label: `Setor: ${filter.value ?? 'Sem localizacao'}`,
-        predicate: (item) => (item.localizacao || 'Sem localizacao') === filter.value,
+        if (total == null) return '—'
+        return (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              {total} total
+            </span>
+            {emUso != null && (
+              <>
+                <span className="text-red-500 text-xs font-medium">{emUso} em uso</span>
+                <span className="text-green-600 dark:text-green-400 text-xs font-medium">
+                  {livres} livres
+                </span>
+              </>
+            )}
+          </div>
+        )
       },
-      'rack-critical': {
-        label: 'Racks com ocupacao critica',
-        predicate: (item) => !item.quantidade_portas || item.portas_em_uso === null || item.portas_em_uso === undefined || getRackOccupancy(item) >= 85,
-      },
-      'rack-missing-ports': {
-        label: 'Racks sem total de portas',
-        predicate: (item) => !item.quantidade_portas,
-      },
-      'rack-missing-used': {
-        label: 'Racks sem uso informado',
-        predicate: (item) => item.portas_em_uso === null || item.portas_em_uso === undefined,
-      },
-      'rack-id': {
-        label: filter.label ?? 'Rack selecionado',
-        predicate: (item) => item.id === filter.value,
-      },
-    }
-
-    const nextFilter = predicates[filter.kind]
-    if (!nextFilter) return
-
-    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
-    const toastId = toast.loading('Aplicando filtro do overview...', { description })
-    setOverviewFilterLoading(true)
-    window.setTimeout(() => {
-      setActiveOverviewFilter(nextFilter)
-      setPage(1)
-      setOverviewFilterLoading(false)
-      toast.success('Filtro aplicado.', { id: toastId, description })
-    }, 120)
-  }
+    },
+  ], [])
 
   useEffect(() => {
-    let cancelled = false
-    async function fetchOverview() {
-      setOverviewLoading(true)
+    cancelledRef.current = false
+    setLoading(true)
+
+    async function fetchData() {
+      const params = new URLSearchParams({ page: String(page), limit: '20', sort, dir })
+      if (search)       params.set('search',   search)
+      if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
+
       try {
-        const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'created_at', dir: 'desc' })
         const res = await fetch(`/api/racks?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Rack> = await res.json()
-        if (!cancelled) {
-          setOverviewData(json.data)
-          setOverviewTotal(json.total)
+        if (!cancelledRef.current) {
+          setData(json.data)
+          setTotal(json.total)
+          setTotalPages(json.totalPages)
         }
-      } catch (error) {
-        console.error('[racks overview]', error)
+      } catch (err) {
+        console.error('[racks page]', err)
       } finally {
-        if (!cancelled) setOverviewLoading(false)
+        if (!cancelledRef.current) setLoading(false)
       }
     }
 
-    fetchOverview()
-    return () => { cancelled = true }
-  }, [refreshKey])
+    fetchData()
+    return () => { cancelledRef.current = true }
+  }, [page, search, setorIdFiltro, sort, dir, refreshKey])
+
+  useEffect(() => {
+    if (!inspectId) return
+    fetch(`/api/racks/${inspectId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(item => { if (item) setSelected(item) })
+      .catch(() => {})
+  }, [inspectId])
+
+  const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
   const filters = (
     <>
       <div className="relative flex-1 min-w-[200px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Buscar por switch ou localização..."
-          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Switch, marca, patrimônio..."
+          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
-      <input value={marca} onChange={(e) => { setMarca(e.target.value); setPage(1) }} placeholder="Marca..."
-        className="px-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 w-36" />
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
+        placeholder="Filtrar por setor..."
+        allowCreate={false}
+      />
+      <select value={`${sort}:${dir}`} onChange={(e) => {
+        const [s, d] = e.target.value.split(':')
+        setSort(s); setDir(d as 'asc' | 'desc'); setPage(1)
+      }} className={inputCls}>
+        <option value="nome_switch:asc">Nome A→Z</option>
+        <option value="nome_switch:desc">Nome Z→A</option>
+        <option value="created_at:desc">Mais recentes</option>
+        <option value="created_at:asc">Mais antigos</option>
+      </select>
     </>
   )
 
@@ -167,18 +161,13 @@ export default function RacksPage() {
           <Plus className="w-4 h-4" /> Novo rack
         </button>
       </PageHeader>
-      <RackOverviewPanel
-        total={overviewTotal || total}
-        items={overviewData}
-        isLoading={overviewLoading}
-        onFilter={applyOverviewFilter}
-      />
-      <DataTable columns={columns} data={tableData} total={tableTotal} page={page} totalPages={tableTotalPages}
-        onPageChange={setPage} onRowClick={setSelected} isLoading={loading || overviewFilterLoading} filters={filters} />
-      {showCriar && (
-        <CriarRackModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
-      )}
-      {selected && <RackModal rack={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
+
+      <DataTable columns={columns} data={data} total={total} page={page}
+        totalPages={totalPages} onPageChange={setPage} onRowClick={setSelected}
+        isLoading={loading} filters={filters} />
+
+      {selected && <RackModal rack={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
+      {showCriar && <CriarRackModal onClose={() => setShowCriar(false)} onRefresh={refresh} />}
     </div>
   )
 }
