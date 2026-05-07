@@ -387,8 +387,8 @@ function KpiChart({
     index: number
   } | null>(null)
   const width = 760
-  const height = 198
-  const padding = { top: 28, right: 80, bottom: 30, left: 80 }
+  const height = 218
+  const padding = { top: 28, right: 80, bottom: 54, left: 80 }
   const chartWidth = width - padding.left - padding.right
   const chartHeight = height - padding.top - padding.bottom
   const maxValue = Math.max(1, ...points.flatMap(point => [point.total, point.available, point.unavailable]))
@@ -416,7 +416,7 @@ function KpiChart({
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-fuchsia-500" />Ocupados</span>
         </div>
       </div>
-      <div className="relative h-56 w-full overflow-hidden">
+      <div className="relative h-60 w-full overflow-hidden">
         {hoveredPoint && (
           <div
             className="pointer-events-none absolute z-10 min-w-44 -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs text-slate-100 shadow-xl"
@@ -459,7 +459,7 @@ function KpiChart({
                   onMouseEnter={() => setHoveredPoint({ point, index })}
                   onMouseLeave={() => setHoveredPoint(null)}
                 />
-                <text x={x(index)} y={height - 18} textAnchor="middle" className="fill-slate-400 text-[12px]">
+                <text x={x(index)} y={height - 16} textAnchor="middle" className="fill-slate-400 text-[12px]">
                   {point.label}
                 </text>
               </g>
