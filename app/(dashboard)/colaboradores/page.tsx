@@ -43,7 +43,7 @@ export default function ColaboradoresPage() {
   const [selected, setSelected] = useState<Colaborador | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeOverviewFilter, setActiveOverviewFilter] = useState<{

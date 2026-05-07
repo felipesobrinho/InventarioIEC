@@ -1,82 +1,198 @@
 import { prisma } from "@/lib/prisma";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { SectorOverview, type SectorOverviewRow } from "@/components/dashboard/sector-overview";
 import {
  StatusBadge,
  PrioridadeBadge,
 } from "@/components/dashboard/status-badge";
 import {
  formatDate,
- mapTipoDispositivo,
- mapTipoMovimentacao,
 } from "@/lib/utils";
 import Link from "next/link";
-import { ClipboardList, ArrowLeftRight, AlertCircle, TrendingUp } from "lucide-react";
+import { ClipboardList, AlertCircle, TrendingUp } from "lucide-react";
 import { UltimasAuditoriasCard } from "@/components/dashboard/last-audits";
 import { ExportPdfButton } from "@/components/dashboard/export-pdf-button";
 import { GlobalSearch } from '@/components/layout/global-search'
 
 export const dynamic = "force-dynamic";
 
-async function getDashboardData() {
- const [
-  colaboradores,
-  maquinas,
-  notebooks,
-  aparelhos,
-  impressoras,
-  ramais,
-  racks,
-  solicitacoesAbertas,
-  maquinasAlocadasGroup,
-  notebooksAlocadosGroup,
-  aparelhosAlocadosGroup,
-  ramaisAlocadosGroup,
-  ultimasSolicitacoes,
-  ultimasMovimentacoes,
-  porStatus,
- ] = await Promise.all([
-  prisma.colaboradores.count({ where: { status: "Ativo" } }),
-  prisma.maquinas.count(),
-  prisma.notebooks.count(),
-  prisma.aparelhos.count(),
-  prisma.impressoras.count(),
-  prisma.ramais.count(),
-  prisma.racks.count(),
-  prisma.solicitacoes.count({
-   where: { status_solicitacao: { notIn: [4, 5] } },
-  }),
+type InventoryKpiItem = {
+ setor_id: string | null
+ created_at: Date | null
+ unavailable: boolean
+}
 
-  // groupBy retorna um item por maquina_id único com ativo: true
-  prisma.alocacoes_maquinas.groupBy({
+function monthStart(date: Date) {
+ return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function monthEnd(date: Date) {
+ return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
+}
+
+function buildKpiSeries(items: InventoryKpiItem[]) {
+ const base = monthStart(new Date())
+ const months = Array.from({ length: 6 }, (_, index) => {
+  const date = new Date(base)
+  date.setMonth(base.getMonth() - (5 - index))
+  return date
+ })
+
+ return months.map(month => {
+  const end = monthEnd(month)
+  const total = items.filter(item => item.created_at && item.created_at <= end).length
+  const unavailable = items.filter(item => item.created_at && item.created_at <= end && item.unavailable).length
+
+  return {
+   label: month.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", ""),
+   total,
+   available: Math.max(0, total - unavailable),
+   unavailable,
+  }
+ })
+}
+
+async function getDashboardData() {
+ const colaboradores = await prisma.colaboradores.count({ where: { status: "Ativo" } });
+ const maquinas = await prisma.maquinas.count();
+ const notebooks = await prisma.notebooks.count();
+ const aparelhos = await prisma.aparelhos.count();
+ const impressoras = await prisma.impressoras.count();
+ const ramais = await prisma.ramais.count();
+ const racks = await prisma.racks.count();
+ const solicitacoesAbertas = await prisma.solicitacoes.count({
+   where: { status_solicitacao: { notIn: [4, 5] } },
+  });
+
+ // groupBy retorna um item por dispositivo único com ativo: true.
+ // Mantemos as consultas sequenciais para não estourar o pooler do Supabase local.
+ const maquinasAlocadasGroup = await prisma.alocacoes_maquinas.groupBy({
    by: ["maquina_id"],
    where: { ativo: true },
-  }),
-  prisma.alocacoes_notebooks.groupBy({
+  });
+ const notebooksAlocadosGroup = await prisma.alocacoes_notebooks.groupBy({
    by: ["notebook_id"],
    where: { ativo: true },
-  }),
-  prisma.alocacoes_aparelhos.groupBy({
+  });
+ const notebooksEmprestados = await prisma.notebooks.findMany({
+   where: { emprestado: true },
+   select: { id: true },
+  });
+ const aparelhosAlocadosGroup = await prisma.alocacoes_aparelhos.groupBy({
    by: ["aparelho_id"],
    where: { ativo: true },
-  }),
-  prisma.alocacoes_ramais.groupBy({
+  });
+ const ramaisAlocadosGroup = await prisma.alocacoes_ramais.groupBy({
    by: ["ramal_id"],
    where: { ativo: true },
-  }),
+  });
 
-  prisma.solicitacoes.findMany({ orderBy: { created_at: "desc" }, take: 5 }),
-  prisma.movimentacoes.findMany({
-   orderBy: { created_at: "desc" },
-   take: 5,
-   include: { colaborador: { select: { nome: true } } },
-  }),
-  prisma.solicitacoes.groupBy({
+ const ultimasSolicitacoes = await prisma.solicitacoes.findMany({ orderBy: { created_at: "desc" }, take: 5 });
+ const porStatus = await prisma.solicitacoes.groupBy({
    by: ["status_solicitacao"],
    _count: { id: true },
    where: { status_solicitacao: { notIn: [4, 5] } },
    orderBy: { status_solicitacao: "asc" },
-  }),
+  });
+ const setores = await prisma.setores.findMany({
+   orderBy: { nome: "asc" },
+   include: {
+    _count: {
+     select: {
+      colaboradores: true,
+      maquinas: true,
+      notebooks: true,
+      aparelhos: true,
+      impressoras: true,
+      ramais: true,
+      racks: true,
+     },
+    },
+   },
+  });
+
+ const maquinasKpi = await prisma.maquinas.findMany({
+  select: {
+   setor_id: true,
+   created_at: true,
+   alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
+  },
+ });
+ const notebooksKpi = await prisma.notebooks.findMany({
+ select: {
+   setor_id: true,
+   created_at: true,
+   emprestado: true,
+   emprestado_setor_id: true,
+   emprestado_colaborador: { select: { setor_id: true } },
+   alocacoes: {
+    where: { ativo: true },
+    select: {
+     id: true,
+     colaborador: { select: { setor_id: true } },
+    },
+    take: 1,
+   },
+  },
+ });
+ const aparelhosKpi = await prisma.aparelhos.findMany({
+  select: {
+   setor_id: true,
+   created_at: true,
+   alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
+  },
+ });
+ const ramaisKpi = await prisma.ramais.findMany({
+  select: {
+   setor_id: true,
+   created_at: true,
+   alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
+  },
+ });
+
+ function getNotebookSectorId(item: (typeof notebooksKpi)[number]) {
+  return item.emprestado_colaborador?.setor_id
+   ?? item.emprestado_setor_id
+   ?? item.alocacoes[0]?.colaborador?.setor_id
+   ?? item.setor_id
+ }
+
+ const kpiItems: InventoryKpiItem[] = [
+  ...maquinasKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...notebooksKpi.map(item => ({ setor_id: getNotebookSectorId(item), created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
+  ...aparelhosKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...ramaisKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+ ];
+
+ const notebookUnavailableIds = new Set([
+  ...notebooksAlocadosGroup.map(item => item.notebook_id).filter(Boolean),
+  ...notebooksEmprestados.map(item => item.id),
  ]);
+
+ const notebooksPorSetor = new Map<string, number>()
+ for (const notebook of notebooksKpi) {
+  const setorId = getNotebookSectorId(notebook)
+  if (!setorId) continue
+  notebooksPorSetor.set(setorId, (notebooksPorSetor.get(setorId) ?? 0) + 1)
+ }
+
+ const setoresOverview: SectorOverviewRow[] = setores.map(setor => ({
+  id: setor.id,
+  nome: setor.nome,
+  descricao: setor.descricao,
+  ativo: setor.ativo,
+  created_at: setor.created_at?.toISOString() ?? null,
+  counts: {
+   colaboradores: setor._count.colaboradores,
+   maquinas: setor._count.maquinas,
+   notebooks: notebooksPorSetor.get(setor.id) ?? 0,
+   aparelhos: setor._count.aparelhos,
+   impressoras: setor._count.impressoras,
+   ramais: setor._count.ramais,
+   racks: setor._count.racks,
+  },
+  kpi: buildKpiSeries(kpiItems.filter(item => item.setor_id === setor.id)),
+ }));
 
  return {
   stats: {
@@ -89,18 +205,18 @@ async function getDashboardData() {
    racks,
    solicitacoesAbertas,
    maquinasAlocadas: maquinasAlocadasGroup.length,
-   notebooksAlocados: notebooksAlocadosGroup.length,
+   notebooksAlocados: notebookUnavailableIds.size,
    aparelhosAlocados: aparelhosAlocadosGroup.length,
    ramaisAlocados: ramaisAlocadosGroup.length,
   },
   ultimasSolicitacoes,
-  ultimasMovimentacoes,
   porStatus,
+  setoresOverview,
  };
 }
 
 export default async function DashboardPage() {
- const { stats, ultimasSolicitacoes, ultimasMovimentacoes, porStatus } =
+ const { stats, ultimasSolicitacoes, porStatus, setoresOverview } =
   await getDashboardData();
 
  return (
@@ -129,6 +245,8 @@ export default async function DashboardPage() {
     <ExportPdfButton />
   </div>
 </div>
+
+   <SectorOverview setores={setoresOverview} />
 
    {/* Stats */}
    <StatsCards stats={stats} />
@@ -183,7 +301,7 @@ export default async function DashboardPage() {
           </td>
          </tr>
         ) : (
-         ultimasSolicitacoes.map((s: any) => (
+         ultimasSolicitacoes.map((s) => (
           <tr
            key={s.id}
            className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
@@ -228,7 +346,7 @@ export default async function DashboardPage() {
         Nenhuma solicitação em aberto.
        </p>
       ) : (
-       porStatus.map((s: any) => (
+       porStatus.map((s) => (
         <Link
          key={s.status_solicitacao}
          href={`/solicitacoes?status=${s.status_solicitacao}`}

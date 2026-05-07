@@ -55,7 +55,7 @@ export default function RamaisPage() {
 
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [fila, setFila] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')

@@ -30,6 +30,8 @@ export default function MaquinasPage() {
   const [selected, setSelected] = useState<Maquina | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
   const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
     label: string
     predicate: (item: Maquina) => boolean
@@ -38,15 +40,12 @@ export default function MaquinasPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('nome_host')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
-
-  const searchParams = useSearchParams()
-  const inspectId = searchParams.get('inspect')
 
   function refresh() { setRefreshKey(k => k + 1) }
 

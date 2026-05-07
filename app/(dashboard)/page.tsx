@@ -9,36 +9,29 @@ import {
   mapTipoDispositivo,
   mapTipoMovimentacao,
   mapTipoSolicitacao,
-  mapStatusSolicitacao,
-  mapPrioridade,
-  STATUS_SOLICITACAO_MAP,
 } from '@/lib/utils'
 import Link from 'next/link'
 import { ClipboardList, ArrowLeftRight, AlertCircle, TrendingUp } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
-interface DashboardStats {
-  colaboradores: number
-  maquinas: number
-  notebooks: number
-  aparelhos: number
-  impressoras: number
-  ramais: number
-  racks: number
-  solicitacoesAbertas: number
-  maquinasAlocadas: number    // novo
-  notebooksAlocados: number   // novo
-  aparelhosAlocados: number   // novo
-  ramaisAlocados: number      // novo
-}
 
 async function getDashboardData() {
   const [
-    colaboradores, maquinas, notebooks, aparelhos,
-    impressoras, ramais, racks,
+    colaboradores,
+    maquinas,
+    notebooks,
+    aparelhos,
+    impressoras,
+    ramais,
+    racks,
     solicitacoesAbertas,
-    maquinasAlocadas, notebooksAlocados, aparelhosAlocados, ramaisAlocados,
-    ultimasSolicitacoes, ultimasMovimentacoes, porStatus,
+    maquinasAlocadas,
+    notebooksAlocados,
+    aparelhosAlocados,
+    ramaisAlocados,
+    ultimasSolicitacoes,
+    ultimasMovimentacoes,
+    porStatus,
   ] = await Promise.all([
     prisma.colaboradores.count({ where: { status: 'Ativo' } }),
     prisma.maquinas.count(),
@@ -131,7 +124,7 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ultimasSolicitacoes.map((s: any) => (
+                  {ultimasSolicitacoes.map((s) => (
                     <tr key={s.id} className="border-t border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(s.data_criacao)}</td>
                       <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap max-w-[150px] truncate">{s.colaborador_relacionado || '—'}</td>
@@ -165,7 +158,7 @@ export default async function DashboardPage() {
                 <span className="text-2xl mb-2">✓</span>
                 Nenhuma pendência!
               </div>
-            ) : porStatus.map((s: any) => (
+            ) : porStatus.map((s) => (
               <Link
                 key={s.status_solicitacao}
                 href={`/solicitacoes?status=${s.status_solicitacao}`}
@@ -217,7 +210,7 @@ export default async function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {ultimasMovimentacoes.map((m: any) => (
+                {ultimasMovimentacoes.map((m) => (
                   <tr key={m.id} className="border-t border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-4 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(m.data_movimentacao)}</td>
                     <td className="px-4 py-2.5 font-mono font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{m.identificador_dispositivo || '—'}</td>

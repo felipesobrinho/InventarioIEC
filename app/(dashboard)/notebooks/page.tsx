@@ -31,6 +31,8 @@ export default function NotebooksPage() {
   const [selected, setSelected] = useState<Notebook | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
   const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
     label: string
     predicate: (item: Notebook) => boolean
@@ -39,7 +41,7 @@ export default function NotebooksPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -47,8 +49,6 @@ export default function NotebooksPage() {
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 
   const cancelledRef = useRef(false)
-  const searchParams = useSearchParams()
-  const inspectId = searchParams.get('inspect')
   function refresh() { setRefreshKey(k => k + 1) }
 
   const fetchData = useCallback(async () => {

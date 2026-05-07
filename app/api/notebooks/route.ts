@@ -50,14 +50,38 @@ export async function GET(request: Request) {
       })
     }
 
-    if (setorId)   AND.push({ setor_id: setorId })
+    if (setorId) {
+      AND.push({
+        OR: [
+          { setor_id: setorId },
+          { emprestado_setor_id: setorId },
+          { emprestado_colaborador: { setor_id: setorId } },
+          {
+            alocacoes: {
+              some: {
+                ativo: true,
+                colaborador: { setor_id: setorId },
+              },
+            },
+          },
+        ],
+      })
+    }
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
 
     if (alocacao === 'alocado') {
-      AND.push({ alocacoes: { some: { ativo: true, notebook_id: { not: null } } } })
+      AND.push({
+        OR: [
+          { emprestado: true },
+          { alocacoes: { some: { ativo: true, notebook_id: { not: null } } } },
+        ],
+      })
     } else if (alocacao === 'livre') {
-      AND.push({ alocacoes: { none: { ativo: true, notebook_id: { not: null } } } })
+      AND.push({
+        emprestado: false,
+        alocacoes: { none: { ativo: true, notebook_id: { not: null } } },
+      })
     }
 
     const where: any = AND.length > 0 ? { AND } : {}
@@ -76,7 +100,7 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
-          emprestado_colaborador: { select: { nome: true } },
+          emprestado_colaborador: { select: { nome: true, setor: true } },
           emprestado_setor:       { select: { nome: true } },
         },
       }),
