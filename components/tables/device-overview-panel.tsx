@@ -168,7 +168,7 @@ const chartColors = [
   '#0ea5e9',
   '#a855f7',
   '#eab308',
-  '#64748b',
+  '#f43f5e',
 ]
 
 function getSetor(item: DeviceOverviewItem) {
