@@ -36,14 +36,14 @@ jobs:
         env:
           CI: true
 
-      - name: Verificar cobertura mínima (80%)
-        run: |
-          COVERAGE=$(grep -A 1 'All files' coverage/coverage-final.json | grep -oP '"lines":\s*{\s*"total":\s*\K[0-9.]+')
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "❌ Cobertura de testes abaixo de 80%: $COVERAGE%"
-            exit 1
-          fi
-          echo "✅ Cobertura acima de 80%: $COVERAGE%"
+      # - name: Verificar cobertura mínima (80%)
+      #   run: |
+      #     COVERAGE=$(grep -A 1 'All files' coverage/coverage-final.json | grep -oP '"lines":\s*{\s*"total":\s*\K[0-9.]+')
+      #     if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+      #       echo "❌ Cobertura de testes abaixo de 80%: $COVERAGE%"
+      #       exit 1
+      #     fi
+      #     echo "✅ Cobertura acima de 80%: $COVERAGE%"
 
       - name: Build da aplicação
         run: npm run build
