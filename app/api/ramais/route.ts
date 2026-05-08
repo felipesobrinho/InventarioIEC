@@ -145,7 +145,10 @@ export async function GET(request: Request) {
             colaborador: r.alocacoes[0].colaborador,
             tipo_base: r.alocacoes[0].tipo_base,
             whatsapp: r.alocacoes[0].whatsapp,
-            setor: r.colaborador.setor_rel?.nome ?? r.colaborador.setor ?? null,
+            setor:
+              r.alocacoes[0].colaborador?.setor_rel?.nome ??
+              r.alocacoes[0].colaborador?.setor ??
+              null,
             data_inicio: r.alocacoes[0].data_inicio,
           }
         : null,
