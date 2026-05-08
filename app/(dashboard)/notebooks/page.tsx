@@ -23,6 +23,23 @@ function isAllocated(item: Notebook) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function isOccupied(item: Notebook) {
+  return isAllocated(item) || item.emprestado === true
+}
+
+function hasMissingNotebookData(item: Notebook) {
+  return [
+    item.modelo,
+    item.fabricante,
+    item.categoria,
+    item.processador,
+    item.memoria,
+    item.armazenamento,
+    item.numero_patrimonio,
+    item.setor_nome ?? item.setor,
+  ].some(value => value === null || value === undefined || value === '')
+}
+
 export default function NotebooksPage() {
   const [data, setData] = useState<Notebook[]>([])
   const [total, setTotal] = useState(0)
@@ -136,11 +153,14 @@ export default function NotebooksPage() {
     }
 
     const predicates: Record<string, { label: string; predicate: (item: Notebook) => boolean }> = {
-      allocated: { label: 'Notebooks ocupados', predicate: isAllocated },
-      free: { label: 'Notebooks livres', predicate: (item) => !isAllocated(item) },
+      'notebook-occupied': { label: 'Notebooks ocupados', predicate: isOccupied },
+      allocated: { label: 'Notebooks alocados', predicate: isAllocated },
+      'notebook-borrowed': { label: 'Notebooks emprestados', predicate: (item) => item.emprestado === true },
+      'notebook-missing-data': { label: 'Notebooks com informacoes faltantes', predicate: hasMissingNotebookData },
+      free: { label: 'Notebooks livres', predicate: (item) => !isOccupied(item) },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => getNotebookSetor(item) === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]
@@ -166,8 +186,9 @@ export default function NotebooksPage() {
 
   useEffect(() => {
     if (!setorIdFiltro || overviewData.length === 0) return
-    const sectorName = overviewData.find(item => item.setor_id === setorIdFiltro)?.setor_nome
-      ?? overviewData.find(item => item.setor_id === setorIdFiltro)?.setor
+    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
+    if (!sectorItem) return
+    const sectorName = getNotebookSetor(sectorItem)
     if (!sectorName) return
     void Promise.resolve().then(() => {
       setActiveOverviewFilters((currentFilters) => {
@@ -177,7 +198,7 @@ export default function NotebooksPage() {
           value: sectorName,
           label: `Setor: ${sectorName}`,
           key: `sector:${sectorName}`,
-          predicate: (item) => (item.setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === sectorName,
+          predicate: (item) => getNotebookSetor(item) === sectorName,
         }]
       })
     })
@@ -376,6 +397,10 @@ export default function NotebooksPage() {
       {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={refresh} />}
     </div>
   )
+}
+
+function getNotebookSetor(item?: Notebook | null) {
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

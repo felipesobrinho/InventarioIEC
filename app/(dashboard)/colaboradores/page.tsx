@@ -99,7 +99,7 @@ export default function ColaboradoresPage() {
       },
       'collaborator-sector': {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor_nome ?? item.setor ?? 'Sem setor') === filter.value,
+        predicate: (item) => getColaboradorSetor(item) === filter.value,
       },
       'collaborator-without-any': {
         label: 'Colaboradores sem alocacao',
@@ -147,6 +147,26 @@ export default function ColaboradoresPage() {
       setOverviewFilterLoading(false)
     }, 120)
   }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
+    if (!sectorItem) return
+    const sectorName = getColaboradorSetor(sectorItem)
+    if (!sectorName) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        if (currentFilters.some(filter => filter.key === `collaborator-sector:${sectorName}`)) return currentFilters
+        return [...currentFilters, {
+          kind: 'collaborator-sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `collaborator-sector:${sectorName}`,
+          predicate: (item) => getColaboradorSetor(item) === sectorName,
+        }]
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
   useEffect(() => {
     let cancelled = false
@@ -234,6 +254,10 @@ export default function ColaboradoresPage() {
       {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
     </div>
   )
+}
+
+function getColaboradorSetor(item?: Colaborador | null) {
+  return item?.setor_nome || item?.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

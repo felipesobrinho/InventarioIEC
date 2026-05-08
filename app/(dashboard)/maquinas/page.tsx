@@ -139,7 +139,7 @@ export default function MaquinasPage() {
       free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => getMaquinaSetor(item) === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]
@@ -165,8 +165,9 @@ export default function MaquinasPage() {
 
   useEffect(() => {
     if (!setorIdFiltro || overviewData.length === 0) return
-    const sectorName = overviewData.find(item => item.setor_id === setorIdFiltro)?.setor_nome
-      ?? overviewData.find(item => item.setor_id === setorIdFiltro)?.setor
+    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
+    if (!sectorItem) return
+    const sectorName = getMaquinaSetor(sectorItem)
     if (!sectorName) return
     void Promise.resolve().then(() => {
       setActiveOverviewFilters((currentFilters) => {
@@ -176,7 +177,7 @@ export default function MaquinasPage() {
           value: sectorName,
           label: `Setor: ${sectorName}`,
           key: `sector:${sectorName}`,
-          predicate: (item) => (item.setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === sectorName,
+          predicate: (item) => getMaquinaSetor(item) === sectorName,
         }]
       })
     })
@@ -375,6 +376,10 @@ export default function MaquinasPage() {
       )}
     </div>
   )
+}
+
+function getMaquinaSetor(item?: Maquina | null) {
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

@@ -19,7 +19,16 @@ import { toast } from 'sonner'
 export interface DeviceOverviewItem {
   id: string
   setor?: string | null
+  setor_nome?: string | null
   nome_setor?: string | null
+  modelo?: string | null
+  fabricante?: string | null
+  categoria?: string | null
+  processador?: string | null
+  memoria?: string | null
+  armazenamento?: string | null
+  numero_patrimonio?: string | null
+  emprestado?: boolean | null
   created_at?: string | null
   data_revisao?: string | null
   ultima_revisao?: string | null
@@ -175,7 +184,7 @@ const chartColors = [
 ]
 
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
 }
 
 function getRevisionDate(item: DeviceOverviewItem) {
@@ -184,6 +193,27 @@ function getRevisionDate(item: DeviceOverviewItem) {
 
 function isAllocated(item: DeviceOverviewItem) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
+
+function isBorrowed(item: DeviceOverviewItem) {
+  return item.emprestado === true
+}
+
+function isOccupied(item: DeviceOverviewItem) {
+  return isAllocated(item) || isBorrowed(item)
+}
+
+function hasMissingNotebookData(item: DeviceOverviewItem) {
+  return [
+    item.modelo,
+    item.fabricante,
+    item.categoria,
+    item.processador,
+    item.memoria,
+    item.armazenamento,
+    item.numero_patrimonio,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
 }
 
 function pct(value: number, total: number) {
@@ -385,8 +415,12 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   isLoading = false,
   onFilter,
 }: DeviceOverviewPanelProps<T>) {
+  const isNotebookOverview = title.toLowerCase() === 'notebooks'
   const analyzedTotal = items.length
-  const allocated = items.filter(isAllocated).length
+  const allocated = items.filter(isOccupied).length
+  const allocationOnly = items.filter(isAllocated).length
+  const borrowed = items.filter(isBorrowed).length
+  const missingData = items.filter(hasMissingNotebookData).length
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
@@ -395,7 +429,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
       const setor = getSetor(item)
       const current = map.get(setor) ?? { total: 0, allocated: 0 }
       current.total += 1
-      if (isAllocated(item)) current.allocated += 1
+      if (isOccupied(item)) current.allocated += 1
       map.set(setor, current)
       return map
     }, new Map<string, { total: number; allocated: number }>())
@@ -432,16 +466,27 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
         <OverviewLoading accentClassName={accentClassName} />
       ) : (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        <div className={cn('grid grid-cols-2 gap-2', isNotebookOverview ? 'md:grid-cols-5' : 'md:grid-cols-5')}>
           <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={total.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
-          <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
-          <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
-          <Metric icon={<Users className="h-3.5 w-3.5" />} label="Ocupação" value={`${occupancy}%`} tone={occupancy >= 90 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'} />
-          <Metric
-            icon={<CalendarClock className="h-3.5 w-3.5" />}
-            label="Última revisão"
-            value={latestRevision ? formatDate(String(latestRevision)) : '—'}
-          />
+          {isNotebookOverview ? (
+            <>
+              <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'notebook-occupied' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-occupied' }))} onFilter={onFilter} />
+              <Metric icon={<Users className="h-3.5 w-3.5" />} label="Alocados" value={allocationOnly.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
+              <Metric icon={<CalendarClock className="h-3.5 w-3.5" />} label="Emprestados" value={borrowed.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'notebook-borrowed' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-borrowed' }))} onFilter={onFilter} />
+              <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
+            </>
+          ) : (
+            <>
+              <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
+              <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
+              <Metric icon={<Users className="h-3.5 w-3.5" />} label="Ocupação" value={`${occupancy}%`} tone={occupancy >= 90 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'} />
+              <Metric
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                label="Última revisão"
+                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+              />
+            </>
+          )}
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -473,7 +518,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                     item={{
                       label: sector.setor,
                       value: `${sector.occupancy}%`,
-                      detail: `${sector.allocated}/${sector.total} alocados · ${sector.distribution}% do total`,
+                      detail: `${sector.allocated}/${sector.total} ocupados · ${sector.distribution}% do total`,
                       color: sector.color,
                       filter: { kind: 'sector', value: sector.setor },
                     }}
@@ -485,6 +530,25 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             )}
           </div>
         </div>
+
+        {isNotebookOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos notebooks cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'notebook-missing-data' },
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
       )}
     </section>
@@ -548,7 +612,6 @@ export function ImpressoraOverviewPanel({
             filter: { kind: 'printer-sector', value: item.label },
           })),
           emptyMessage: 'Sem dados para compor setores.',
-          layout: 'half',
         },
         {
           title: 'Pontos de atencao',

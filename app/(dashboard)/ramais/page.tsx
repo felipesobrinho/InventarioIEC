@@ -216,7 +216,7 @@ export default function RamaisPage() {
       free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => getRamalSetor(item) === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]
@@ -242,8 +242,9 @@ export default function RamaisPage() {
 
   useEffect(() => {
     if (!setorIdFiltro || overviewData.length === 0) return
-    const sectorName = overviewData.find(item => item.setor_id === setorIdFiltro)?.setor_nome
-      ?? overviewData.find(item => item.setor_id === setorIdFiltro)?.setor
+    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
+    if (!sectorItem) return
+    const sectorName = getRamalSetor(sectorItem)
     if (!sectorName) return
     void Promise.resolve().then(() => {
       setActiveOverviewFilters((currentFilters) => {
@@ -253,7 +254,7 @@ export default function RamaisPage() {
           value: sectorName,
           label: `Setor: ${sectorName}`,
           key: `sector:${sectorName}`,
-          predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === sectorName,
+          predicate: (item) => getRamalSetor(item) === sectorName,
         }]
       })
     })
@@ -399,6 +400,10 @@ export default function RamaisPage() {
       )}
     </div>
   )
+}
+
+function getRamalSetor(item?: Ramal | null) {
+  return item?.setor_nome || item?.setor || item?.nome_setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
