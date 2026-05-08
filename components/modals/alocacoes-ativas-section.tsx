@@ -18,7 +18,13 @@ import { formatDate } from '@/lib/utils'
 
 interface AlocacaoItem {
   id: string
-  colaborador: { nome: string; setor: string | null }
+  colaborador: { 
+    nome: string; 
+    setor_rel?: {
+      nome: string
+    } 
+    | null 
+  }
   data_inicio: string | null
   whatsapp?: boolean | null    // apenas ramais
   extra?: React.ReactNode      // slot para campos específicos
@@ -47,6 +53,8 @@ export function AlocacoesAtivasSection({
   const [novoWhatsapp, setNovoWhatsapp] = useState(false)
   const [savingWhatsapp, setSavingWhatsapp] = useState(false)
   const totalAlocacoes = alocacoes.length
+
+  console.log(alocacoes)
 
   // Alocar novo colaborador
   async function alocar() {
@@ -161,10 +169,10 @@ export function AlocacoesAtivasSection({
                           {aloc.colaborador.nome}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1.5">
-                          {aloc.colaborador.setor && (
+                          {aloc.colaborador.setor_rel?.nome && (
                             <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 dark:bg-slate-800 px-1.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                               <Building2 className="h-3 w-3" />
-                              {aloc.colaborador.setor}
+                              {aloc.colaborador.setor_rel?.nome}
                             </span>
                           )}
                           {aloc.data_inicio && (
