@@ -64,6 +64,7 @@ export function GlobalSearch({ className = '' }: Props) {
   const [mounted, setMounted] = useState(false)
 
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -118,10 +119,14 @@ export function GlobalSearch({ className = '' }: Props) {
     }
   }, [open])
 
-  // Fechar ao clicar fora
+  // FIX: fechar ao clicar fora usando mousedown — mas ignorar cliques dentro
+  // do dropdown (que vive no portal, fora do wrapperRef)
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const insideWrapper  = wrapperRef.current?.contains(target)
+      const insideDropdown = dropdownRef.current?.contains(target)
+      if (!insideWrapper && !insideDropdown) {
         setOpen(false)
       }
     }
@@ -172,115 +177,111 @@ export function GlobalSearch({ className = '' }: Props) {
   const flatResults = groups.flatMap(g => g.items)
 
   const dropdown = mounted && open && pos ? createPortal(
-    <>
-      <div
-        className="fixed inset-0"
-        style={{ zIndex: 9998 }}
-        onClick={() => setOpen(false)}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          top: pos.top,
-          left: pos.left,
-          width: pos.width,
-          zIndex: 9999,
-        }}
-        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden"
-      >
-        {results.length === 0 && !loading && query.length >= 2 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-              Nenhum resultado para "{query}"
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              Tente buscar por outro termo
-            </p>
-          </div>
-        ) : (
-          <div className="max-h-[420px] overflow-y-auto py-2">
-            {groups.map(({ tipo, items }) => {
-              const cfg = TIPO_CONFIG[tipo]
-              const Icon = cfg.icon
-              return (
-                <div key={tipo}>
-                  <div className="flex items-center gap-2 px-4 py-1.5">
-                    <Icon className={`w-3 h-3 ${cfg.color}`} />
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      {cfg.label}
-                    </span>
-                  </div>
-                  {items.map(result => {
-                    const flatIdx = flatResults.indexOf(result)
-                    const isActive = flatIdx === activeIndex
-                    return (
-                      <button
-                        key={result.id}
-                        type="button"
-                        onClick={() => navigateTo(result)}
-                        onMouseEnter={() => setActiveIndex(flatIdx)}
-                        className={`
-                          w-full text-left flex items-center gap-3 px-4 py-2.5 transition
-                          ${isActive ? 'bg-slate-50 dark:bg-slate-700/60' : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'}
-                        `}
-                      >
-                        <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
-                          <Icon className={`w-4 h-4 ${cfg.color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                            {result.label}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            {result.sub && (
-                              <span className="text-xs text-slate-400 dark:text-slate-500 truncate">{result.sub}</span>
-                            )}
-                            {result.meta && (
-                              <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
-                                {result.meta}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition ${isActive ? 'text-blue-500' : 'text-slate-300 dark:text-slate-600'}`} />
-                      </button>
-                    )
-                  })}
+    <div
+      ref={dropdownRef}
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        width: pos.width,
+        zIndex: 9999,
+      }}
+      className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+    >
+      {results.length === 0 && !loading && query.length >= 2 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Nenhum resultado para "{query}"
+          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Tente buscar por outro termo
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[420px] overflow-y-auto py-2">
+          {groups.map(({ tipo, items }) => {
+            const cfg = TIPO_CONFIG[tipo]
+            const Icon = cfg.icon
+            return (
+              <div key={tipo}>
+                <div className="flex items-center gap-2 px-4 py-1.5">
+                  <Icon className={`w-3 h-3 ${cfg.color}`} />
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {cfg.label}
+                  </span>
                 </div>
-              )
-            })}
-          </div>
-        )}
+                {items.map(result => {
+                  const flatIdx = flatResults.indexOf(result)
+                  const isActive = flatIdx === activeIndex
+                  return (
+                    <button
+                      key={result.id}
+                      type="button"
+                      // FIX: onMouseDown com preventDefault impede que o blur do input
+                      // dispare antes do click, garantindo que a navegação sempre ocorra
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => navigateTo(result)}
+                      onMouseEnter={() => setActiveIndex(flatIdx)}
+                      className={`
+                        w-full text-left flex items-center gap-3 px-4 py-2.5 transition
+                        ${isActive ? 'bg-slate-50 dark:bg-slate-700/60' : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'}
+                      `}
+                    >
+                      <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
+                        <Icon className={`w-4 h-4 ${cfg.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                          {result.label}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {result.sub && (
+                            <span className="text-xs text-slate-400 dark:text-slate-500 truncate">{result.sub}</span>
+                          )}
+                          {result.meta && (
+                            <span className="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
+                              {result.meta}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition ${isActive ? 'text-blue-500' : 'text-slate-300 dark:text-slate-600'}`} />
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-        {results.length > 0 && (
-          <div className="border-t border-slate-100 dark:border-slate-700 px-4 py-2 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
-              {results.length} resultado{results.length !== 1 ? 's' : ''}
+      {results.length > 0 && (
+        <div className="border-t border-slate-100 dark:border-slate-700 px-4 py-2 flex items-center justify-between">
+          <span className="text-xs text-slate-400">
+            {results.length} resultado{results.length !== 1 ? 's' : ''}
+          </span>
+          <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">↑↓</kbd>
+              navegar
             </span>
-            <div className="hidden sm:flex items-center gap-3 text-[10px] text-slate-400">
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">↑↓</kbd>
-                navegar
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">↵</kbd>
-                abrir
-              </span>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">esc</kbd>
-                fechar
-              </span>
-            </div>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">↵</kbd>
+              abrir
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">esc</kbd>
+              fechar
+            </span>
           </div>
-        )}
-      </div>
-    </>,
+        </div>
+      )}
+    </div>,
     document.body
   ) : null
 
   return (
-    // Sem position:relative — o componente ocupa apenas o espaço do flex pai
     <div ref={wrapperRef} className={className}>
       <div className={`
         flex items-center gap-2 px-3 py-2 rounded-xl border transition-all w-full
