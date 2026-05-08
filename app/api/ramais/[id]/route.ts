@@ -7,13 +7,63 @@ import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
+async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
+  if (!snapshot) return snapshot
+  const { setor_id, ...rest } = snapshot
+  let setor_nome: string | null = null
+  if (setor_id) {
+    const setor = await prisma.setores.findUnique({
+      where: { id: setor_id },
+      select: { nome: true },
+    })
+    setor_nome = setor?.nome ?? setor_id
+  }
+  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+}
+
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+
   const { id } = await params
-  const item = await prisma.ramais.findUnique({ where: { id } })
+
+  const item = await prisma.ramais.findUnique({
+    where: { id },
+    include: {
+      alocacoes: {
+        where: { ativo: true },
+        include: { colaborador: { select: { nome: true, setor: true } } },
+        orderBy: { data_inicio: 'asc' },
+      },
+      setor_rel: { select: { id: true, nome: true } },
+    },
+  })
+
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  return NextResponse.json(item)
+
+  const result = {
+    ...item,
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({
+      id: a.id,
+      colaborador: a.colaborador,
+      tipo_base: a.tipo_base,
+      whatsapp: a.whatsapp,
+      canal_adicional: a.canal_adicional,
+      data_inicio: a.data_inicio,
+    })),
+    alocacao_ativa: item.alocacoes[0]
+      ? {
+          colaborador: item.alocacoes[0].colaborador,
+          tipo_base: item.alocacoes[0].tipo_base,
+          whatsapp: item.alocacoes[0].whatsapp,
+          data_inicio: item.alocacoes[0].data_inicio,
+        }
+      : null,
+    alocacoes: undefined,
+    setor_nome: item.setor_rel?.nome ?? item.nome_setor ?? null,
+  }
+
+  return NextResponse.json(result)
 }
 
 export async function PUT(request: Request, { params }: Props) {
@@ -22,18 +72,23 @@ export async function PUT(request: Request, { params }: Props) {
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
-  const { created_at, id: _id, alocacoes, alocacao_ativa, ...data } = body
+  const { created_at, id: _id, alocacoes, alocacao_ativa, setor_nome, setor_rel, ...data } = body
 
   const anterior = await prisma.ramais.findUnique({ where: { id } })
   const item = await prisma.ramais.update({ where: { id }, data })
+
+  const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
+    enrichAuditSnapshot(anterior as any),
+    enrichAuditSnapshot(data as any),
+  ])
 
   await registrarAuditoria({
     tabela: 'ramais',
     registro_id: id,
     acao: 'UPDATE',
-    descricao: descricaoDiff(anterior as any, data),
-    dados_anteriores: anterior as any,
-    dados_novos: data,
+    descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
+    dados_anteriores: anteriorEnriquecido as any,
+    dados_novos: novoEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
@@ -50,12 +105,14 @@ export async function DELETE(request: Request, { params }: Props) {
   const anterior = await prisma.ramais.findUnique({ where: { id } })
   await prisma.ramais.delete({ where: { id } })
 
+  const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
+
   await registrarAuditoria({
     tabela: 'ramais',
     registro_id: id,
     acao: 'DELETE',
     descricao: `Ramal "${anterior?.numero_ramal ?? id}" excluído`,
-    dados_anteriores: anterior as any,
+    dados_anteriores: anteriorEnriquecido as any,
     usuario_id,
     usuario_nome,
   })

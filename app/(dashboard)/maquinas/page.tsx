@@ -3,35 +3,73 @@
 import { useState, useEffect, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { Maquina, PaginatedResponse } from '@/types'
+
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Maquina) => boolean
+}
+
+function isAllocated(item: Maquina) {
+  return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
+
+function missing(value: unknown) {
+  if (typeof value === 'string') return value.trim().length === 0
+  return value === null || value === undefined
+}
+
+function hasMissingMachineData(item: Maquina) {
+  return [
+    item.nome_host,
+    item.identificador,
+    item.fabricante,
+    item.modelo,
+    item.categoria,
+    item.processador,
+    item.memoria_ram,
+    item.armazenamento,
+    item.endereco_ip,
+    item.patrimonio_cpu,
+    item.patrimonio_monitor,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
 
 export default function MaquinasPage() {
   const [data, setData] = useState<Maquina[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Maquina[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Maquina | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
-  const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
+  const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('nome_host')
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
-
-  const searchParams = useSearchParams()
-  const inspectId = searchParams.get('inspect')
 
   function refresh() { setRefreshKey(k => k + 1) }
 
@@ -47,7 +85,7 @@ export default function MaquinasPage() {
         dir,
       })
       if (search)    params.set('search',    search)
-      if (setor)     params.set('setor',     setor)
+      if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
       if (categoria) params.set('categoria', categoria)
       if (fabricante)params.set('fabricante',fabricante)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -70,7 +108,112 @@ export default function MaquinasPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setor, categoria, fabricante, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+    setOverviewLoading(true)
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'nome_host',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/maquinas?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Maquina> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[maquinas overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilters([])
+      setPage(1)
+      notifyOverviewFilter([])
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Maquina) => boolean }> = {
+      allocated: { label: 'Máquinas ocupadas', predicate: isAllocated },
+      free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
+      'machine-missing-data': { label: 'Máquinas com informacoes faltantes', predicate: hasMissingMachineData },
+      sector: {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => getMaquinaSetor(item) === filter.value,
+      },
+    }
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
+
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
+      setPage(1)
+      setOverviewFilterLoading(false)
+    }, 120)
+  }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getMaquinaSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `sector:${sectorName}`)) continue
+          nextFilters.push({
+          kind: 'sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `sector:${sectorName}`,
+          predicate: (item) => getMaquinaSetor(item) === sectorName,
+          })
+        }
+        return nextFilters
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
     useEffect(() => {
     if (!inspectId || data.length === 0) return
@@ -89,25 +232,18 @@ export default function MaquinasPage() {
   const columns = useMemo<ColumnDef<Maquina, unknown>[]>(() => [
     {
       accessorKey: 'nome_host',
-      header: 'Nome Host',
+      header: 'Máquina',
       cell: ({ row }) => (
-        <span className="font-medium">{row.original.nome_host || '—'}</span>
+        <div>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.identificador || '—'}</span>
+          <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
+        </div>
       ),
     },
     {
       accessorKey: 'identificador',
-      header: 'Identificador',
-      cell: ({ row }) => row.original.identificador || '—',
-    },
-    {
-      accessorKey: 'fabricante',
-      header: 'Fabricante',
-      cell: ({ row }) => row.original.fabricante || '—',
-    },
-    {
-      accessorKey: 'modelo',
-      header: 'Modelo',
-      cell: ({ row }) => row.original.modelo || '—',
+      header: 'ID',
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.identificador || '—'}</span>,
     },
     {
       accessorKey: 'categoria',
@@ -117,11 +253,11 @@ export default function MaquinasPage() {
     {
       accessorKey: 'setor',
       header: 'Setor',
-      cell: ({ row }) => row.original.setor || '—',
+      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
     },
     {
       id: 'alocado',
-      header: 'Alocado a',
+      header: 'Uso',
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
         if (alocacoes.length === 0) {
@@ -164,11 +300,13 @@ export default function MaquinasPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(value) => {
+          setSetorIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por setor..."
       />
 
       {/* Categoria */}
@@ -233,15 +371,25 @@ export default function MaquinasPage() {
         </button>
       </PageHeader>
 
+      <DeviceOverviewPanel
+        title="Máquinas"
+        total={overviewTotal || total}
+        items={overviewData}
+        accentClassName="bg-blue-500"
+        activeFilters={activeOverviewFilters}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+
       <DataTable
         columns={columns}
-        data={data}
-        total={total}
+        data={tableData}
+        total={tableTotal}
         page={page}
-        totalPages={totalPages}
+        totalPages={tableTotalPages}
         onPageChange={setPage}
         onRowClick={setSelected}
-        isLoading={loading}
+        isLoading={loading || overviewFilterLoading}
         filters={filters}
       />
 
@@ -259,5 +407,32 @@ export default function MaquinasPage() {
         />
       )}
     </div>
+  )
+}
+
+function getMaquinaSetor(item?: Maquina | null) {
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Maquina, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

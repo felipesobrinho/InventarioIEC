@@ -1,35 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import {
- X,
- Pencil,
- Trash2,
- User,
- Loader2,
- UserPlus,
- UserMinus,
- Check,
-} from "lucide-react";
+import { X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import { BoolBadge } from "@/components/dashboard/status-badge";
 import { DetailField, DetailSection } from "@/components/modals/detail-field";
 import { ConfirmDialog } from "@/components/modals/confirm-dialog";
-import { ColaboradorSelect } from "@/components/modals/colaborador-select";
 import { useCrud } from "@/hooks/use-crud";
-import { formatDate } from "@/lib/utils";
 import type { Ramal } from "@/types";
-import { optionalInt } from "@/lib/zod-helpers";
 import { HistoricoPanel } from "./historico-panel";
-import { AlocacoesAtivasSection } from '@/components/modals/alocacoes-ativas-section'
+import { AlocacoesAtivasSection } from "@/components/modals/alocacoes-ativas-section";
+import { SetorSelect } from "./setor-select";
 
 const schema = z.object({
- numero_ramal: optionalInt,
- nome_setor: z.string().optional().nullable(),
+ numero_ramal: z.string().optional().nullable(),
  prefixo_telefonico: z.string().optional().nullable(),
+ senha_acesso: z.string().optional().nullable(),
  disponibilidade: z.string().optional().nullable(),
  fila: z.boolean().optional().nullable(),
  contemplacao: z.boolean().optional().nullable(),
@@ -46,14 +34,9 @@ interface Props {
 export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
- const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false);
- const [colabId, setColabId] = useState("");
- const [colabNome, setColabNome] = useState("");
- const [whatsapp, setWhatsapp] = useState(false);
- const [savingAlocacao, setSavingAlocacao] = useState(false);
- const [editandoId, setEditandoId] = useState<string | null>(null);
- const [novoWhatsapp, setNovoWhatsapp] = useState(false);
- const [savingEdit, setSavingEdit] = useState(false);
+ const [setorId, setSetorId] = useState<string | null>(
+    (ramal as any).setor_id ?? null
+  )
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -61,11 +44,12 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  const { register, handleSubmit } = useForm<FormData>({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolver: zodResolver(schema) as any,
   defaultValues: {
    numero_ramal: ramal.numero_ramal,
-   nome_setor: ramal.nome_setor,
    prefixo_telefonico: ramal.prefixo_telefonico,
+   senha_acesso: ramal.senha_acesso,
    disponibilidade: ramal.disponibilidade,
    fila: ramal.fila,
    contemplacao: ramal.contemplacao,
@@ -73,69 +57,8 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(ramal.id, data);
+  update(ramal.id, {...data, setor_id: setorId});
  }
-
- async function salvarEdicaoAlocacao(alocacaoId: string) {
-  setSavingEdit(true);
-  try {
-   const res = await fetch(`/api/alocacoes/ramais/${alocacaoId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ whatsapp: novoWhatsapp }),
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Alocação atualizada!");
-   setEditandoId(null);
-   onRefresh();
-  } catch {
-   toast.error("Erro ao atualizar.");
-  } finally {
-   setSavingEdit(false);
-  }
- }
-
- async function alocar() {
-  if (!colabId) return;
-  setSavingAlocacao(true);
-  try {
-   const res = await fetch("/api/alocacoes/ramais", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-     ramal_id: ramal.id,
-     colaborador_id: colabId,
-     whatsapp,
-    }),
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Ramal alocado com sucesso!");
-   onRefresh();
-   onClose();
-  } catch {
-   toast.error("Erro ao alocar.");
-  } finally {
-   setSavingAlocacao(false);
-  }
- }
-
- async function desalocar() {
-  setSavingAlocacao(true);
-  try {
-   const res = await fetch(`/api/alocacoes/ramais/${ramal.id}/ativo`, {
-    method: "DELETE",
-   });
-   if (!res.ok) throw new Error();
-   toast.success("Alocação encerrada.");
-   onRefresh();
-   onClose();
-  } catch {
-   toast.error("Erro ao desalocar.");
-  } finally {
-   setSavingAlocacao(false);
-  }
- }
-
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
  const lbl =
@@ -143,9 +66,12 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
 
  return (
   <>
-   <div className="fixed inset-0 z-50 flex">
-    <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-    <aside className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden">
+   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+     className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+     onClick={onClose}
+    />
+    <section className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-900">
      <div className="flex items-start justify-between p-5 border-b border-slate-100 dark:border-slate-800">
       <div>
        <h2 className="text-base font-semibold text-slate-900 dark:text-white font-mono">
@@ -155,7 +81,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        </h2>
        {mode === "view" && (
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-         {ramal.nome_setor || "—"}
+         {ramal.setor || "—"}
         </p>
        )}
       </div>
@@ -173,55 +99,14 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        <AlocacoesAtivasSection
         itemId={ramal.id}
         entidade="ramais"
-        alocacoes={(ramal.alocacoes_ativas ?? []).map((a: any) => ({
-          id: a.id,
-          colaborador: a.colaborador,
-          data_inicio: a.data_inicio ?? null,
-          whatsapp: a.whatsapp,
+        alocacoes={(ramal.alocacoes_ativas ?? []).map((a) => ({
+         id: a.id,
+         colaborador: a.colaborador,
+         data_inicio: a.data_inicio ?? null,
+         whatsapp: a.whatsapp,
         }))}
         onRefresh={onRefresh}
         onClose={onClose}
-        renderExtraForm={(alocacaoId) => {
-          const aloc = (ramal.alocacoes_ativas ?? []).find((a: any) => a.id === alocacaoId)
-          if (!aloc) return null
-          return editandoId === alocacaoId ? (
-            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-green-100 dark:border-green-900">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={novoWhatsapp}
-                  onChange={(e) => setNovoWhatsapp(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600"
-                />
-                <span className="text-xs text-green-700 dark:text-green-300">WhatsApp</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => salvarEdicaoAlocacao(alocacaoId)}
-                disabled={savingEdit}
-                className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition disabled:opacity-60"
-              >
-                {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                Salvar
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditandoId(null)}
-                className="text-xs text-slate-400 hover:text-slate-600 transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setEditandoId(alocacaoId); setNovoWhatsapp((aloc as any).whatsapp ?? false) }}
-              className="mt-1.5 text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400 transition"
-            >
-              Editar WhatsApp
-            </button>
-          )
-        }}
        />
 
        <DetailSection title="Informações do Ramal">
@@ -229,10 +114,14 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          label="Número"
          value={ramal.numero_ramal != null ? String(ramal.numero_ramal) : null}
         />
-        <DetailField label="Setor" value={ramal.nome_setor} />
+        <DetailField label="Setor" value={(ramal as any).setor_nome ?? ramal.nome_setor ?? '—'} />
         <DetailField
          label="Prefixo Telefônico"
          value={ramal.prefixo_telefonico}
+        />
+        <DetailField
+         label="Senha de Acesso"
+         value={ramal.senha_acesso || "—"}
         />
         <DetailField label="Disponibilidade" value={ramal.disponibilidade} />
         <DetailField label="Fila" value={<BoolBadge value={ramal.fila} />} />
@@ -258,15 +147,40 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
         <div className="grid grid-cols-2 gap-3">
          <div>
           <label className={lbl}>Número do Ramal</label>
-          <input type="number" {...register("numero_ramal")} className={inp} />
+          <input
+           type="text"
+           {...register("numero_ramal")}
+           className={inp}
+           placeholder="Ex: 0028"
+           onInput={(e) => {
+            const input = e.currentTarget;
+            // Aceita apenas dígitos
+            input.value = input.value.replace(/[^0-9]/g, "");
+           }}
+          />
          </div>
          <div>
           <label className={lbl}>Setor</label>
-          <input {...register("nome_setor")} className={inp} />
+          <SetorSelect
+           value={setorId}
+           onChange={(id) =>
+            setSetorId(id)
+           }
+          />
          </div>
          <div>
           <label className={lbl}>Prefixo Telefônico</label>
           <input {...register("prefixo_telefonico")} className={inp} />
+         </div>
+         <div className="col-span-2">
+          <label className={lbl}>Senha de Acesso</label>
+          <input
+           type="text"
+           {...register("senha_acesso")}
+           className={inp}
+           placeholder="Senha do ramal"
+           autoComplete="off"
+          />
          </div>
          <div>
           <label className={lbl}>Disponibilidade</label>
@@ -353,7 +267,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        </>
       )}
      </div>
-    </aside>
+    </section>
    </div>
 
    {showDeleteConfirm && (
@@ -363,16 +277,6 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
      onConfirm={() => remove(ramal.id)}
      onCancel={() => setShowDeleteConfirm(false)}
      loading={deleting}
-    />
-   )}
-
-   {showDesalocarConfirm && (
-    <ConfirmDialog
-     title="Encerrar alocação"
-     description={`Desalocar "${ramal.alocacao_ativa?.colaborador.nome}" deste ramal?`}
-     onConfirm={desalocar}
-     onCancel={() => setShowDesalocarConfirm(false)}
-     loading={savingAlocacao}
     />
    )}
   </>

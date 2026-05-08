@@ -3,8 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { status_colaborador, type Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
+
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
 
 export async function GET(request: Request) {
   try {
@@ -12,38 +17,78 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const setor = searchParams.get('setor') || ''
-    const status = searchParams.get('status') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
+    const page    = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search  = (searchParams.get('search') || '').trim()
+    const setorId = searchParams.get('setor_id') || ''
+    const setorIds = parseSetorIds(setorId)
+    const status  = searchParams.get('status')   || ''
+    const sort    = searchParams.get('sort')     || 'nome'
+    const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: any = {}
-    if (search) where.nome = { contains: search, mode: 'insensitive' }
-    if (setor) where.setor = { contains: setor, mode: 'insensitive' }
-    if (status) where.status = status
-
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
+    const validSortFields: Record<string, boolean> = {
+      nome: true, codigo: true, created_at: true,
     }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+    const safeSort = validSortFields[sort] ? sort : 'nome'
+
+    const AND: Prisma.colaboradoresWhereInput[] = []
+
+    if (search) {
+      const codigo = parseInt(search, 10)
+      AND.push({
+        OR: [
+          { nome: { contains: search, mode: 'insensitive' } },
+          { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          ...(!isNaN(codigo) ? [{ codigo }] : []),
+        ],
+      })
+    }
+
+    if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
+    if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (status === status_colaborador.Ativo || status === status_colaborador.Inativo) {
+      AND.push({ status })
+    }
+
+    const where: Prisma.colaboradoresWhereInput = AND.length > 0 ? { AND } : {}
+    const orderBy: Prisma.colaboradoresOrderByWithRelationInput = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
       prisma.colaboradores.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: sortDir },
+        orderBy,
+        include: {
+          setor_rel: { select: { id: true, nome: true } },
+          _count: {
+            select: {
+              alocacoes_maquinas: { where: { ativo: true } },
+              alocacoes_notebooks: { where: { ativo: true } },
+              notebooks_emprestados: { where: { emprestado: true } },
+              alocacoes_aparelhos: { where: { ativo: true } },
+              alocacoes_ramais: { where: { ativo: true } },
+            },
+          },
+        },
       }),
       prisma.colaboradores.count({ where }),
     ])
 
-    return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+    const mapped = data.map((c) => ({
+      ...c,
+      setor_nome: c.setor_rel?.nome ?? c.setor ?? null,
+      alocacoes_maquinas_ativas: c._count?.alocacoes_maquinas ?? 0,
+      alocacoes_notebooks_ativas: (c._count?.alocacoes_notebooks ?? 0) + (c._count?.notebooks_emprestados ?? 0),
+      alocacoes_aparelhos_ativas: c._count?.alocacoes_aparelhos ?? 0,
+      alocacoes_ramais_ativas: c._count?.alocacoes_ramais ?? 0,
+      _count: undefined,
+    }))
+
+    return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/colaboradores]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[GET /api/colaboradores]', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
@@ -53,7 +98,7 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
-    const body = await request.json()
+    const body = await request.json() as Prisma.colaboradoresCreateInput
     const item = await prisma.colaboradores.create({ data: body })
 
     await registrarAuditoria({
@@ -61,7 +106,7 @@ export async function POST(request: Request) {
       registro_id: item.id,
       acao: 'CREATE',
       descricao: `Colaborador "${item.nome}" criado`,
-      dados_novos: item as any,
+      dados_novos: item,
       usuario_id,
       usuario_nome,
     })

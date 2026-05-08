@@ -23,7 +23,10 @@ export async function GET(_: Request, { params }: Props) {
             identificador: true,
             fabricante: true,
             modelo: true,
+            categoria: true,
             setor: true,
+            setor_id: true,
+            setor_rel: {select: {nome: true }},
           },
         },
       },
@@ -39,6 +42,8 @@ export async function GET(_: Request, { params }: Props) {
             fabricante: true,
             numero_patrimonio: true,
             setor: true,
+            setor_id: true,
+            setor_rel: {select: {nome: true }},
           },
         },
       },
@@ -52,6 +57,8 @@ export async function GET(_: Request, { params }: Props) {
             id: true,
             modelo: true,
             setor: true,
+            setor_id: true,
+            setor_rel: {select: {nome: true }},
           },
         },
       },
@@ -65,6 +72,8 @@ export async function GET(_: Request, { params }: Props) {
             id: true,
             numero_ramal: true,
             nome_setor: true,
+            setor_id: true,
+            setor_rel: {select: {nome: true }},
           },
         },
       },
@@ -73,28 +82,32 @@ export async function GET(_: Request, { params }: Props) {
   ])
 
   return NextResponse.json({
-    maquinas: maquinas.map((a: any) => ({
+    maquinas: maquinas.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       tipo_uso: a.tipo_uso,
       item: a.maquina,
+      setor_nome: a.maquina?.setor_rel?.nome ?? a.maquina?.setor ?? null,
     })),
-    notebooks: notebooks.map((a: any) => ({
+    notebooks: notebooks.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       motivo_alocacao: a.motivo_alocacao,
       item: a.notebook,
+      setor_nome: a.notebook?.setor_rel?.nome ?? a.notebook?.setor ?? null,
     })),
-    aparelhos: aparelhos.map((a: any) => ({
+    aparelhos: aparelhos.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       item: a.aparelho,
+      setor_nome: a.aparelho?.setor_rel?.nome ?? a.aparelho?.setor ?? null,
     })),
-    ramais: ramais.map((a: any) => ({
+    ramais: ramais.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       whatsapp: a.whatsapp,
       item: a.ramal,
+      setor_nome: a.ramal?.setor_rel?.nome ?? a.ramal?.nome_setor ?? null,
     })),
   })
 }

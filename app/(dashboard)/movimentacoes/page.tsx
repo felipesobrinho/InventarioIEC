@@ -3,12 +3,14 @@
 import { useState, useMemo, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { AuditOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { AuditLogModal } from '@/components/modals/audit-log-modal'
 import { useFetchData } from '@/hooks/use-fetch-data'
 import { Search } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { ACAO_COLORS, ACAO_LABELS, TABELAS_OPCOES, type AuditLog } from '@/lib/audit-constants'
+import { toast } from 'sonner'
 
 function AcaoBadge({ acao }: { acao: string }) {
   return (
@@ -25,7 +27,14 @@ export default function MovimentacoesPage() {
   const [tabela, setTabela] = useState('')
   const [acao, setAcao] = useState('')
   const [usuario, setUsuario] = useState('')
-  const [inspectLog, setInspectLog] = useState<AuditLog | null>(null)
+  const [overviewData, setOverviewData] = useState<AuditLog[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
+    label: string
+    predicate: (item: AuditLog) => boolean
+  } | null>(null)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect') 
 
@@ -35,6 +44,80 @@ export default function MovimentacoesPage() {
     page,
     refreshKey
   )
+
+  const filteredOverviewData = activeOverviewFilter
+    ? overviewData.filter(activeOverviewFilter.predicate)
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro do overview removido.')
+      return
+    }
+
+    const labelToAction = Object.entries(ACAO_LABELS).find(([, label]) => label === filter.value)?.[0] ?? filter.value
+    const predicates: Record<string, { label: string; predicate: (item: AuditLog) => boolean }> = {
+      'audit-edits': {
+        label: 'Edicoes registradas',
+        predicate: (item) => item.acao === 'UPDATE' || item.acao === 'EDITAR_ALOCACAO',
+      },
+      'audit-action': {
+        label: `Acao: ${ACAO_LABELS[filter.value ?? ''] ?? filter.value}`,
+        predicate: (item) => item.acao === filter.value,
+      },
+      'audit-action-label': {
+        label: `Acao: ${filter.value}`,
+        predicate: (item) => item.acao === labelToAction,
+      },
+      'audit-user': {
+        label: `Responsavel: ${filter.value ?? 'Sem responsavel'}`,
+        predicate: (item) => (item.usuario_nome || 'Sem responsavel') === filter.value,
+      },
+    }
+
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+
+    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
+    const toastId = toast.loading('Aplicando filtro do overview...', { description })
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilter(nextFilter)
+      setPage(1)
+      setOverviewFilterLoading(false)
+      toast.success('Filtro aplicado.', { id: toastId, description })
+    }, 120)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchOverview() {
+      setOverviewLoading(true)
+      try {
+        const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'created_at', dir: 'desc' })
+        const res = await fetch(`/api/audit-log?${params}`)
+        const json = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data ?? [])
+          setOverviewTotal(json.total ?? 0)
+        }
+      } catch (error) {
+        console.error('[audit overview]', error)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   const columns = useMemo<ColumnDef<AuditLog, unknown>[]>(() => [
     {
@@ -143,15 +226,22 @@ export default function MovimentacoesPage() {
         total={total}
       />
 
+      <AuditOverviewPanel
+        total={overviewTotal || total}
+        items={overviewData}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+
       <DataTable
         columns={columns}
-        data={data}
-        total={total}
+        data={tableData}
+        total={tableTotal}
         page={page}
-        totalPages={totalPages}
+        totalPages={tableTotalPages}
         onPageChange={setPage}
         onRowClick={setSelected}
-        isLoading={loading}
+        isLoading={loading || overviewFilterLoading}
         filters={filters}
       />
 

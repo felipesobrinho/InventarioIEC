@@ -1,28 +1,291 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
 import type { Notebook, PaginatedResponse } from '@/types'
 import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
 import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
-const columns: ColumnDef<Notebook>[] = [
-  { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
-  { accessorKey: 'fabricante', header: 'Fabricante', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'numero_patrimonio', header: 'Patrimônio', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'categoria', header: 'Categoria', cell: ({ getValue }) => <CategoriaBadge categoria={getValue() as string} /> },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'memoria', header: 'Memória', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'armazenamento', header: 'Armazenamento', cell: ({ getValue }) => getValue() || '—' },
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Notebook) => boolean
+}
+
+function isAllocated(item: Notebook) {
+  return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
+
+function isOccupied(item: Notebook) {
+  return isAllocated(item) || item.emprestado === true
+}
+
+function hasMissingNotebookData(item: Notebook) {
+  return [
+    item.modelo,
+    item.fabricante,
+    item.categoria,
+    item.processador,
+    item.memoria,
+    item.armazenamento,
+    item.numero_patrimonio,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(value => value === null || value === undefined || value === '')
+}
+
+export default function NotebooksPage() {
+  const [data, setData] = useState<Notebook[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Notebook[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<Notebook | null>(null)
+  const [showCriar, setShowCriar] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
+
+  // Filtros
+  const [search, setSearch] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [categoria, setCategoria] = useState('')
+  const [fabricante, setFabricante] = useState('')
+  const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
+  const [sort, setSort] = useState('modelo')
+  const [dir, setDir] = useState<'asc' | 'desc'>('asc')
+
+  const cancelledRef = useRef(false)
+  function refresh() { setRefreshKey(k => k + 1) }
+
+  const fetchData = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: '20',
+      sort,
+      dir,
+    })
+    if (search)    params.set('search',    search)
+    if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+    if (categoria) params.set('categoria', categoria)
+    if (fabricante)params.set('fabricante',fabricante)
+    if (alocacao)  params.set('alocacao',  alocacao)
+
+    try {
+      const res = await fetch(`/api/notebooks?${params}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json: PaginatedResponse<Notebook> = await res.json()
+      if (!cancelledRef.current) {
+        setData(json.data)
+        setTotal(json.total)
+        setTotalPages(json.totalPages)
+      }
+    } catch (err) {
+      console.error('[notebooks page]', err)
+    } finally {
+      if (!cancelledRef.current) setLoading(false)
+    }
+  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir])
+
+  useEffect(() => {
+    cancelledRef.current = false
+    setLoading(true)
+    fetchData()
+    return () => { cancelledRef.current = true }
+  }, [fetchData, refreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+    setOverviewLoading(true)
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'modelo',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/notebooks?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Notebook> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[notebooks overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilters([])
+      setPage(1)
+      notifyOverviewFilter([])
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Notebook) => boolean }> = {
+      'notebook-occupied': { label: 'Notebooks ocupados', predicate: isOccupied },
+      allocated: { label: 'Notebooks alocados', predicate: isAllocated },
+      'notebook-borrowed': { label: 'Notebooks emprestados', predicate: (item) => item.emprestado === true },
+      'notebook-missing-data': { label: 'Notebooks com informacoes faltantes', predicate: hasMissingNotebookData },
+      free: { label: 'Notebooks livres', predicate: (item) => !isOccupied(item) },
+      sector: {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => getNotebookSetor(item) === filter.value,
+      },
+    }
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
+
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
+      setPage(1)
+      setOverviewFilterLoading(false)
+    }, 120)
+  }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getNotebookSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `sector:${sectorName}`)) continue
+          nextFilters.push({
+          kind: 'sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `sector:${sectorName}`,
+          predicate: (item) => getNotebookSetor(item) === sectorName,
+          })
+        }
+        return nextFilters
+      })
+    })
+  }, [setorIdFiltro, overviewData])
+
+  useEffect(() => {
+    if (!inspectId || data.length === 0) return
+    const found = data.find(d => d.id === inspectId)
+    if (found) setSelected(found)
+  }, [inspectId, data])
+
+  // Se não achar na página atual (pode estar em outra página), buscar direto:
+  useEffect(() => {
+    if (!inspectId) return
+    fetch(`/api/notebooks/${inspectId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(item => { if (item) setSelected(item) })
+      .catch(() => {})
+  }, [inspectId])
+
+  const columns = useMemo<ColumnDef<Notebook, unknown>[]>(() => [
+  {
+    accessorKey: 'modelo',
+    header: 'Notebook',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium text-slate-900 dark:text-slate-100">
+          {row.original.modelo || row.original.numero_patrimonio || '—'}
+        </span>
+        <p className="text-xs text-slate-400">{row.original.fabricante || 'Sem fabricante'}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'numero_patrimonio',
+    header: 'Patrimônio',
+    cell: ({ row }) => (
+      <span className="font-mono text-xs">{row.original.numero_patrimonio || '—'}</span>
+    ),
+  },
+  {
+    accessorKey: 'categoria',
+    header: 'Categoria',
+    cell: ({ row }) => <CategoriaBadge categoria={row.original.categoria} />,
+  },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
+  {
+    accessorKey: 'data_revisao',
+    header: 'Última revisão',
+    cell: ({ row }) => formatDate(row.original.data_revisao),
+  },
+  {
+  id: 'emprestado',
+  header: 'Empréstimo',
+  cell: ({ row }) => {
+    const nb = row.original
+    if (!nb.emprestado) return null
+
+    // Montar label: colaborador tem prioridade sobre setor
+    const label = (nb as any).emprestado_colaborador_nome
+      ?? (nb as any).emprestado_setor_nome
+      ?? 'Emprestado'
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 max-w-[160px]">
+        📦 <span className="truncate">{label}</span>
+      </span>
+    )
+  },
+},
   {
     id: 'alocado',
-    header: 'Alocado a',
+    header: 'Uso',
     cell: ({ row }) => {
       const alocacoes = row.original.alocacoes_ativas ?? []
       if (alocacoes.length === 0) {
@@ -47,82 +310,7 @@ const columns: ColumnDef<Notebook>[] = [
       )
     },
   },
-]
-
-export default function NotebooksPage() {
-  const [data, setData] = useState<Notebook[]>([])
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Notebook | null>(null)
-  const [showCriar, setShowCriar] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
-
-  // Filtros
-  const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
-  const [categoria, setCategoria] = useState('')
-  const [fabricante, setFabricante] = useState('')
-  const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
-  const [sort, setSort] = useState('modelo')
-  const [dir, setDir] = useState<'asc' | 'desc'>('asc')
-
-  const cancelledRef = useRef(false)
-  const searchParams = useSearchParams()
-  const inspectId = searchParams.get('inspect')
-  function refresh() { setRefreshKey(k => k + 1) }
-
-  const fetchData = useCallback(async () => {
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: '20',
-      sort,
-      dir,
-    })
-    if (search)    params.set('search',    search)
-    if (setor)     params.set('setor',     setor)
-    if (categoria) params.set('categoria', categoria)
-    if (fabricante)params.set('fabricante',fabricante)
-    if (alocacao)  params.set('alocacao',  alocacao)
-
-    try {
-      const res = await fetch(`/api/notebooks?${params}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json: PaginatedResponse<Notebook> = await res.json()
-      if (!cancelledRef.current) {
-        setData(json.data)
-        setTotal(json.total)
-        setTotalPages(json.totalPages)
-      }
-    } catch (err) {
-      console.error('[notebooks page]', err)
-    } finally {
-      if (!cancelledRef.current) setLoading(false)
-    }
-  }, [page, search, setor, categoria, fabricante, alocacao, sort, dir])
-
-  useEffect(() => {
-    cancelledRef.current = false
-    setLoading(true)
-    fetchData()
-    return () => { cancelledRef.current = true }
-  }, [fetchData, refreshKey])
-
-  useEffect(() => {
-    if (!inspectId || data.length === 0) return
-    const found = data.find(d => d.id === inspectId)
-    if (found) setSelected(found)
-  }, [inspectId, data])
-
-  // Se não achar na página atual (pode estar em outra página), buscar direto:
-  useEffect(() => {
-    if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(item => { if (item) setSelected(item) })
-      .catch(() => {})
-  }, [inspectId])
+], [])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 
@@ -140,11 +328,13 @@ export default function NotebooksPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(value) => {
+          setSetorIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por setor..."
       />
 
       {/* Categoria */}
@@ -206,10 +396,47 @@ export default function NotebooksPage() {
           <Plus className="w-4 h-4" /> Novo notebook
         </button>
       </PageHeader>
-      <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
-        onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
-      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={fetchData} />}
-      {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={fetchData} />}
+      <DeviceOverviewPanel
+        title="Notebooks"
+        total={overviewTotal || total}
+        items={overviewData}
+        accentClassName="bg-violet-500"
+        activeFilters={activeOverviewFilters}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+
+      <DataTable columns={columns} data={tableData} total={tableTotal} page={page} totalPages={tableTotalPages}
+        onPageChange={setPage} onRowClick={setSelected} isLoading={loading || overviewFilterLoading} filters={filters} />
+      {selected && <NotebookModal notebook={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
+      {showCriar && <CriarNotebookModal onClose={() => setShowCriar(false)} onRefresh={refresh} />}
     </div>
+  )
+}
+
+function getNotebookSetor(item?: Notebook | null) {
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Notebook, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

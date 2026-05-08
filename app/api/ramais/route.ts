@@ -3,8 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
+
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
 
 export async function GET(request: Request) {
   try {
@@ -12,88 +17,144 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const disponibilidade = searchParams.get('disponibilidade') || ''
-    const fila = searchParams.get('fila') || ''
-    const alocacao = searchParams.get('alocacao') || ''  // 'alocado' | 'livre' | ''
-    const sort = searchParams.get('sort') || 'numero_ramal'
-    const dir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc'
+    const page            = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit           = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search          = (searchParams.get('search') || '').trim()
+    const disponibilidade = (searchParams.get('disponibilidade') || '').trim()
+    const fila            = searchParams.get('fila')       || ''
+    const alocacao        = searchParams.get('alocacao')   || ''
+    const whatsapp        = searchParams.get('whatsapp')   || ''
+    const setorId         = searchParams.get('setor_id')   || ''   // ← ADICIONADO
+    const setorIds        = parseSetorIds(setorId)
+    const sort            = searchParams.get('sort')       || 'numero_ramal'
+    const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: any = {}
-
-    if (search) {
-      where.OR = [
-        { numero_ramal: { contains: search, mode: 'insensitive' } },
-        { nome_setor:   { contains: search, mode: 'insensitive' } },
-        {
-          alocacoes: {
-            some: {
-              ativo: true,
-              colaborador: { nome: { contains: search, mode: 'insensitive' } },
-            },
-          },
-        },
-      ]
-    }
-
-    if (disponibilidade) where.disponibilidade = { contains: disponibilidade, mode: 'insensitive' }
-    if (fila !== '') where.fila = fila === 'true'
-
-    if (alocacao === 'alocado') {
-      where.alocacoes = { some: { ativo: true } }
-    } else if (alocacao === 'livre') {
-      where.alocacoes = { none: { ativo: true } }
-    }
-
-    // Campos válidos para ordenação
     const validSortFields: Record<string, boolean> = {
       numero_ramal: true, nome_setor: true,
-      prefixo_telefonico: true, disponibilidade: true,
-      created_at: true,
+      prefixo_telefonico: true, disponibilidade: true, created_at: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
+
+    const AND: any[] = []
+
+    // Filtro de texto — NÃO inclui setor_id (UUID não aceita contains)
+    if (search) {
+      AND.push({
+        OR: [
+          { numero_ramal: { contains: search, mode: 'insensitive' } },
+          { nome_setor: { contains: search, mode: 'insensitive' } },
+          {
+            alocacoes: {
+              some: {
+                ativo: true,
+                colaborador: { nome: { contains: search, mode: 'insensitive' } },
+              },
+            },
+          },
+          // Busca por nome do setor via relação
+          {
+            setor_rel: {
+              nome: { contains: search, mode: 'insensitive' },
+            },
+          },
+        ],
+      })
+    }
+
+    // Filtro por setor selecionado no SetorSelect — comparação exata por UUID
+    if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
+    if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+
+    if (disponibilidade) {
+      AND.push({ disponibilidade: { contains: disponibilidade, mode: 'insensitive' } })
+    }
+
+    if (fila !== '') {
+      AND.push({ fila: fila === 'true' })
+    }
+
+    if (alocacao === 'alocado') {
+      AND.push({ alocacoes: { some: { ativo: true, ramal_id: { not: null } } } })
+    } else if (alocacao === 'livre') {
+      AND.push({ alocacoes: { none: { ativo: true, ramal_id: { not: null } } } })
+    }
+
+    if (whatsapp === 'true') {
+      AND.push({
+        alocacoes: {
+          some: { ativo: true, whatsapp: true, ramal_id: { not: null } },
+        },
+      })
+    }
+
+    const where: any = AND.length > 0 ? { AND } : {}
+
+    // Ordenação — setor via relação precisa de sintaxe diferente
+    const orderBy = safeSort === 'nome_setor'
+      ? { setor_rel: { nome: dir } }
+      : { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
       prisma.ramais.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: dir },
+        orderBy,
         include: {
           alocacoes: {
             where: { ativo: true },
             include: { colaborador: { select: { nome: true, setor: true } } },
             orderBy: { data_inicio: 'asc' },
           },
+          setor_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.ramais.count({ where }),
     ])
 
-    const mapped = data.map((m: any) => ({
-      ...m,
-      alocacoes_ativas: m.alocacoes.map((a: any) => ({
+    const ids = data.map((r: any) => r.id)
+    const ultimasEdicoes = ids.length > 0
+      ? await prisma.audit_log.findMany({
+          where: { registro_id: { in: ids }, tabela: 'ramais', acao: 'UPDATE' },
+          orderBy: { created_at: 'desc' },
+          select: { registro_id: true, created_at: true },
+        })
+      : []
+
+    const ultimaEdicaoMap: Record<string, string> = {}
+    for (const log of ultimasEdicoes) {
+      if (log.registro_id && !ultimaEdicaoMap[log.registro_id]) {
+        ultimaEdicaoMap[log.registro_id] = log.created_at?.toISOString() ?? ''
+      }
+    }
+
+    const mapped = data.map((r: any) => ({
+      ...r,
+      setor_nome: r.setor_rel?.nome ?? r.nome_setor ?? r.setor ?? null,
+      alocacoes_ativas: r.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
-        tipo_uso: a.tipo_uso,
+        tipo_base: a.tipo_base,
+        whatsapp: a.whatsapp,
+        canal_adicional: a.canal_adicional,
         data_inicio: a.data_inicio,
       })),
-      alocacao_ativa: m.alocacoes[0]
+      alocacao_ativa: r.alocacoes[0]
         ? {
-            colaborador: m.alocacoes[0].colaborador,
-            tipo_uso: m.alocacoes[0].tipo_uso,
-            data_inicio: m.alocacoes[0].data_inicio,
+            colaborador: r.alocacoes[0].colaborador,
+            tipo_base: r.alocacoes[0].tipo_base,
+            whatsapp: r.alocacoes[0].whatsapp,
+            data_inicio: r.alocacoes[0].data_inicio,
           }
         : null,
+      ultima_revisao: ultimaEdicaoMap[r.id] ?? null,
       alocacoes: undefined,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/ramais]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[GET /api/ramais]', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
@@ -118,7 +179,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
-    console.error('[POST /api/ramais]', error)
+    console.error('[POST /api/ramais] Error:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

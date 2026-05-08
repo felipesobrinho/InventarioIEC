@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import type { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 
 export const runtime = 'nodejs'
+
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
 
 export async function GET(request: Request) {
   try {
@@ -12,44 +17,66 @@ export async function GET(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const search = searchParams.get('search') || ''
-    const localidade = searchParams.get('localidade') || ''
-    const andar = searchParams.get('andar') || ''
-    const statusRaw = searchParams.get('status') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
-    const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
+    const page    = Math.max(1, parseInt(searchParams.get('page')  || '1', 10))
+    const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
+    const search  = (searchParams.get('search') || '').trim()
+    const setorId = searchParams.get('setor_id') || ''
+    const setorIds = parseSetorIds(setorId)
+    const andar   = (searchParams.get('andar') || '').trim()
+    const status  = searchParams.get('status') || ''
+    const sort    = searchParams.get('sort')     || 'modelo'
+    const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
-    const where: any = {}
+    const validSortFields: Record<string, boolean> = {
+      modelo: true, fabricante: true, localidade: true, created_at: true,
+    }
+    const safeSort = validSortFields[sort] ? sort : 'modelo'
+
+    const AND: Prisma.impressorasWhereInput[] = []
+
     if (search) {
-      where.OR = [
-        { nome_host: { contains: search, mode: 'insensitive' } },
-        { numero_serie: { contains: search, mode: 'insensitive' } },
-      ]
+      AND.push({
+        OR: [
+          { modelo:      { contains: search, mode: 'insensitive' } },
+          { fabricante:  { contains: search, mode: 'insensitive' } },
+          { localidade:  { contains: search, mode: 'insensitive' } },
+          { endereco_ip: { contains: search, mode: 'insensitive' } },
+          { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+        ],
+      })
     }
-    if (localidade) where.localidade = { contains: localidade, mode: 'insensitive' }
-    if (andar) where.andar = { contains: andar, mode: 'insensitive' }
-    if (statusRaw !== '') where.status = statusRaw === 'true'
-    const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
-    }
-    const safeSort = validSort[sortBy] ? sortBy : 'nome'
+
+    if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
+    if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (andar) AND.push({ andar: { contains: andar, mode: 'insensitive' } })
+    if (status === 'true') AND.push({ status: true })
+    if (status === 'false') AND.push({ status: false })
+
+    const where: Prisma.impressorasWhereInput = AND.length > 0 ? { AND } : {}
+    const orderBy = { [safeSort]: dir }
 
     const [data, total] = await Promise.all([
       prisma.impressoras.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [safeSort]: sortDir },
+        orderBy,
+        include: {
+          setor_rel: { select: { id: true, nome: true } },
+        },
       }),
       prisma.impressoras.count({ where }),
     ])
 
-    return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+    const mapped = data.map((i) => ({
+      ...i,
+      setor_nome: i.setor_rel?.nome ?? i.localidade ?? null,
+    }))
+
+    return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
   } catch (error) {
-    console.error('[GET /api/impressoras]', error)
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
+    console.error('[GET /api/impressoras]', error instanceof Error ? error.message : error)
+    return NextResponse.json({ error: 'Erro interno', data: [], total: 0, page: 1, totalPages: 1 }, { status: 500 })
   }
 }
 
@@ -67,7 +94,7 @@ export async function POST(request: Request) {
       registro_id: item.id,
       acao: 'CREATE',
       descricao: `Impressora "${item.nome_host ?? item.numero_serie ?? item.id}" criada`,
-      dados_novos: item as any,
+      dados_novos: item as unknown as Record<string, unknown>,
       usuario_id,
       usuario_nome,
     })

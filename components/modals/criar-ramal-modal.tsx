@@ -7,16 +7,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { useCreate } from '@/hooks/use-create'
-import { optionalInt } from '@/lib/zod-helpers'
 
 const schema = z.object({
-  numero_ramal: optionalInt,
-  nome_setor: z.string().optional().nullable(),
+  numero_ramal: z.string().optional().nullable(),
   prefixo_telefonico: z.string().optional().nullable(),
+  senha_acesso: z.string().optional().nullable(),
   disponibilidade: z.string().optional().nullable(),
   fila: z.boolean().default(false),
-  contemplacao: z.boolean().default(false),
+  contemplacao: z.boolean().default(false),                
 })
 
 type FormData = z.infer<typeof schema>
@@ -27,6 +27,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('ramais')
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
+  const [setorId, setSetorId] = useState<string | null>(null)
   const [whatsapp, setWhatsapp] = useState(false)
   const [savingAlocacao, setSavingAlocacao] = useState(false)
 
@@ -36,7 +37,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   })
 
   async function onSubmit(data: FormData) {
-    const ramal = await create(data)
+    const ramal = await create({ ...data, setor_id: setorId })
     if (!ramal) return
 
     if (colabId) {
@@ -75,9 +76,28 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
         <div className="flex-1 overflow-y-auto p-5">
           <form id="criar-ramal-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className={lbl}>Número do Ramal</label><input type="number" {...register('numero_ramal')} className={inp} /></div>
-              <div><label className={lbl}>Setor</label><input {...register('nome_setor')} className={inp} /></div>
+              <div><label className={lbl}>Número do Ramal</label><input
+                type="text"
+                {...register('numero_ramal')}
+                className={inp}
+                placeholder="Ex: 0028"
+                onInput={(e) => {
+                  const input = e.currentTarget
+                  input.value = input.value.replace(/[^0-9]/g, '')
+                }}
+              /></div>
+              <div>
+                <label className={lbl}>Setor</label>
+                <SetorSelect
+                  value={setorId}
+                  onChange={(id) => setSetorId(id)}
+                />
+              </div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>
+              <div className="col-span-2">
+                <label className={lbl}>Senha de Acesso</label>
+                <input type="text" {...register('senha_acesso')} className={inp} placeholder="Senha do ramal" autoComplete="off" />
+              </div>
               <div><label className={lbl}>Disponibilidade</label><input {...register('disponibilidade')} className={inp} /></div>
               <div className="flex items-center gap-2 pt-2">
                 <input type="checkbox" id="fila-criar" {...register('fila')} className="w-4 h-4 rounded border-slate-300 text-blue-600" />

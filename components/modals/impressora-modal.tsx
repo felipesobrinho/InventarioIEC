@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Impressora } from '@/types'
+import { SetorSelect } from './setor-select'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
@@ -18,7 +19,6 @@ const schema = z.object({
   modelo: z.string().optional().nullable(),
   numero_serie: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
-  localidade: z.string().optional().nullable(),
   andar: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
   tipo_usuario: z.string().optional().nullable(),
@@ -31,6 +31,9 @@ interface Props { impressora: Impressora; onClose: () => void; onRefresh: () => 
 export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(
+    (impressora as any).setor_id ?? null
+  )
 
   const { update, remove, saving, deleting } = useCrud('impressoras', () => {
     onRefresh()
@@ -45,7 +48,6 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
       modelo: impressora.modelo,
       numero_serie: impressora.numero_serie,
       endereco_ip: impressora.endereco_ip,
-      localidade: impressora.localidade,
       andar: impressora.andar,
       servidor_impressao: impressora.servidor_impressao,
       tipo_usuario: impressora.tipo_usuario,
@@ -54,7 +56,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(impressora.id, data)
+    update(impressora.id, {...data, setor_id: setorId})
   }
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -95,8 +97,8 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
               <DetailSection title="Rede e Localização">
                 <DetailField label="Endereço IP" value={impressora.endereco_ip} />
                 <DetailField label="Servidor Impressão" value={impressora.servidor_impressao} />
-                <DetailField label="Localidade" value={impressora.localidade} />
                 <DetailField label="Andar" value={impressora.andar} />
+                <DetailField label="Localidade/Setor" value={(impressora as any).setor_nome ?? impressora.setor ?? '—'} />
                 <DetailField label="Tipo de Usuário" value={impressora.tipo_usuario} />
                 <DetailField label="Revisão" value={formatDate(impressora.revisao)} />
               </DetailSection>
@@ -113,7 +115,13 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                   <div><label className={lbl}>Nº de Série</label><input {...register('numero_serie')} className={inp} /></div>
                   <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
                   <div><label className={lbl}>Servidor Impressão</label><input {...register('servidor_impressao')} className={inp} /></div>
-                  <div><label className={lbl}>Localidade</label><input {...register('localidade')} className={inp} /></div>
+                  <div>
+                    <label className={lbl}>Setor</label>
+                    <SetorSelect
+                      value={setorId}
+                      onChange={(id) => setSetorId(id)}
+                    />
+                  </div>
                   <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>
                   <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>
                   <div className="flex items-center gap-2 pt-4">

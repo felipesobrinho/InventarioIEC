@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { DeviceOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { AparelhoModal } from '@/components/modals/aparelho-modal'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
 import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
@@ -13,16 +15,46 @@ import { CriarAparelhoModal } from '@/components/modals/criar-aparelho-modal'
 import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Aparelho) => boolean
+}
+
+function isAllocated(item: Aparelho) {
+  return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
+
+function hasMissingPhoneData(item: Aparelho) {
+  return [
+    item.modelo,
+    item.tipo,
+    item.endereco_ip,
+    item.endereco_mac,
+    item.setor_nome ?? item.setor,
+  ].some(value => value === null || value === undefined || value === '')
+}
+
 const columns: ColumnDef<Aparelho>[] = [
-  { accessorKey: 'modelo', header: 'Modelo', cell: ({ getValue }) => <span className="font-medium">{getValue() as string || '—'}</span> },
-  { accessorKey: 'tipo', header: 'Tipo', cell: ({ getValue }) => mapTipoAparelho(getValue() as number) },
-  { accessorKey: 'setor', header: 'Setor', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'endereco_ip', header: 'IP', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
+  {
+    accessorKey: 'modelo',
+    header: 'Aparelho',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.modelo || '—'}</span>
+        <p className="text-xs text-slate-400">{mapTipoAparelho(row.original.tipo)}</p>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'setor',
+    header: 'Setor',
+    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
+  { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   {
     id: 'alocado',
-    header: 'Alocado a',
+    header: 'Uso',
     cell: ({ row }) => {
       const alocacoes = row.original.alocacoes_ativas ?? []
       if (alocacoes.length === 0) {
@@ -53,15 +85,22 @@ export default function AparelhosPage() {
   const [data, setData] = useState<Aparelho[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Aparelho[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Aparelho | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const searchParams = useSearchParams()
+  const inspectId = searchParams.get('inspect')
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [setor, setSetor] = useState('')
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [status, setStatus] = useState('')
   const [chip, setChip] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -69,8 +108,6 @@ export default function AparelhosPage() {
   const [dir, setDir] = useState<'asc' | 'desc'>('asc')
 
   function refresh() { setRefreshKey(k => k + 1) }
-  const searchParams = useSearchParams()
-  const inspectId = searchParams.get('inspect')
 
   useEffect(() => {
     let cancelled = false
@@ -84,7 +121,7 @@ export default function AparelhosPage() {
         dir,
       })
       if (search)    params.set('search',    search)
-      if (setor)     params.set('setor',     setor)
+      if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
       if (status !== '') params.set('status', status)
       if (chip !== '') params.set('chip', chip)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -107,7 +144,113 @@ export default function AparelhosPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setor, status, chip, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, status, chip, alocacao, sort, dir, refreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+    setOverviewLoading(true)
+
+    async function fetchOverview() {
+      try {
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10000',
+          sort: 'modelo',
+          dir: 'asc',
+        })
+        const res = await fetch(`/api/aparelhos?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Aparelho> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[aparelhos overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey])
+
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilters([])
+      setPage(1)
+      notifyOverviewFilter([])
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Aparelho) => boolean }> = {
+      allocated: { label: 'Aparelhos ocupados', predicate: isAllocated },
+      free: { label: 'Aparelhos livres', predicate: (item) => !isAllocated(item) },
+      'phone-missing-data': { label: 'Aparelhos com informacoes faltantes', predicate: hasMissingPhoneData },
+      'phone-with-chip': { label: 'Aparelhos com chip', predicate: (item) => item.chip === true },
+      sector: {
+        label: `Setor: ${filter.value ?? 'Sem setor'}`,
+        predicate: (item) => getAparelhoSetor(item) === filter.value,
+      },
+    }
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
+
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
+      setPage(1)
+      setOverviewFilterLoading(false)
+    }, 120)
+  }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getAparelhoSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `sector:${sectorName}`)) continue
+          nextFilters.push({
+          kind: 'sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `sector:${sectorName}`,
+          predicate: (item) => getAparelhoSetor(item) === sectorName,
+          })
+        }
+        return nextFilters
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
   useEffect(() => {
     if (!inspectId || data.length === 0) return
@@ -117,7 +260,7 @@ export default function AparelhosPage() {
 
   useEffect(() => {
     if (!inspectId) return
-    fetch(`/api/maquinas/${inspectId}`)
+    fetch(`/api/aparelhos/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
       .then(item => { if (item) setSelected(item) })
       .catch(() => {})
@@ -139,11 +282,12 @@ export default function AparelhosPage() {
       </div>
 
       {/* Setor */}
-      <input
-        value={setor}
-        onChange={(e) => { setSetor(e.target.value); setPage(1) }}
-        placeholder="Setor..."
-        className={`${inputCls} w-32`}
+      <SetorSelect
+        value={setorIdFiltro}
+        onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
+        placeholder="Filtrar por setor..."
+        allowCreate={false}
+        className="w-52"
       />
 
       {/* Status */}
@@ -195,7 +339,7 @@ export default function AparelhosPage() {
         <option value="created_at:desc">Mais recentes</option>
         <option value="created_at:asc">Mais antigos</option>
         <option value="tipo:asc">Tipo A→Z</option>
-        <option value="setor:asc">Setor A→Z</option>
+        <option value="setor_id:asc">Setor A→Z</option>
       </select>
     </>
   )
@@ -208,12 +352,49 @@ export default function AparelhosPage() {
         <Plus className="w-4 h-4" /> Novo aparelho
       </button>
     </PageHeader>
-      <DataTable columns={columns} data={data} total={total} page={page} totalPages={totalPages}
-        onPageChange={setPage} onRowClick={setSelected} isLoading={loading} filters={filters} />
+      <DeviceOverviewPanel
+        title="Aparelhos"
+        total={overviewTotal || total}
+        items={overviewData}
+        accentClassName="bg-cyan-500"
+        activeFilters={activeOverviewFilters}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+
+      <DataTable columns={columns} data={tableData} total={tableTotal} page={page} totalPages={tableTotalPages}
+        onPageChange={setPage} onRowClick={setSelected} isLoading={loading || overviewFilterLoading} filters={filters} />
       {selected && <AparelhoModal aparelho={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
       {showCriar && (
         <CriarAparelhoModal onClose={() => setShowCriar(false)} onRefresh={refresh} />
       )}
     </div>
+  )
+}
+
+function getAparelhoSetor(item?: Aparelho | null) {
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Aparelho, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

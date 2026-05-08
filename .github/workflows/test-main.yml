@@ -1,0 +1,84 @@
+# name: Testes - Branch Main (Bloqueante)
+
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+    
+# permissions:
+#   contents: read
+#   pull-requests: write
+#   checks: write
+
+# jobs:
+#   validate:
+#     runs-on: ubuntu-latest
+#     name: Validação Completa para Main
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20.x'
+#           cache: 'npm'
+
+#       - name: Instalar dependências
+#         run: npm ci
+
+#       - name: Gerar Prisma Client
+#         run: npm run build
+
+#       - name: Executar testes unitários com cobertura
+#         run: npm run test -- --coverage --testPathIgnorePatterns=e2e
+#         env:
+#           CI: true
+
+#       # - name: Verificar cobertura mínima (80%)
+#       #   run: |
+#       #     COVERAGE=$(grep -A 1 'All files' coverage/coverage-final.json | grep -oP '"lines":\s*{\s*"total":\s*\K[0-9.]+')
+#       #     if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+#       #       echo "❌ Cobertura de testes abaixo de 80%: $COVERAGE%"
+#       #       exit 1
+#       #     fi
+#       #     echo "✅ Cobertura acima de 80%: $COVERAGE%"
+
+#       - name: Build da aplicação
+#         run: npm run build
+
+#       - name: Instalar Playwright
+#         run: npx playwright install --with-deps
+
+#       - name: Executar testes E2E em paralelo
+#         run: npm run test:e2e -- --workers 4
+#         env:
+#           NEXTAUTH_URL: http://localhost:3000
+#           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+
+#       - name: Upload Playwright Report
+#         if: always()
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: playwright-report-main
+#           path: playwright-report/
+#           retention-days: 90
+
+#       - name: Upload Coverage
+#         uses: codecov/codecov-action@v3
+#         with:
+#           files: ./coverage/lcov.info
+#           flags: main-tests
+#           name: codecov-main
+#           token: ${{ secrets.CODECOV_TOKEN }}
+
+#   # Job que falha se validate falhar - para bloquear merges
+#   require-tests:
+#     runs-on: ubuntu-latest
+#     needs: validate
+#     if: always()
+#     steps:
+#       - name: Testes obrigatórios para main
+#         if: needs.validate.result != 'success'
+#         run: exit 1

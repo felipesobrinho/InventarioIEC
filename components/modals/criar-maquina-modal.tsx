@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
+import { SetorSelect } from '@/components/modals/setor-select'
 import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
@@ -20,7 +21,6 @@ const schema = z.object({
   armazenamento: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   localizacao: z.string().optional().nullable(),
-  setor: z.string().optional().nullable(),
   patrimonio_cpu: z.string().optional().nullable(),
   patrimonio_monitor: z.string().optional().nullable(),
 })
@@ -33,12 +33,15 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
+  const [setorId, setSetorId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
-    const maquina = await create(data)
+    const maquina = await create({ ...data, setor_id: setorId })
     if (!maquina) return
+
+    console.log(maquina)
 
     if (colabId) {
       setSavingAlocacao(true)
@@ -92,8 +95,13 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
               <div><label className={lbl}>Memória RAM</label><input {...register('memoria_ram')} className={inp} /></div>
               <div><label className={lbl}>Armazenamento</label><input {...register('armazenamento')} className={inp} /></div>
               <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
-              <div><label className={lbl}>Localização</label><input {...register('localizacao')} className={inp} /></div>
-              <div><label className={lbl}>Setor</label><input {...register('setor')} className={inp} /></div>
+              <div>
+                <label className={lbl}>Setor</label>
+                  <SetorSelect
+                    value={setorId}
+                    onChange={(id) => setSetorId(id)}
+                  />
+              </div>
               <div><label className={lbl}>Patrimônio CPU</label><input {...register('patrimonio_cpu')} className={inp} /></div>
               <div><label className={lbl}>Patrimônio Monitor</label><input {...register('patrimonio_monitor')} className={inp} /></div>
 
