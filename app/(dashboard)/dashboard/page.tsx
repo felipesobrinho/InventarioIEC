@@ -36,7 +36,7 @@ function buildKpiSeries(items: InventoryKpiItem[]) {
   const unavailable = items.filter(item => item.created_at && item.created_at <= end && item.unavailable).length
 
   return {
-   label: month.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", ""),
+   label: month.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "").replace(" de ", "/"),
    total,
    available: Math.max(0, total - unavailable),
    unavailable,

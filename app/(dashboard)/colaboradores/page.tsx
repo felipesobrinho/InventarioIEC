@@ -150,20 +150,28 @@ export default function ColaboradoresPage() {
 
   useEffect(() => {
     if (!setorIdFiltro || overviewData.length === 0) return
-    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
-    if (!sectorItem) return
-    const sectorName = getColaboradorSetor(sectorItem)
-    if (!sectorName) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getColaboradorSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
     void Promise.resolve().then(() => {
       setActiveOverviewFilters((currentFilters) => {
-        if (currentFilters.some(filter => filter.key === `collaborator-sector:${sectorName}`)) return currentFilters
-        return [...currentFilters, {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `collaborator-sector:${sectorName}`)) continue
+          nextFilters.push({
           kind: 'collaborator-sector',
           value: sectorName,
           label: `Setor: ${sectorName}`,
           key: `collaborator-sector:${sectorName}`,
           predicate: (item) => getColaboradorSetor(item) === sectorName,
-        }]
+          })
+        }
+        return nextFilters
       })
     })
   }, [setorIdFiltro, overviewData])

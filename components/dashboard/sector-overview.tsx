@@ -5,7 +5,6 @@ import Link from 'next/link'
 import {
   Activity,
   ArrowUpRight,
-  Layers3,
   Laptop,
   Loader2,
   MapPin,
@@ -13,7 +12,6 @@ import {
   Phone,
   Smartphone,
   Users,
-  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -127,10 +125,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
     .map(id => setores.find(row => row.id === id))
     .filter((row): row is SectorOverviewRow => Boolean(row))
   const hasSectorSelection = selectedSectors.length > 0
-  const displayedSectors = [
-    ...summary.sectorItems.filter(row => selectedSectorIds.includes(row.id)),
-    ...summary.sectorItems.filter(row => !selectedSectorIds.includes(row.id)),
-  ]
+  const displayedSectors = summary.sectorItems
   const pieSectors = hasSectorSelection
     ? summary.sectorItems.filter(row => selectedSectorIds.includes(row.id))
     : summary.sectorItems
@@ -182,12 +177,6 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
       </div>
 
       <div className="space-y-3">
-        <SelectionStack
-          sectors={selectedSectors}
-          totalSectors={summary.totalSectors}
-          onRemove={toggleSectorSelection}
-          onClear={clearSelection}
-        />
         <KpiChart
           title={hasSectorSelection ? 'Disponibilidade da seleção' : 'Evolução da disponibilidade'}
           subtitle={hasSectorSelection ? selectedSectors.map(sector => sector.nome).join(' + ') : 'Todos os setores do inventário'}
@@ -219,15 +208,28 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
           {displayedSectors.length > 0 ? (
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {displayedSectors.map(sector => (
+                (() => {
+                  const selected = selectedSectorIds.includes(sector.id)
+                  return (
                 <button
                   key={sector.id}
                   type="button"
                   onClick={() => toggleSectorSelection(sector)}
                   className={cn(
-                    'w-full rounded-md bg-white px-3 py-2 text-left transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:hover:bg-blue-950/20',
-                    selectedSectorIds.includes(sector.id) && 'ring-2 ring-blue-500'
+                    'relative w-full rounded-md border bg-white px-3 py-2 text-left dark:bg-slate-900',
+                    selected ? 'border-transparent ring-2' : 'border-transparent',
+                    'transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-blue-950/20'
                   )}
+                  style={selected ? { '--tw-ring-color': sector.color } as React.CSSProperties : undefined}
                 >
+                  {selected && (
+                    <span
+                      className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ backgroundColor: sector.color }}
+                    >
+                      x
+                    </span>
+                  )}
                   <span className="mb-1 flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sector.color }} />
@@ -240,6 +242,8 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
                   </span>
                   <span className="text-[11px] text-slate-400">{sector.distribution}% dos colaboradores</span>
                 </button>
+                  )
+                })()
               ))}
             </div>
           ) : (
@@ -326,10 +330,10 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
 }
 
 function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[]) {
+  const toastId = 'overview-filter-toast'
   const selected = selectedIds
     .map(id => setores.find(row => row.id === id))
     .filter((row): row is SectorOverviewRow => Boolean(row))
-  const color = selected[0] ? getSectorColor(selected[0].nome) : '#3b82f6'
   const title = selected.length === 0
     ? 'Overview em visão geral'
     : selected.length === 1
@@ -338,10 +342,21 @@ function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[]) 
   const detail = selected.length === 0
     ? 'Resumo, gráfico e atalhos usando todos os setores.'
     : 'Resumo, gráfico e atalhos filtrados pela pilha selecionada.'
+  const colors = selected.length > 0
+    ? selected.map(sector => getSectorColor(sector.nome))
+    : ['#3b82f6']
 
   toast.custom((id) => (
     <div className="flex w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
-      <span className="w-1.5 shrink-0" style={{ backgroundColor: color }} />
+      <span className="flex w-1.5 shrink-0 flex-col">
+        {colors.map((color, index) => (
+          <span
+            key={`${color}-${index}`}
+            className="min-h-1 flex-1"
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </span>
       <div className="min-w-0 flex-1 px-3 py-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -359,72 +374,7 @@ function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[]) 
         </div>
       </div>
     </div>
-  ))
-}
-
-function SelectionStack({
-  sectors,
-  totalSectors,
-  onRemove,
-  onClear,
-}: {
-  sectors: SectorOverviewRow[]
-  totalSectors: number
-  onRemove: (sector: SectorOverviewRow) => void
-  onClear: () => void
-}) {
-  return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white">
-            <Layers3 className="h-3.5 w-3.5" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-400">Pilha de seleção</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {sectors.length === 0
-                ? `${totalSectors} setores disponíveis para análise`
-                : `${sectors.length} setor${sectors.length === 1 ? '' : 'es'} selecionado${sectors.length === 1 ? '' : 's'} em ordem de clique`
-              }
-            </p>
-          </div>
-        </div>
-        {sectors.length > 0 && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="self-start rounded-md px-2 py-1 text-[11px] font-medium text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
-          >
-            Limpar pilha
-          </button>
-        )}
-      </div>
-      {sectors.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {sectors.map((sector, index) => (
-            <span
-              key={sector.id}
-              className="inline-flex max-w-full items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
-            >
-              <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                {index + 1}
-              </span>
-              <span className="truncate">{sector.nome}</span>
-              <button
-                type="button"
-                onClick={() => onRemove(sector)}
-                className="rounded-full p-0.5 text-blue-500 transition hover:bg-blue-100 hover:text-blue-800 dark:hover:bg-blue-900"
-                aria-label={`Remover ${sector.nome} da pilha`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+  ), { id: toastId })
 }
 
 function KpiChart({
@@ -441,8 +391,8 @@ function KpiChart({
     index: number
   } | null>(null)
   const width = 760
-  const height = 282
-  const padding = { top: 34, right: 86, bottom: 62, left: 72 }
+  const height = 220
+  const padding = { top: 30, right: 72, bottom: 46, left: 58 }
   const chartWidth = width - padding.left - padding.right
   const chartHeight = height - padding.top - padding.bottom
   const maxValue = Math.max(1, ...points.flatMap(point => [point.total, point.available, point.unavailable]))
@@ -464,7 +414,7 @@ function KpiChart({
 
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
-      <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mb-2 flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <SectionTitle icon={<Activity className="h-3.5 w-3.5" />} label={title} />
           <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400" title={subtitle}>
@@ -493,7 +443,7 @@ function KpiChart({
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-fuchsia-500" />Ocupados</span>
         </div>
       </div>
-      <div className="relative h-72 w-full overflow-hidden rounded-md bg-white dark:bg-slate-900">
+      <div className="relative h-52 w-full overflow-hidden rounded-md bg-white dark:bg-slate-900">
         {hoveredPoint && (
           <div
             className="pointer-events-none absolute z-10 min-w-44 -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs text-slate-100 shadow-xl"
@@ -547,7 +497,7 @@ function KpiChart({
                 <text x={x(index)} y={Math.max(14, y(point.total) - 8)} textAnchor="middle" className="fill-blue-200 text-[10px] font-semibold">
                   {point.total > 0 ? point.total : ''}
                 </text>
-                <text x={x(index)} y={height - 22} textAnchor="middle" className="fill-slate-400 text-[12px]">
+                <text x={x(index)} y={height - 16} textAnchor="middle" className="fill-slate-400 text-[10px]">
                   {point.label}
                 </text>
               </g>

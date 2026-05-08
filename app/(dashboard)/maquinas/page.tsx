@@ -189,20 +189,28 @@ export default function MaquinasPage() {
 
   useEffect(() => {
     if (!setorIdFiltro || overviewData.length === 0) return
-    const sectorItem = overviewData.find(item => item.setor_id === setorIdFiltro)
-    if (!sectorItem) return
-    const sectorName = getMaquinaSetor(sectorItem)
-    if (!sectorName) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getMaquinaSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
     void Promise.resolve().then(() => {
       setActiveOverviewFilters((currentFilters) => {
-        if (currentFilters.some(filter => filter.key === `sector:${sectorName}`)) return currentFilters
-        return [...currentFilters, {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `sector:${sectorName}`)) continue
+          nextFilters.push({
           kind: 'sector',
           value: sectorName,
           label: `Setor: ${sectorName}`,
           key: `sector:${sectorName}`,
           predicate: (item) => getMaquinaSetor(item) === sectorName,
-        }]
+          })
+        }
+        return nextFilters
       })
     })
   }, [setorIdFiltro, overviewData])

@@ -16,6 +16,7 @@ import type { Impressora, PaginatedResponse } from "@/types";
 import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal";
 import { Plus } from "lucide-react";
 import { SetorSelect } from "@/components/modals/setor-select";
+import { useSearchParams } from "next/navigation";
 
 type ActiveOverviewFilter = OverviewFilter & {
  key: string;
@@ -44,6 +45,7 @@ function hasMissingPrinterData(item: Impressora) {
 }
 
 export default function ImpressorasPage() {
+ const searchParams = useSearchParams();
  const [data, setData] = useState<Impressora[]>([]);
  const [total, setTotal] = useState(0);
  const [totalPages, setTotalPages] = useState(1);
@@ -54,7 +56,7 @@ export default function ImpressorasPage() {
  const [loading, setLoading] = useState(true);
  const [selected, setSelected] = useState<Impressora | null>(null);
  const [search, setSearch] = useState("");
- const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null);
+ const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get("setor_id"));
  const [andar, setAndar] = useState("");
  const [status, setStatus] = useState("");
  const [refreshKey, setRefreshKey] = useState(0);

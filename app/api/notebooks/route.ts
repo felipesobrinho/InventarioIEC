@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         OR: [
           { setor_id: setorFilter },
           { emprestado_setor_id: setorFilter },
-          { emprestado_colaborador: { setor_id: setorFilter } },
+          { emprestado_colaborador: { is: { setor_id: setorFilter } } },
           {
             alocacoes: {
               some: {
