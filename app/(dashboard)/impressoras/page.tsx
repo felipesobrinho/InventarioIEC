@@ -8,7 +8,6 @@ import {
   ImpressoraOverviewPanel,
   type OverviewFilter,
   notifyOverviewFilter,
-  OverviewFilterToastDescription,
 } from "@/components/tables/device-overview-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { BoolBadge } from "@/components/dashboard/status-badge";
@@ -16,7 +15,6 @@ import { ImpressoraModal } from "@/components/modals/impressora-modal";
 import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal";
 import { SetorSelect } from "@/components/modals/setor-select";
 import { Search, Plus } from "lucide-react";
-import { toast } from "sonner";
 
 import type { Impressora, PaginatedResponse } from "@/types";
 
@@ -164,8 +162,6 @@ export default function ImpressorasPage() {
 
       notifyOverviewFilter([]);
 
-      toast.success("Filtros removidos.");
-
       return;
     }
 
@@ -253,17 +249,6 @@ export default function ImpressorasPage() {
       predicate: nextFilter.predicate,
     };
 
-    const description = (
-      <OverviewFilterToastDescription
-        label={nextFilter.label}
-        filter={filter}
-      />
-    );
-
-    const toastId = toast.loading("Aplicando filtro do overview...", {
-      description,
-    });
-
     setOverviewFilterLoading(true);
 
     window.setTimeout(() => {
@@ -281,11 +266,6 @@ export default function ImpressorasPage() {
       setPage(1);
 
       setOverviewFilterLoading(false);
-
-      toast.success("Filtro aplicado.", {
-        id: toastId,
-        description,
-      });
     }, 120);
   }
 
