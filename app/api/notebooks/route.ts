@@ -101,7 +101,7 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true } } },
+            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
@@ -125,6 +125,7 @@ export async function GET(request: Request) {
         colaborador: a.colaborador,
         motivo_alocacao: a.motivo_alocacao,
         tipo_posse: a.tipo_posse,
+        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
         data_inicio: a.data_inicio,
       })),
       alocacao_ativa: n.alocacoes[0]
@@ -132,6 +133,7 @@ export async function GET(request: Request) {
             colaborador: n.alocacoes[0].colaborador,
             motivo_alocacao: n.alocacoes[0].motivo_alocacao,
             tipo_posse: n.alocacoes[0].tipo_posse,
+            setor: n.alocacoes[0].colaborador?.setor_rel?.nome ?? n.alocacoes[0].colaborador?.setor ?? null,
             data_inicio: n.alocacoes[0].data_inicio,
           }
         : null,
