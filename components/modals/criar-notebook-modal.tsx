@@ -18,6 +18,7 @@ const schema = z.object({
   memoria: z.string().optional().nullable(),
   armazenamento: z.string().optional().nullable(),
   numero_patrimonio: z.string().optional().nullable(),
+  data_revisao: z.string().optional().nullable(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -86,6 +87,7 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
               <div><label className={lbl}>Memória</label><input {...register('memoria')} className={inp} /></div>
               <div><label className={lbl}>Armazenamento</label><input {...register('armazenamento')} className={inp} /></div>
               <div><label className={lbl}>Nº Patrimônio</label><input {...register('numero_patrimonio')} className={inp} /></div>
+              <div><label className={lbl}>Última revisão</label><input type="date" {...register('data_revisao')} className={inp} /></div>
               <div>
                 <label className={lbl}>Setor</label>
                 <SetorSelect

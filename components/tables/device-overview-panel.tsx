@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -14,11 +14,36 @@ import {
 import { cn, formatDate } from '@/lib/utils'
 import type { AlocacaoAtiva } from '@/types'
 import { ACAO_LABELS, type AuditLog } from '@/lib/audit-constants'
+import { toast } from 'sonner'
 
 export interface DeviceOverviewItem {
   id: string
+  nome_host?: string | null
+  identificador?: string | null
   setor?: string | null
+  setor_nome?: string | null
   nome_setor?: string | null
+  modelo?: string | null
+  tipo?: number | string | null
+  chip?: boolean | null
+  endereco_ip?: string | null
+  endereco_mac?: string | null
+  status?: boolean | null
+  fabricante?: string | null
+  categoria?: string | null
+  processador?: string | null
+  memoria?: string | null
+  memoria_ram?: string | null
+  armazenamento?: string | null
+  numero_patrimonio?: string | null
+  patrimonio_cpu?: string | null
+  patrimonio_monitor?: string | null
+  numero_ramal?: string | null
+  prefixo_telefonico?: string | null
+  disponibilidade?: string | null
+  fila?: boolean | null
+  senha_acesso?: string | null
+  emprestado?: boolean | null
   created_at?: string | null
   data_revisao?: string | null
   ultima_revisao?: string | null
@@ -59,11 +84,20 @@ interface OverviewListSection {
   layout?: 'full' | 'half'
 }
 
+interface ActiveOverviewFilterState {
+  kind: string
+  value?: string
+  label?: string
+  color?: string
+  tone?: 'default' | 'success' | 'warning' | 'danger'
+}
+
 interface DeviceOverviewPanelProps<T extends DeviceOverviewItem> {
   title: string
   total: number
   items: T[]
   accentClassName: string
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -77,11 +111,14 @@ interface ImpressoraOverviewPanelProps {
     modelo: string | null
     numero_serie: string | null
     endereco_ip: string | null
-    localidade: string | null
     andar: string | null
+    setor: string | null
+    setor_id?: string | null
+    setor_nome?: string | null
     revisao: string | null
     status: boolean | null
   }>
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -106,12 +143,25 @@ interface ColaboradorOverviewPanelProps {
   items: Array<{
     id: string
     setor: string | null
+    setor_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number
     alocacoes_aparelhos_ativas?: number
     alocacoes_ramais_ativas?: number
   }>
+  metricTotal?: number
+  metricItems?: Array<{
+    id: string
+    setor: string | null
+    setor_nome?: string | null
+    status: string
+    alocacoes_maquinas_ativas?: number
+    alocacoes_notebooks_ativas?: number
+    alocacoes_aparelhos_ativas?: number
+    alocacoes_ramais_ativas?: number
+  }>
+  activeFilters?: ActiveOverviewFilterState[]
   isLoading?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }
@@ -123,10 +173,33 @@ interface AuditOverviewPanelProps {
   onFilter?: (filter: OverviewFilter) => void
 }
 
-const chartColors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444']
+type PieChartItem = {
+  distribution: number
+  color: string
+  label?: string
+}
+
+const chartColors = [
+  '#3b82f6',
+  '#8b5cf6',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#14b8a6',
+  '#6366f1',
+  '#ec4899',
+  '#84cc16',
+  '#f97316',
+  '#22c55e',
+  '#0ea5e9',
+  '#a855f7',
+  '#eab308',
+  '#f43f5e',
+]
 
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
 }
 
 function getRevisionDate(item: DeviceOverviewItem) {
@@ -137,12 +210,95 @@ function isAllocated(item: DeviceOverviewItem) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function isBorrowed(item: DeviceOverviewItem) {
+  return item.emprestado === true
+}
+
+function isOccupied(item: DeviceOverviewItem) {
+  return isAllocated(item) || isBorrowed(item)
+}
+
+function hasMissingNotebookData(item: DeviceOverviewItem) {
+  return [
+    item.modelo,
+    item.fabricante,
+    item.categoria,
+    item.processador,
+    item.memoria,
+    item.armazenamento,
+    item.numero_patrimonio,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
+function hasMissingPhoneData(item: DeviceOverviewItem) {
+  return [
+    item.modelo,
+    item.tipo,
+    item.endereco_ip,
+    item.endereco_mac,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
+function hasMissingMachineData(item: DeviceOverviewItem) {
+  return [
+    item.nome_host,
+    item.identificador,
+    item.fabricante,
+    item.modelo,
+    item.categoria,
+    item.processador,
+    item.memoria_ram ?? item.memoria,
+    item.armazenamento,
+    item.endereco_ip,
+    item.patrimonio_cpu,
+    item.patrimonio_monitor,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
+function hasMissingExtensionData(item: DeviceOverviewItem) {
+  return [
+    item.numero_ramal,
+    item.prefixo_telefonico,
+    item.senha_acesso,
+    item.setor_nome ?? item.setor ?? item.nome_setor,
+  ].some(missing)
+}
+
+function hasWhatsapp(item: DeviceOverviewItem) {
+  return item.alocacao_ativa?.whatsapp === true || (item.alocacoes_ativas ?? []).some(allocation => allocation.whatsapp === true)
+}
+
 function pct(value: number, total: number) {
   if (total <= 0) return 0
   return Math.round((value / total) * 100)
 }
 
-function buildPieGradient(sectors: Array<{ distribution: number; color: string }>) {
+function getOverviewFilterKey(filter: { kind: string; value?: string }) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function getFilterColor(filter?: { color?: string; tone?: 'default' | 'success' | 'warning' | 'danger' }) {
+  if (filter?.color) return filter.color
+  if (filter?.tone === 'success') return '#10b981'
+  if (filter?.tone === 'warning') return '#f59e0b'
+  if (filter?.tone === 'danger') return '#ef4444'
+  return '#3b82f6'
+}
+
+function getSectorColor(seed: string) {
+  let hash = 0
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) % 9973
+  }
+  return chartColors[hash % chartColors.length]
+}
+
+function buildPieGradient(sectors: PieChartItem[]) {
   let cursor = 0
   const stops = sectors.map((sector) => {
     const start = cursor
@@ -172,15 +328,14 @@ function groupByLabel<T>(items: T[], getLabel: (item: T) => string, total: numbe
       return map
     }, new Map<string, number>())
   )
-    .map(([label, count], index) => ({
+    .map(([label, count]) => ({
       label,
       value: String(count),
       detail: `${pct(count, total)}% do total`,
-      color: chartColors[index % chartColors.length],
+      color: getSectorColor(label),
       distribution: pct(count, total),
     }))
     .sort((a, b) => Number(b.value) - Number(a.value))
-    .slice(0, 6)
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -202,6 +357,7 @@ function OverviewShell({
   listItems,
   emptyMessage,
   listSections,
+  activeFilters,
   onFilter,
   isLoading = false,
 }: {
@@ -212,11 +368,12 @@ function OverviewShell({
   chartTitle: string
   chartCenter: string
   chartCaption: string
-  chartItems: Array<{ distribution: number; color: string }>
+  chartItems: PieChartItem[]
   listTitle?: string
   listItems?: OverviewListItem[]
   emptyMessage?: string
   listSections?: OverviewListSection[]
+  activeFilters?: ActiveOverviewFilterState[]
   onFilter?: (filter: OverviewFilter) => void
   isLoading?: boolean
 }) {
@@ -226,6 +383,7 @@ function OverviewShell({
     items: listItems ?? [],
     emptyMessage: emptyMessage ?? 'Sem dados para compor este painel.',
   }]
+  const activeFilterKeys = new Set((activeFilters ?? []).map(getOverviewFilterKey))
 
   return (
     <section className="mb-5 rounded-xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -245,7 +403,12 @@ function OverviewShell({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
             {metrics.map(metric => (
-              <Metric key={metric.label} {...metric} onFilter={onFilter} />
+              <Metric
+                key={metric.label}
+                {...metric}
+                isSelected={metric.filter ? activeFilterKeys.has(getOverviewFilterKey(metric.filter)) : false}
+                onFilter={onFilter}
+              />
             ))}
           </div>
 
@@ -278,8 +441,13 @@ function OverviewShell({
                   <SectionTitle icon={section.icon ?? <Activity className="h-3.5 w-3.5" />} label={section.title} />
                   {section.items.length > 0 ? (
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {section.items.slice(0, 9).map((item) => (
-                        <OverviewListCard key={item.label} item={item} onFilter={onFilter} />
+                      {section.items.map((item) => (
+                        <OverviewListCard
+                          key={item.label}
+                          item={item}
+                          isSelected={item.filter ? activeFilterKeys.has(getOverviewFilterKey(item.filter)) : false}
+                          onFilter={onFilter}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -300,11 +468,32 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   total,
   items,
   accentClassName,
+  activeFilters = [],
   isLoading = false,
   onFilter,
 }: DeviceOverviewPanelProps<T>) {
+  const isNotebookOverview = title.toLowerCase() === 'notebooks'
+  const isPhoneOverview = title.toLowerCase() === 'aparelhos'
+  const isExtensionOverview = title.toLowerCase() === 'ramais'
+  const isMachineOverview = title.toLowerCase() === 'máquinas'
   const analyzedTotal = items.length
-  const allocated = items.filter(isAllocated).length
+  const allocated = items.filter(isOccupied).length
+  const allocationOnly = items.filter(isAllocated).length
+  const borrowed = items.filter(isBorrowed).length
+  const missingData = items.filter(
+    isNotebookOverview
+      ? hasMissingNotebookData
+      : isPhoneOverview
+        ? hasMissingPhoneData
+        : isExtensionOverview
+          ? hasMissingExtensionData
+          : isMachineOverview
+            ? hasMissingMachineData
+            : () => false
+  ).length
+  const withChip = items.filter(item => item.chip === true).length
+  const withWhatsapp = items.filter(hasWhatsapp).length
+  const queueExtensions = items.filter(item => item.fila === true).length
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
@@ -313,20 +502,21 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
       const setor = getSetor(item)
       const current = map.get(setor) ?? { total: 0, allocated: 0 }
       current.total += 1
-      if (isAllocated(item)) current.allocated += 1
+      if (isOccupied(item)) current.allocated += 1
       map.set(setor, current)
       return map
     }, new Map<string, { total: number; allocated: number }>())
   )
-    .map(([setor, value], index) => ({
+    .map(([setor, value]) => ({
       setor,
       ...value,
       distribution: pct(value.total, analyzedTotal),
       occupancy: pct(value.allocated, value.total),
-      color: chartColors[index % chartColors.length],
+      color: getSectorColor(setor),
     }))
+    .filter(sector => sector.total > 0)
     .sort((a, b) => b.total - a.total)
-    .slice(0, 6)
+  const activeFilterKeys = new Set(activeFilters.map(getOverviewFilterKey))
 
   const latestRevision = items
     .map(getRevisionDate)
@@ -349,16 +539,32 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
         <OverviewLoading accentClassName={accentClassName} />
       ) : (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        <div className={cn('grid grid-cols-2 gap-2', isNotebookOverview ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-5')}>
           <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={total.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
-          <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} onFilter={onFilter} />
-          <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} onFilter={onFilter} />
-          <Metric icon={<Users className="h-3.5 w-3.5" />} label="Ocupação" value={`${occupancy}%`} tone={occupancy >= 90 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'} />
-          <Metric
-            icon={<CalendarClock className="h-3.5 w-3.5" />}
-            label="Última revisão"
-            value={latestRevision ? formatDate(String(latestRevision)) : '—'}
-          />
+          {isNotebookOverview ? (
+            <>
+              <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'notebook-occupied' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-occupied' }))} onFilter={onFilter} />
+              <Metric icon={<Users className="h-3.5 w-3.5" />} label="Alocados" value={allocationOnly.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
+              <Metric icon={<CalendarClock className="h-3.5 w-3.5" />} label="Emprestados" value={borrowed.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'notebook-borrowed' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-borrowed' }))} onFilter={onFilter} />
+              <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
+              <Metric
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                label="Última revisão"
+                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+              />
+            </>
+          ) : (
+            <>
+              <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
+              <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
+              <Metric icon={<Users className="h-3.5 w-3.5" />} label="Ocupação" value={`${occupancy}%`} tone={occupancy >= 90 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'} />
+              <Metric
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                label="Última revisão"
+                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+              />
+            </>
+          )}
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -386,10 +592,11 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                   <OverviewListCard
                     key={sector.setor}
                     onFilter={onFilter}
+                    isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'sector', value: sector.setor }))}
                     item={{
                       label: sector.setor,
                       value: `${sector.occupancy}%`,
-                      detail: `${sector.allocated}/${sector.total} alocados · ${sector.distribution}% do total`,
+                      detail: `${sector.allocated}/${sector.total} ocupados · ${sector.distribution}% do total`,
                       color: sector.color,
                       filter: { kind: 'sector', value: sector.setor },
                     }}
@@ -401,13 +608,128 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             )}
           </div>
         </div>
+
+        {isNotebookOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos notebooks cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'notebook-missing-data' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isPhoneOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'phone-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos aparelhos cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'phone-missing-data' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'phone-with-chip' }))}
+                item={{
+                  label: 'Com chip',
+                  value: withChip.toLocaleString('pt-BR'),
+                  detail: `${pct(withChip, analyzedTotal)}% dos aparelhos cadastrados`,
+                  tone: withChip > 0 ? 'warning' : 'success',
+                  filter: { kind: 'phone-with-chip' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isExtensionOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-missing-data' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-with-whatsapp' }))}
+                item={{
+                  label: 'Com WhatsApp',
+                  value: withWhatsapp.toLocaleString('pt-BR'),
+                  detail: `${pct(withWhatsapp, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: withWhatsapp > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-with-whatsapp' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-queue' }))}
+                item={{
+                  label: 'Ramais de fila',
+                  value: queueExtensions.toLocaleString('pt-BR'),
+                  detail: `${pct(queueExtensions, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: queueExtensions > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-queue' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isMachineOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% das maquinas cadastradas`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'machine-missing-data' },
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
       )}
     </section>
   )
 }
 
-export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFilter }: ImpressoraOverviewPanelProps) {
+export function ImpressoraOverviewPanel({
+  total,
+  items,
+  activeFilters = [],
+  isLoading = false,
+  onFilter,
+}: ImpressoraOverviewPanelProps) {
   const active = items.filter(item => item.status !== false).length
   const inactive = items.filter(item => item.status === false).length
   const stale = items.filter(item => {
@@ -415,18 +737,21 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
     return days === null || days > 90
   }).length
   const missingData = items.filter(item =>
-    [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip, item.localidade].some(missing)
+    [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
   ).length
   const attention = items.filter(item => {
     const days = daysSince(item.revisao)
-    const hasMissingData = [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip, item.localidade].some(missing)
+    const hasMissingData = [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
     return item.status === false || days === null || days > 90 || hasMissingData
   }).length
-  const sectors = groupByLabel(items, item => item.localidade || 'Sem setor', items.length)
-  const floors = groupByLabel(items, item => item.andar || 'Sem andar', items.length)
+  const sectors = groupByLabel(
+    items,
+    item => item.setor_id && item.setor_nome ? item.setor_nome : 'Sem setor registrado',
+    items.length
+  )
   const noRevision = items.filter(item => !item.revisao).length
   const noIp = items.filter(item => missing(item.endereco_ip)).length
-  const noLocation = items.filter(item => missing(item.localidade)).length
+  const noSector = items.filter(item => !item.setor_id || !item.setor_nome).length
   const noIdentity = items.filter(item => missing(item.nome_host) || missing(item.numero_serie)).length
 
   return (
@@ -455,18 +780,6 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
             filter: { kind: 'printer-sector', value: item.label },
           })),
           emptyMessage: 'Sem dados para compor setores.',
-          layout: 'half',
-        },
-        {
-          title: 'Impressoras por andar',
-          icon: <MapPin className="h-3.5 w-3.5" />,
-          items: floors.map(item => ({
-            ...item,
-            detail: `${item.detail} · ${item.value} impressoras`,
-            filter: { kind: 'printer-floor', value: item.label },
-          })),
-          emptyMessage: 'Sem dados para compor andares.',
-          layout: 'half',
         },
         {
           title: 'Pontos de atencao',
@@ -476,13 +789,14 @@ export function ImpressoraOverviewPanel({ total, items, isLoading = false, onFil
             { label: 'Sem revisao registrada', value: String(noRevision), detail: 'campo de revisao vazio', tone: noRevision > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-revision' } },
             { label: 'Dados faltantes', value: String(missingData), detail: 'campos essenciais incompletos', tone: missingData > 0 ? 'warning' : 'success', filter: { kind: 'printer-missing-data' } },
             { label: 'Sem IP', value: String(noIp), detail: 'endereco de rede ausente', tone: noIp > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-ip' } },
-            { label: 'Sem setor', value: String(noLocation), detail: 'localidade nao informada', tone: noLocation > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-sector' } },
+            { label: 'Sem setor registrado', value: String(noSector), detail: 'setor ausente no cadastro', tone: noSector > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-sector' } },
             { label: 'Sem identificacao', value: String(noIdentity), detail: 'host ou serie ausentes', tone: noIdentity > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-identity' } },
             { label: 'Inativas', value: String(inactive), detail: `${pct(inactive, items.length)}% do parque`, tone: inactive > 0 ? 'danger' : 'success', filter: { kind: 'printer-status', value: 'false' } },
           ],
           emptyMessage: 'Nenhum ponto de atencao encontrado.',
         },
       ]}
+      activeFilters={activeFilters}
       onFilter={onFilter}
       isLoading={isLoading}
     />
@@ -557,14 +871,25 @@ export function RackOverviewPanel({ total, items, isLoading = false, onFilter }:
   )
 }
 
-export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFilter }: ColaboradorOverviewPanelProps) {
-  const active = items.filter(item => item.status === 'Ativo').length
-  const sectors = groupByLabel(items, item => item.setor || 'Sem setor', items.length)
-  const withoutMachine = items.filter(item => !item.alocacoes_maquinas_ativas).length
-  const withoutNotebook = items.filter(item => !item.alocacoes_notebooks_ativas).length
-  const withoutPhone = items.filter(item => !item.alocacoes_aparelhos_ativas).length
-  const withoutExtension = items.filter(item => !item.alocacoes_ramais_ativas).length
-  const withoutAny = items.filter(item =>
+export function ColaboradorOverviewPanel({
+  total,
+  items,
+  metricTotal = total,
+  metricItems = items,
+  activeFilters = [],
+  isLoading = false,
+  onFilter,
+}: ColaboradorOverviewPanelProps) {
+  const activeItems = items.filter(item => item.status === 'Ativo')
+  const metricActiveItems = metricItems.filter(item => item.status === 'Ativo')
+  const active = metricActiveItems.length
+  const sectors = groupByLabel(items, item => item.setor_nome ?? item.setor ?? 'Sem setor', items.length)
+  const metricSectors = groupByLabel(metricItems, item => item.setor_nome ?? item.setor ?? 'Sem setor', metricItems.length)
+  const withoutMachine = activeItems.filter(item => !item.alocacoes_maquinas_ativas).length
+  const withoutNotebook = activeItems.filter(item => !item.alocacoes_notebooks_ativas).length
+  const withoutPhone = activeItems.filter(item => !item.alocacoes_aparelhos_ativas).length
+  const withoutExtension = activeItems.filter(item => !item.alocacoes_ramais_ativas).length
+  const metricWithoutAny = metricActiveItems.filter(item =>
     !item.alocacoes_maquinas_ativas &&
     !item.alocacoes_notebooks_ativas &&
     !item.alocacoes_aparelhos_ativas &&
@@ -577,11 +902,11 @@ export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFi
       accentClassName="bg-emerald-500"
       icon={<Users className="h-4 w-4" />}
       metrics={[
-        { icon: <Users className="h-3.5 w-3.5" />, label: 'Cadastrados', value: total.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Users className="h-3.5 w-3.5" />, label: 'Em registro', value: metricTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Ativos', value: active.toLocaleString('pt-BR'), tone: 'success', filter: { kind: 'collaborator-status', value: 'Ativo' } },
-        { icon: <MapPin className="h-3.5 w-3.5" />, label: 'Setores', value: sectors.length.toLocaleString('pt-BR') },
-        { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Sem alocacao', value: withoutAny.toLocaleString('pt-BR'), tone: withoutAny > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-any' } },
-        { icon: <Activity className="h-3.5 w-3.5" />, label: 'Cobertura', value: `${pct(total - withoutAny, total)}%`, tone: withoutAny > 0 ? 'warning' : 'success' },
+        { icon: <MapPin className="h-3.5 w-3.5" />, label: 'Setores', value: metricSectors.length.toLocaleString('pt-BR') },
+        { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Sem alocacao', value: metricWithoutAny.toLocaleString('pt-BR'), tone: metricWithoutAny > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-any' } },
+        { icon: <Activity className="h-3.5 w-3.5" />, label: 'Cobertura', value: `${pct(active - metricWithoutAny, active)}%`, tone: metricWithoutAny > 0 ? 'warning' : 'success' },
       ]}
       chartTitle="Setores"
       chartCenter={sectors.length.toLocaleString('pt-BR')}
@@ -598,18 +923,67 @@ export function ColaboradorOverviewPanel({ total, items, isLoading = false, onFi
           title: 'Ausencias por tipo',
           icon: <Activity className="h-3.5 w-3.5" />,
           items: [
-            { label: 'Sem maquina', value: String(withoutMachine), detail: `${pct(withoutMachine, total)}% dos colaboradores`, tone: withoutMachine > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-machine' } },
-            { label: 'Sem notebook', value: String(withoutNotebook), detail: `${pct(withoutNotebook, total)}% dos colaboradores`, tone: withoutNotebook > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-notebook' } },
-            { label: 'Sem telefone', value: String(withoutPhone), detail: `${pct(withoutPhone, total)}% dos colaboradores`, tone: withoutPhone > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-phone' } },
-            { label: 'Sem ramal', value: String(withoutExtension), detail: `${pct(withoutExtension, total)}% dos colaboradores`, tone: withoutExtension > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-extension' } },
+            { label: 'Sem maquina', value: String(withoutMachine), detail: `${pct(withoutMachine, activeItems.length)}% dos colaboradores ativos`, tone: withoutMachine > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-machine' } },
+            { label: 'Sem notebook', value: String(withoutNotebook), detail: `${pct(withoutNotebook, activeItems.length)}% dos colaboradores ativos`, tone: withoutNotebook > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-notebook' } },
+            { label: 'Sem telefone', value: String(withoutPhone), detail: `${pct(withoutPhone, activeItems.length)}% dos colaboradores ativos`, tone: withoutPhone > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-phone' } },
+            { label: 'Sem ramal', value: String(withoutExtension), detail: `${pct(withoutExtension, activeItems.length)}% dos colaboradores ativos`, tone: withoutExtension > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-extension' } },
           ],
           emptyMessage: 'Sem ausencias por tipo.',
         },
       ]}
+      activeFilters={activeFilters}
       onFilter={onFilter}
       isLoading={isLoading}
     />
   )
+}
+
+export function notifyOverviewFilter(filters: ActiveOverviewFilterState[]) {
+  const toastId = 'overview-filter-toast'
+  const activeFilters = filters.filter(filter => filter.kind !== 'all')
+  const title = activeFilters.length === 0
+    ? 'Overview em visão geral'
+    : activeFilters.length === 1
+      ? `Overview focado em ${activeFilters[0].label ?? 'recorte selecionado'}`
+      : `Overview com ${activeFilters.length} filtros ativos`
+  const detail = activeFilters.length === 0
+    ? 'Tabela exibindo todos os registros.'
+    : activeFilters.length === 1
+      ? 'Tabela filtrada pelo recorte selecionado no overview.'
+      : `Tabela filtrada por ${activeFilters.map(filter => filter.label ?? 'recorte').join(', ')}.`
+  const colors = activeFilters.length > 0
+    ? activeFilters.map(getFilterColor)
+    : ['#3b82f6']
+
+  toast.custom((id) => (
+    <div className="flex w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-950">
+      <span className="flex w-1.5 shrink-0 flex-col">
+        {colors.map((color, index) => (
+          <span
+            key={`${color}-${index}`}
+            className="min-h-1 flex-1"
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </span>
+      <div className="min-w-0 flex-1 px-3 py-2.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{detail}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => toast.dismiss(id)}
+            className="rounded-md px-1.5 text-sm text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Fechar notificação"
+          >
+            x
+          </button>
+        </div>
+      </div>
+    </div>
+  ), { id: toastId })
 }
 
 export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }: AuditOverviewPanelProps) {
@@ -723,6 +1097,7 @@ function Metric({
   value,
   tone = 'default',
   filter,
+  isSelected = false,
   onFilter,
 }: {
   icon: ReactNode
@@ -730,6 +1105,7 @@ function Metric({
   value: string
   tone?: 'default' | 'success' | 'warning' | 'danger'
   filter?: OverviewFilter
+  isSelected?: boolean
   onFilter?: (filter: OverviewFilter) => void
 }) {
   const toneClassName = {
@@ -740,16 +1116,27 @@ function Metric({
   }[tone]
 
   const Component = filter && onFilter ? 'button' : 'div'
+  const selectionColor = getFilterColor({ color: filter?.color, tone })
 
   return (
     <Component
       type={Component === 'button' ? 'button' : undefined}
       onClick={filter && onFilter ? () => onFilter({ ...filter, label, tone }) : undefined}
       className={cn(
-        'w-full rounded-lg border border-slate-100 bg-slate-50 p-3 text-left dark:border-slate-800 dark:bg-slate-950/40',
+        'relative w-full rounded-lg border bg-slate-50 p-3 text-left dark:bg-slate-950/40',
+        isSelected ? 'border-transparent ring-2' : 'border-slate-100 dark:border-slate-800',
         filter && onFilter && 'transition hover:border-blue-300 hover:bg-blue-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:border-blue-700 dark:hover:bg-blue-950/20'
       )}
+      style={isSelected ? { '--tw-ring-color': selectionColor } as CSSProperties : undefined}
     >
+      {isSelected && (
+        <span
+          className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: selectionColor }}
+        >
+          x
+        </span>
+      )}
       <div className="mb-2 flex items-center gap-1.5 text-slate-400">
         {icon}
         <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
@@ -759,7 +1146,15 @@ function Metric({
   )
 }
 
-function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter?: (filter: OverviewFilter) => void }) {
+function OverviewListCard({
+  item,
+  isSelected = false,
+  onFilter,
+}: {
+  item: OverviewListItem
+  isSelected?: boolean
+  onFilter?: (filter: OverviewFilter) => void
+}) {
   const toneClassName = {
     default: 'text-slate-400',
     success: 'text-emerald-600 dark:text-emerald-300',
@@ -768,6 +1163,7 @@ function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter
   }[item.tone ?? 'default']
 
   const Component = item.filter && onFilter ? 'button' : 'div'
+  const selectionColor = getFilterColor({ color: item.color, tone: item.tone })
 
   return (
     <Component
@@ -781,10 +1177,20 @@ function OverviewListCard({ item, onFilter }: { item: OverviewListItem; onFilter
           })
         : undefined}
       className={cn(
-        'w-full rounded-md bg-white px-3 py-2 text-left dark:bg-slate-900',
+        'relative w-full rounded-md border bg-white px-3 py-2 text-left dark:bg-slate-900',
+        isSelected ? 'border-transparent ring-2' : 'border-transparent',
         item.filter && onFilter && 'transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-blue-950/20'
       )}
+      style={isSelected ? { '--tw-ring-color': selectionColor } as CSSProperties : undefined}
     >
+      {isSelected && (
+        <span
+          className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: selectionColor }}
+        >
+          x
+        </span>
+      )}
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
           <span

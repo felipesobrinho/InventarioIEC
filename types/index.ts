@@ -72,6 +72,7 @@ export interface Notebook {
   armazenamento: string | null
   numero_patrimonio: string | null
   setor: string | null
+  data_revisao: string | null
   created_at: string | null
   setor_id: string | null
   setor_nome?: string | null

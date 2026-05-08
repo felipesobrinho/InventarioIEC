@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import type { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
@@ -30,7 +31,7 @@ export async function GET(_: Request, { params }: Props) {
   
     const result = {
     ...item,
-    setor_nome: item.setor_rel?.nome ?? item.localidade ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
   }
 
   return NextResponse.json(result)
@@ -45,7 +46,10 @@ export async function PUT(request: Request, { params }: Props) {
   const { created_at, id: _id, setor_nome, setor_rel, ...data } = body
 
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
-  const item = await prisma.impressoras.update({ where: { id }, data })
+  const item = await prisma.impressoras.update({
+    where: { id },
+    data: data as Prisma.impressorasUncheckedUpdateInput,
+  })
 
   const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
     enrichAuditSnapshot(anterior as any),

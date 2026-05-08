@@ -4,18 +4,47 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { DeviceOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
+import { DeviceOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { RamalModal } from '@/components/modals/ramal-modal'
 import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
-import { toast } from 'sonner'
 import { SetorSelect } from '@/components/modals/setor-select'
+
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Ramal) => boolean
+}
 
 function isAllocated(item: Ramal) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
+}
+
+function hasWhatsapp(item: Ramal) {
+  return item.alocacao_ativa?.whatsapp === true || (item.alocacoes_ativas ?? []).some(allocation => allocation.whatsapp === true)
+}
+
+function missing(value: unknown) {
+  if (typeof value === 'string') return value.trim().length === 0
+  return value === null || value === undefined
+}
+
+function hasMissingRamalData(item: Ramal) {
+  return [
+    item.numero_ramal,
+    item.prefixo_telefonico,
+    item.senha_acesso,
+    item.setor_nome ?? item.setor ?? item.nome_setor,
+  ].some(missing)
+}
+
+function formatRamalNumber(value?: string | null) {
+  const normalized = value?.trim()
+  if (!normalized) return null
+  if (/^\d+$/.test(normalized)) return normalized.padStart(4, '0')
+  return normalized
 }
 
 function useDebounce<T>(value: T, delayMs: number): T {
@@ -47,15 +76,12 @@ export default function RamaisPage() {
   const [selected, setSelected] = useState<Ramal | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
-    label: string
-    predicate: (item: Ramal) => boolean
-  } | null>(null)
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [fila, setFila] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')
@@ -72,14 +98,17 @@ export default function RamaisPage() {
     {
       accessorKey: 'numero_ramal',
       header: 'Ramal',
-      cell: ({ row }) => (
-        <div>
-          <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
-            {row.original.numero_ramal != null ? `Ramal ${row.original.numero_ramal}` : '—'}
-          </span>
-          <p className="text-xs text-slate-400">{row.original.prefixo_telefonico || 'Sem prefixo'}</p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const ramal = formatRamalNumber(row.original.numero_ramal)
+        return (
+          <div>
+            <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+              {ramal ? `Ramal ${ramal}` : '—'}
+            </span>
+            <p className="text-xs text-slate-400">{row.original.senha_acesso || 'Sem senha de acesso'}</p>
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'nome_setor',
@@ -92,7 +121,7 @@ export default function RamaisPage() {
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
           <BoolBadge value={row.original.fila} labelTrue="Fila" labelFalse="Sem fila" />
-          {row.original.alocacao_ativa?.whatsapp && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">WhatsApp</span>}
+          {hasWhatsapp(row.original) && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">WhatsApp</span>}
         </div>
       ),
     },
@@ -193,8 +222,8 @@ export default function RamaisPage() {
     return () => { cancelled = true }
   }, [refreshKey])
 
-  const filteredOverviewData = activeOverviewFilter
-    ? overviewData.filter(activeOverviewFilter.predicate)
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
     : null
   const tableData = filteredOverviewData
     ? filteredOverviewData.slice((page - 1) * 20, page * 20)
@@ -204,33 +233,71 @@ export default function RamaisPage() {
 
   function applyOverviewFilter(filter: OverviewFilter) {
     if (filter.kind === 'all') {
-      setActiveOverviewFilter(null)
+      setActiveOverviewFilters([])
       setPage(1)
-      toast.success('Filtro do overview removido.')
+      notifyOverviewFilter([])
       return
     }
 
     const predicates: Record<string, { label: string; predicate: (item: Ramal) => boolean }> = {
       allocated: { label: 'Ramais ocupados', predicate: isAllocated },
       free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
+      'extension-with-whatsapp': { label: 'Ramais com WhatsApp', predicate: hasWhatsapp },
+      'extension-missing-data': { label: 'Ramais com informacoes faltantes', predicate: hasMissingRamalData },
+      'extension-queue': { label: 'Ramais de fila', predicate: (item) => item.fila === true },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor_nome || item.alocacao_ativa?.colaborador.setor || 'Sem setor') === filter.value,
+        predicate: (item) => getRamalSetor(item) === filter.value,
       },
     }
     const nextFilter = predicates[filter.kind]
     if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
 
-    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
-    const toastId = toast.loading('Aplicando filtro do overview...', { description })
     setOverviewFilterLoading(true)
     window.setTimeout(() => {
-      setActiveOverviewFilter(nextFilter)
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
       setPage(1)
       setOverviewFilterLoading(false)
-      toast.success('Filtro aplicado.', { id: toastId, description })
     }, 120)
   }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getRamalSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `sector:${sectorName}`)) continue
+          nextFilters.push({
+          kind: 'sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `sector:${sectorName}`,
+          predicate: (item) => getRamalSetor(item) === sectorName,
+          })
+        }
+        return nextFilters
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
   // Abrir modal via ?inspect=id (vindo do colaborador)
   useEffect(() => {
@@ -343,6 +410,7 @@ export default function RamaisPage() {
         total={overviewTotal || total}
         items={overviewData}
         accentClassName="bg-emerald-500"
+        activeFilters={activeOverviewFilters}
         isLoading={overviewLoading}
         onFilter={applyOverviewFilter}
       />
@@ -370,5 +438,32 @@ export default function RamaisPage() {
         />
       )}
     </div>
+  )
+}
+
+function getRamalSetor(item?: Ramal | null) {
+  return item?.setor_nome || item?.setor || item?.nome_setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Ramal, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

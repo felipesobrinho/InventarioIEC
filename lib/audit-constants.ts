@@ -4,8 +4,8 @@ export interface AuditLog {
   registro_id: string
   acao: string
   descricao: string | null
-  dados_anteriores: any
-  dados_novos: any
+  dados_anteriores: unknown
+  dados_novos: unknown
   usuario_id: string | null
   usuario_nome: string | null
   created_at: string | null
@@ -37,7 +37,6 @@ export const TABELAS_OPCOES = [
   { value: 'ramais',              label: 'Ramais' },
   { value: 'racks',               label: 'Racks' },
   { value: 'colaboradores',       label: 'Colaboradores' },
-  { value: 'solicitacoes',        label: 'Solicitações' },
   { value: 'movimentacoes',       label: 'Movimentações' },
   { value: 'alocacoes_maquinas',  label: 'Alocações — Máquinas' },
   { value: 'alocacoes_notebooks', label: 'Alocações — Notebooks' },

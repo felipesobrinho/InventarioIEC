@@ -25,7 +25,7 @@ export default function RacksPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [search, setSearch]             = useState('')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [sort, setSort]                 = useState('nome_switch')
   const [dir, setDir]                   = useState<'asc' | 'desc'>('asc')
 

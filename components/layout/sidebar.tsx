@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   LayoutDashboard, Users, Monitor, Laptop, Smartphone, Printer,
-  Phone, Server, ScrollText, ClipboardList, ChevronLeft,
+  Phone, Server, ScrollText, ChevronLeft,
   PanelLeftOpen, LogOut, Sun, Moon, Menu, X, UserCog, Loader2,
   ChevronDown
 } from 'lucide-react'
@@ -17,7 +17,6 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
-  badge?: boolean
   adminOnly?: boolean
 }
 
@@ -50,10 +49,9 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Serviços',
-    icon: ClipboardList,
+    icon: ScrollText,
     items: [
       { href: '/movimentacoes', label: 'Auditoria', icon: ScrollText },
-      { href: '/solicitacoes', label: 'Solicitações', icon: ClipboardList, badge: true },
     ],
   },
   {
@@ -62,16 +60,11 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/colaboradores', label: 'Colaboradores', icon: Users },
       { href: '/usuarios', label: 'Usuários', icon: UserCog, adminOnly: true },
-      { href: '/setores', label: 'Setores', icon: UserCog },
     ],
   },
 ]
 
-interface SidebarProps {
-  solicitacoesAbertas?: number
-}
-
-export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
@@ -151,7 +144,7 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
     : 'U'
 
   const renderNavItem = (
-    { href, label, icon: Icon, badge }: NavItem,
+    { href, label, icon: Icon }: NavItem,
     options: { collapsed?: boolean; nested?: boolean } = {}
   ) => {
     const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
@@ -191,14 +184,6 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
         {pending && !isCollapsed && (
           <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80 animate-pulse" />
         )}
-        {badge && solicitacoesAbertas > 0 && !pending && !isCollapsed && (
-          <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none min-w-[18px] text-center">
-            {solicitacoesAbertas > 99 ? '99+' : solicitacoesAbertas}
-          </span>
-        )}
-        {badge && solicitacoesAbertas > 0 && !pending && isCollapsed && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        )}
       </Link>
     )
   }
@@ -219,7 +204,6 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
             const activeItem = group.items.find(item => pathname.startsWith(item.href))
             const GroupIcon = activeItem?.icon ?? group.icon
             const groupPending = group.items.some(item => pendingHref === item.href)
-            const hasBadge = group.items.some(item => item.badge) && solicitacoesAbertas > 0
             const expanded = openGroup === group.label
 
             return (
@@ -244,11 +228,6 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
                   {!isCollapsed && (
                     <>
                       <span className="truncate">{group.label}</span>
-                      {hasBadge && (
-                        <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none min-w-[18px] text-center">
-                          {solicitacoesAbertas > 99 ? '99+' : solicitacoesAbertas}
-                        </span>
-                      )}
                       <ChevronDown
                         className={cn(
                           'w-4 h-4 shrink-0 text-slate-400 transition-transform',
@@ -256,9 +235,6 @@ export function Sidebar({ solicitacoesAbertas = 0 }: SidebarProps) {
                         )}
                       />
                     </>
-                  )}
-                  {hasBadge && isCollapsed && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                   )}
                   {groupActive && isCollapsed && (
                     <span className="absolute -left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-blue-500" />

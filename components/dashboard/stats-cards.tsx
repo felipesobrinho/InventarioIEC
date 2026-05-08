@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState, type MouseEvent } from 'react'
 import {
   Users, Monitor, Laptop, Smartphone,
-  Printer, Phone, Server, ClipboardList,
+  Printer, Phone, Server,
   Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,6 @@ interface Stats {
   impressoras: number
   ramais: number
   racks: number
-  solicitacoesAbertas: number
   maquinasAlocadas: number
   notebooksAlocados: number
   aparelhosAlocados: number
@@ -224,20 +223,10 @@ export function StatsCards({ stats }: { stats: Stats }) {
       accentColor: 'border-l-amber-500',
       showProgress: false,
     },
-    {
-      label: 'Solicitações Abertas',
-      value: stats.solicitacoesAbertas,
-      icon: ClipboardList,
-      href: '/solicitacoes',
-      iconColor: 'text-red-600 dark:text-red-400',
-      iconBg: 'bg-red-50 dark:bg-red-950',
-      accentColor: 'border-l-red-500',
-      showProgress: false,
-    },
   ]
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
       {cards.map((card) => (
         (() => {
           const pctAlocado = card.showProgress && card.alocados !== undefined && card.value > 0

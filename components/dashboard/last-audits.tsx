@@ -28,7 +28,6 @@ const TABELAS_LABELS: Record<string, string> = {
   ramais:             'Ramais',
   racks:              'Racks',
   colaboradores:      'Colaboradores',
-  solicitacoes:       'Solicitações',
   alocacoes_maquinas: 'Alocações',
   alocacoes_notebooks:'Alocações',
   alocacoes_aparelhos:'Alocações',
@@ -37,6 +36,7 @@ const TABELAS_LABELS: Record<string, string> = {
 
 async function getUltimasAuditorias() {
   return prisma.audit_log.findMany({
+    where: { tabela: { not: 'solicitacoes' } },
     orderBy: { created_at: 'desc' },
     take: 5,
   })
@@ -47,7 +47,7 @@ export async function UltimasAuditoriasCard() {
 
   function formatDateTime(dt: string | Date | null) {
     if (!dt) return '—'
-    const d = new Date(dt as any)
+    const d = new Date(dt)
     return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
   }
 

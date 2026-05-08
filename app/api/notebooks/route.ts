@@ -3,9 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
-import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
+
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +20,7 @@ export async function GET(request: Request) {
     const limit     = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
+    const setorIds  = parseSetorIds(setorId)
     const categoria = searchParams.get('categoria')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
@@ -50,14 +54,39 @@ export async function GET(request: Request) {
       })
     }
 
-    if (setorId)   AND.push({ setor_id: setorId })
+    if (setorIds.length > 0) {
+      const setorFilter = setorIds.length === 1 ? setorIds[0] : { in: setorIds }
+      AND.push({
+        OR: [
+          { setor_id: setorFilter },
+          { emprestado_setor_id: setorFilter },
+          { emprestado_colaborador: { is: { setor_id: setorFilter } } },
+          {
+            alocacoes: {
+              some: {
+                ativo: true,
+                colaborador: { setor_id: setorFilter },
+              },
+            },
+          },
+        ],
+      })
+    }
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
 
     if (alocacao === 'alocado') {
-      AND.push({ alocacoes: { some: { ativo: true, notebook_id: { not: null } } } })
+      AND.push({
+        OR: [
+          { emprestado: true },
+          { alocacoes: { some: { ativo: true, notebook_id: { not: null } } } },
+        ],
+      })
     } else if (alocacao === 'livre') {
-      AND.push({ alocacoes: { none: { ativo: true, notebook_id: { not: null } } } })
+      AND.push({
+        emprestado: false,
+        alocacoes: { none: { ativo: true, notebook_id: { not: null } } },
+      })
     }
 
     const where: any = AND.length > 0 ? { AND } : {}
@@ -76,7 +105,7 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
-          emprestado_colaborador: { select: { nome: true } },
+          emprestado_colaborador: { select: { nome: true, setor: true } },
           emprestado_setor:       { select: { nome: true } },
         },
       }),
@@ -123,6 +152,11 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
+    if (body.data_revisao) {
+      body.data_revisao = new Date(body.data_revisao + 'T00:00:00.000Z')
+    } else if (body.data_revisao === '' || body.data_revisao === null) {
+      body.data_revisao = null
+    }
     const item = await prisma.notebooks.create({ data: body })
 
     await registrarAuditoria({

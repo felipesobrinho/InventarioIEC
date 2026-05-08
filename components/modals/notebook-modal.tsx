@@ -25,6 +25,7 @@ const schema = z.object({
  memoria: z.string().optional().nullable(),
  armazenamento: z.string().optional().nullable(),
  numero_patrimonio: z.string().optional().nullable(),
+ data_revisao: z.string().optional().nullable(),
  emprestado_setor_id: z.string().optional().nullable(),
  emprestado_colaborador_id: z.string().optional().nullable(),
  emprestado_obs: z.string().optional().nullable(),
@@ -76,6 +77,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
    memoria: notebook.memoria,
    armazenamento: notebook.armazenamento,
    numero_patrimonio: notebook.numero_patrimonio,
+   data_revisao: notebook.data_revisao ? String(notebook.data_revisao).slice(0, 10) : null,
   },
  });
 
@@ -276,6 +278,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
+        <DetailField label="Última revisão" value={formatDate(notebook.data_revisao)} />
         <DetailField label="Setor" value={(notebook as any).setor_nome ?? notebook.setor ?? '—'} />
        </DetailSection>
        {notebook.emprestado ? (
@@ -433,8 +436,12 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <label className={lbl}>Nº Patrimônio</label>
           <input {...register("numero_patrimonio")} className={inp} />
          </div>
+         <div>
+          <label className={lbl}>Última revisão</label>
+          <input type="date" {...register("data_revisao")} className={inp} />
+         </div>
          <div className="col-span-2">
-         <label className={lbl}>Setor</label>
+          <label className={lbl}>Setor</label>
             <SetorSelect
                value={setorId}
                onChange={(id) => setSetorId(id)}

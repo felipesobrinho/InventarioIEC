@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { ColaboradorOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
+import { ColaboradorOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
@@ -13,7 +13,11 @@ import { Search } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
 import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
 import { Plus } from 'lucide-react'
-import { toast } from 'sonner'
+
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Colaborador) => boolean
+}
 
 const columns: ColumnDef<Colaborador>[] = [
   { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
@@ -43,16 +47,11 @@ export default function ColaboradoresPage() {
   const [selected, setSelected] = useState<Colaborador | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(null)
+  const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [refreshKey, setRefreshKey] = useState(0)
-  const [activeOverviewFilter, setActiveOverviewFilter] = useState<{
-    label: string
-    predicate: (item: Colaborador) => boolean
-  } | null>(null)
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
-
-  console.log(data)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -70,9 +69,15 @@ export default function ColaboradoresPage() {
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
-  const filteredOverviewData = activeOverviewFilter
-    ? overviewData.filter(activeOverviewFilter.predicate)
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
     : null
+  const activeSectorFilters = activeOverviewFilters.filter(filter => filter.kind === 'collaborator-sector')
+  const selectedSectorOverviewData = activeSectorFilters.length > 0
+    ? overviewData.filter(item => activeSectorFilters.some(filter => filter.predicate(item)))
+    : null
+  const metricOverviewData = selectedSectorOverviewData ?? overviewData
+  const metricOverviewTotal = selectedSectorOverviewData ? selectedSectorOverviewData.length : overviewTotal || total
   const tableData = filteredOverviewData
     ? filteredOverviewData.slice((page - 1) * 20, page * 20)
     : data
@@ -81,56 +86,95 @@ export default function ColaboradoresPage() {
 
   function applyOverviewFilter(filter: OverviewFilter) {
     if (filter.kind === 'all') {
-      setActiveOverviewFilter(null)
+      setActiveOverviewFilters([])
       setPage(1)
-      toast.success('Filtro do overview removido.')
+      notifyOverviewFilter([])
       return
     }
 
-    const predicates: Record<string, { label: string; predicate: (item: Colaborador) => boolean }> = {
+    const predicates: Record<string, { label: string; toastLabel?: string; predicate: (item: Colaborador) => boolean }> = {
       'collaborator-status': {
         label: `Colaboradores ${filter.value ?? ''}`,
         predicate: (item) => item.status === filter.value,
       },
       'collaborator-sector': {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
-        predicate: (item) => (item.setor || 'Sem setor') === filter.value,
+        predicate: (item) => getColaboradorSetor(item) === filter.value,
       },
       'collaborator-without-any': {
         label: 'Colaboradores sem alocacao',
-        predicate: (item) => !item.alocacoes_maquinas_ativas && !item.alocacoes_notebooks_ativas && !item.alocacoes_aparelhos_ativas && !item.alocacoes_ramais_ativas,
+        predicate: (item) => item.status === 'Ativo' && !item.alocacoes_maquinas_ativas && !item.alocacoes_notebooks_ativas && !item.alocacoes_aparelhos_ativas && !item.alocacoes_ramais_ativas,
       },
       'collaborator-without-machine': {
         label: 'Colaboradores sem maquina',
-        predicate: (item) => !item.alocacoes_maquinas_ativas,
+        toastLabel: 'sem maquina dispositivo',
+        predicate: (item) => item.status === 'Ativo' && !item.alocacoes_maquinas_ativas,
       },
       'collaborator-without-notebook': {
         label: 'Colaboradores sem notebook',
-        predicate: (item) => !item.alocacoes_notebooks_ativas,
+        toastLabel: 'sem notebook dispositivo',
+        predicate: (item) => item.status === 'Ativo' && !item.alocacoes_notebooks_ativas,
       },
       'collaborator-without-phone': {
         label: 'Colaboradores sem telefone',
-        predicate: (item) => !item.alocacoes_aparelhos_ativas,
+        toastLabel: 'sem telefone dispositivo',
+        predicate: (item) => item.status === 'Ativo' && !item.alocacoes_aparelhos_ativas,
       },
       'collaborator-without-extension': {
         label: 'Colaboradores sem ramal',
-        predicate: (item) => !item.alocacoes_ramais_ativas,
+        toastLabel: 'sem ramal dispositivo',
+        predicate: (item) => item.status === 'Ativo' && !item.alocacoes_ramais_ativas,
       },
     }
 
     const nextFilter = predicates[filter.kind]
     if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.toastLabel ?? nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
 
-    const description = <OverviewFilterToastDescription label={nextFilter.label} filter={filter} />
-    const toastId = toast.loading('Aplicando filtro do overview...', { description })
     setOverviewFilterLoading(true)
     window.setTimeout(() => {
-      setActiveOverviewFilter(nextFilter)
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
       setPage(1)
       setOverviewFilterLoading(false)
-      toast.success('Filtro aplicado.', { id: toastId, description })
     }, 120)
   }
+
+  useEffect(() => {
+    if (!setorIdFiltro || overviewData.length === 0) return
+    const setorIds = new Set(setorIdFiltro.split(',').map(id => id.trim()).filter(Boolean))
+    const sectorNames = Array.from(new Set(
+      overviewData
+        .filter(item => item.setor_id && setorIds.has(item.setor_id))
+        .map(getColaboradorSetor)
+        .filter((name): name is string => Boolean(name))
+    ))
+    if (sectorNames.length === 0) return
+    void Promise.resolve().then(() => {
+      setActiveOverviewFilters((currentFilters) => {
+        const nextFilters = [...currentFilters]
+        for (const sectorName of sectorNames) {
+          if (nextFilters.some(filter => filter.key === `collaborator-sector:${sectorName}`)) continue
+          nextFilters.push({
+          kind: 'collaborator-sector',
+          value: sectorName,
+          label: `Setor: ${sectorName}`,
+          key: `collaborator-sector:${sectorName}`,
+          predicate: (item) => getColaboradorSetor(item) === sectorName,
+          })
+        }
+        return nextFilters
+      })
+    })
+  }, [setorIdFiltro, overviewData])
 
   useEffect(() => {
     let cancelled = false
@@ -197,6 +241,9 @@ export default function ColaboradoresPage() {
       <ColaboradorOverviewPanel
         total={overviewTotal || total}
         items={overviewData}
+        metricTotal={metricOverviewTotal}
+        metricItems={metricOverviewData}
+        activeFilters={activeOverviewFilters}
         isLoading={overviewLoading}
         onFilter={applyOverviewFilter}
       />
@@ -214,5 +261,32 @@ export default function ColaboradoresPage() {
       {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k + 1)}/>}
       {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
     </div>
+  )
+}
+
+function getColaboradorSetor(item?: Colaborador | null) {
+  return item?.setor_nome || item?.setor || 'Sem setor'
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Colaborador, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

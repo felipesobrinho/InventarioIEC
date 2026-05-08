@@ -7,6 +7,10 @@ import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,6 +25,7 @@ export async function GET(request: Request) {
     const alocacao        = searchParams.get('alocacao')   || ''
     const whatsapp        = searchParams.get('whatsapp')   || ''
     const setorId         = searchParams.get('setor_id')   || ''   // ← ADICIONADO
+    const setorIds        = parseSetorIds(setorId)
     const sort            = searchParams.get('sort')       || 'numero_ramal'
     const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
@@ -57,9 +62,8 @@ export async function GET(request: Request) {
     }
 
     // Filtro por setor selecionado no SetorSelect — comparação exata por UUID
-    if (setorId) {
-      AND.push({ setor_id: setorId })
-    }
+    if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
+    if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
 
     if (disponibilidade) {
       AND.push({ disponibilidade: { contains: disponibilidade, mode: 'insensitive' } })
