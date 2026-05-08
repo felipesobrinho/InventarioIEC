@@ -8,6 +8,20 @@ import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 export const runtime = 'nodejs'
 type Props = { params: Promise<{ id: string }> }
 
+async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
+  if (!snapshot) return snapshot
+  const { setor_id, ...rest } = snapshot
+  let setor_nome: string | null = null
+  if (setor_id) {
+    const setor = await prisma.setores.findUnique({
+      where: { id: setor_id },
+      select: { nome: true },
+    })
+    setor_nome = setor?.nome ?? setor_id
+  }
+  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+}
+
 export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
@@ -28,10 +42,8 @@ export async function PUT(request: Request, { params }: Props) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
-  const body = await request.json() as Record<string, unknown>
-  const data = { ...body } as Record<string, unknown>
-  delete data.created_at
-  delete data.id
+  const body = await request.json()
+  const { created_at, id: _id, setor_nome, setor_rel, ...data } = body
 
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
   const item = await prisma.impressoras.update({
@@ -39,13 +51,18 @@ export async function PUT(request: Request, { params }: Props) {
     data: data as Prisma.impressorasUncheckedUpdateInput,
   })
 
+  const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
+    enrichAuditSnapshot(anterior as any),
+    enrichAuditSnapshot(data as any),
+  ])
+
   await registrarAuditoria({
     tabela: 'impressoras',
     registro_id: id,
     acao: 'UPDATE',
-    descricao: descricaoDiff(anterior as Record<string, unknown>, data),
-    dados_anteriores: anterior as Record<string, unknown>,
-    dados_novos: data,
+    descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
+    dados_anteriores: anteriorEnriquecido as any,
+    dados_novos: novoEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
@@ -62,12 +79,14 @@ export async function DELETE(request: Request, { params }: Props) {
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
   await prisma.impressoras.delete({ where: { id } })
 
+  const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
+
   await registrarAuditoria({
     tabela: 'impressoras',
     registro_id: id,
     acao: 'DELETE',
     descricao: `Impressora "${anterior?.nome_host ?? id}" excluída`,
-    dados_anteriores: anterior as Record<string, unknown>,
+    dados_anteriores: anteriorEnriquecido as any,
     usuario_id,
     usuario_nome,
   })
