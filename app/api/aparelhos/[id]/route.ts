@@ -32,7 +32,7 @@ export async function GET(_: Request, { params }: Props) {
     include: {
       alocacoes: {
         where: { ativo: true },
-        include: { colaborador: { select: { nome: true, setor: true } } },
+        include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
         orderBy: { data_inicio: 'asc' },
       },
       // FIX: inclui setor_rel para resolver setor_nome
@@ -48,6 +48,7 @@ export async function GET(_: Request, { params }: Props) {
       id: a.id,
       colaborador: a.colaborador,
       descricao_alocacao: a.descricao_alocacao,
+      setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
       motivo_alocacao: a.motivo_alocacao,
       data_inicio: a.data_inicio,
     })),
@@ -56,6 +57,7 @@ export async function GET(_: Request, { params }: Props) {
           colaborador: item.alocacoes[0].colaborador,
           descricao_alocacao: item.alocacoes[0].descricao_alocacao,
           motivo_alocacao: item.alocacoes[0].motivo_alocacao,
+          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? item.alocacoes[0].colaborador?.setor ?? null,
           data_inicio: item.alocacoes[0].data_inicio,
         }
       : null,
