@@ -147,6 +147,11 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
+    if (body.data_revisao) {
+      body.data_revisao = new Date(body.data_revisao + 'T00:00:00.000Z')
+    } else if (body.data_revisao === '' || body.data_revisao === null) {
+      body.data_revisao = null
+    }
     const item = await prisma.notebooks.create({ data: body })
 
     await registrarAuditoria({

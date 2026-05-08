@@ -79,6 +79,11 @@ export async function PUT(request: Request, { params }: Props) {
   } else if (data.emprestado_desde === '' || data.emprestado_desde === null) {
     data.emprestado_desde = null
   }
+  if (data.data_revisao) {
+    data.data_revisao = new Date(data.data_revisao + 'T00:00:00.000Z')
+  } else if (data.data_revisao === '' || data.data_revisao === null) {
+    data.data_revisao = null
+  }
 
   // Validar colaborador se for atualizar empréstimo
   if (data.emprestado_colaborador_id) {

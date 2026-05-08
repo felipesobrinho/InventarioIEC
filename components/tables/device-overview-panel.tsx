@@ -22,6 +22,11 @@ export interface DeviceOverviewItem {
   setor_nome?: string | null
   nome_setor?: string | null
   modelo?: string | null
+  tipo?: number | string | null
+  chip?: boolean | null
+  endereco_ip?: string | null
+  endereco_mac?: string | null
+  status?: boolean | null
   fabricante?: string | null
   categoria?: string | null
   processador?: string | null
@@ -212,6 +217,17 @@ function hasMissingNotebookData(item: DeviceOverviewItem) {
     item.memoria,
     item.armazenamento,
     item.numero_patrimonio,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
+function hasMissingPhoneData(item: DeviceOverviewItem) {
+  return [
+    item.modelo,
+    item.tipo,
+    item.endereco_ip,
+    item.endereco_mac,
     item.setor_nome ?? item.setor,
   ].some(missing)
 }
@@ -416,11 +432,13 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   onFilter,
 }: DeviceOverviewPanelProps<T>) {
   const isNotebookOverview = title.toLowerCase() === 'notebooks'
+  const isPhoneOverview = title.toLowerCase() === 'aparelhos'
   const analyzedTotal = items.length
   const allocated = items.filter(isOccupied).length
   const allocationOnly = items.filter(isAllocated).length
   const borrowed = items.filter(isBorrowed).length
-  const missingData = items.filter(hasMissingNotebookData).length
+  const missingData = items.filter(isNotebookOverview ? hasMissingNotebookData : hasMissingPhoneData).length
+  const withChip = items.filter(item => item.chip === true).length
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
@@ -544,6 +562,36 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                   detail: `${pct(missingData, analyzedTotal)}% dos notebooks cadastrados`,
                   tone: missingData > 0 ? 'warning' : 'success',
                   filter: { kind: 'notebook-missing-data' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isPhoneOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'phone-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos aparelhos cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'phone-missing-data' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'phone-with-chip' }))}
+                item={{
+                  label: 'Com chip',
+                  value: withChip.toLocaleString('pt-BR'),
+                  detail: `${pct(withChip, analyzedTotal)}% dos aparelhos cadastrados`,
+                  tone: withChip > 0 ? 'warning' : 'success',
+                  filter: { kind: 'phone-with-chip' },
                 }}
               />
             </div>

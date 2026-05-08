@@ -9,6 +9,7 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
 import { Search } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
 import type { Notebook, PaginatedResponse } from '@/types'
 import { CriarNotebookModal } from '@/components/modals/criar-notebook-modal'
 import { useSearchParams } from 'next/navigation'
@@ -36,6 +37,7 @@ function hasMissingNotebookData(item: Notebook) {
     item.memoria,
     item.armazenamento,
     item.numero_patrimonio,
+    item.data_revisao,
     item.setor_nome ?? item.setor,
   ].some(value => value === null || value === undefined || value === '')
 }
@@ -248,6 +250,11 @@ export default function NotebooksPage() {
     accessorKey: 'setor',
     header: 'Setor',
     cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+  },
+  {
+    accessorKey: 'data_revisao',
+    header: 'Última revisão',
+    cell: ({ row }) => formatDate(row.original.data_revisao),
   },
   {
   id: 'emprestado',

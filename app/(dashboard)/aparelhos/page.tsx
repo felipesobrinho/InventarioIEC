@@ -24,6 +24,16 @@ function isAllocated(item: Aparelho) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function hasMissingPhoneData(item: Aparelho) {
+  return [
+    item.modelo,
+    item.tipo,
+    item.endereco_ip,
+    item.endereco_mac,
+    item.setor_nome ?? item.setor,
+  ].some(value => value === null || value === undefined || value === '')
+}
+
 const columns: ColumnDef<Aparelho>[] = [
   {
     accessorKey: 'modelo',
@@ -186,6 +196,8 @@ export default function AparelhosPage() {
     const predicates: Record<string, { label: string; predicate: (item: Aparelho) => boolean }> = {
       allocated: { label: 'Aparelhos ocupados', predicate: isAllocated },
       free: { label: 'Aparelhos livres', predicate: (item) => !isAllocated(item) },
+      'phone-missing-data': { label: 'Aparelhos com informacoes faltantes', predicate: hasMissingPhoneData },
+      'phone-with-chip': { label: 'Aparelhos com chip', predicate: (item) => item.chip === true },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getAparelhoSetor(item) === filter.value,
