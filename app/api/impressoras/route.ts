@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
     const mapped = data.map((i) => ({
       ...i,
-      setor_nome: i.setor_rel?.nome ?? i.setor ?? null,
+      setor_nome: i.setor_rel?.nome ?? i.localidade ?? null,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
