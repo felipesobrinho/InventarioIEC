@@ -6,6 +6,10 @@ import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 
 export const runtime = 'nodejs'
 
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,6 +20,7 @@ export async function GET(request: Request) {
     const limit   = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
     const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
+    const setorIds = parseSetorIds(setorId)
     const sort    = searchParams.get('sort') || 'nome_switch'
     const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
@@ -39,7 +44,8 @@ export async function GET(request: Request) {
       })
     }
 
-    if (setorId) AND.push({ setor_id: setorId })
+    if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
+    if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
 
     const where: any = AND.length > 0 ? { AND } : {}
 

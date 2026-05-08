@@ -3,9 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
-import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
+
+function parseSetorIds(value: string) {
+  return value.split(',').map(item => item.trim()).filter(Boolean)
+}
 
 export async function GET(request: Request) {
   try {
@@ -17,6 +20,7 @@ export async function GET(request: Request) {
     const limit     = Math.max(1, Math.min(10000, parseInt(searchParams.get('limit') || '20', 10)))
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
+    const setorIds  = parseSetorIds(setorId)
     const categoria = searchParams.get('categoria')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
@@ -50,17 +54,18 @@ export async function GET(request: Request) {
       })
     }
 
-    if (setorId) {
+    if (setorIds.length > 0) {
+      const setorFilter = setorIds.length === 1 ? setorIds[0] : { in: setorIds }
       AND.push({
         OR: [
-          { setor_id: setorId },
-          { emprestado_setor_id: setorId },
-          { emprestado_colaborador: { setor_id: setorId } },
+          { setor_id: setorFilter },
+          { emprestado_setor_id: setorFilter },
+          { emprestado_colaborador: { setor_id: setorFilter } },
           {
             alocacoes: {
               some: {
                 ativo: true,
-                colaborador: { setor_id: setorId },
+                colaborador: { setor_id: setorFilter },
               },
             },
           },
