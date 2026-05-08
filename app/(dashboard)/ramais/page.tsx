@@ -22,6 +22,31 @@ function isAllocated(item: Ramal) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function hasWhatsapp(item: Ramal) {
+  return item.alocacao_ativa?.whatsapp === true || (item.alocacoes_ativas ?? []).some(allocation => allocation.whatsapp === true)
+}
+
+function missing(value: unknown) {
+  if (typeof value === 'string') return value.trim().length === 0
+  return value === null || value === undefined
+}
+
+function hasMissingRamalData(item: Ramal) {
+  return [
+    item.numero_ramal,
+    item.prefixo_telefonico,
+    item.senha_acesso,
+    item.setor_nome ?? item.setor ?? item.nome_setor,
+  ].some(missing)
+}
+
+function formatRamalNumber(value?: string | null) {
+  const normalized = value?.trim()
+  if (!normalized) return null
+  if (/^\d+$/.test(normalized)) return normalized.padStart(4, '0')
+  return normalized
+}
+
 function useDebounce<T>(value: T, delayMs: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
@@ -73,14 +98,17 @@ export default function RamaisPage() {
     {
       accessorKey: 'numero_ramal',
       header: 'Ramal',
-      cell: ({ row }) => (
-        <div>
-          <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
-            {row.original.numero_ramal != null ? `Ramal ${row.original.numero_ramal}` : '—'}
-          </span>
-          <p className="text-xs text-slate-400">{row.original.prefixo_telefonico || 'Sem prefixo'}</p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const ramal = formatRamalNumber(row.original.numero_ramal)
+        return (
+          <div>
+            <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+              {ramal ? `Ramal ${ramal}` : '—'}
+            </span>
+            <p className="text-xs text-slate-400">{row.original.senha_acesso || 'Sem senha de acesso'}</p>
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'nome_setor',
@@ -93,7 +121,7 @@ export default function RamaisPage() {
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
           <BoolBadge value={row.original.fila} labelTrue="Fila" labelFalse="Sem fila" />
-          {row.original.alocacao_ativa?.whatsapp && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">WhatsApp</span>}
+          {hasWhatsapp(row.original) && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">WhatsApp</span>}
         </div>
       ),
     },
@@ -214,6 +242,9 @@ export default function RamaisPage() {
     const predicates: Record<string, { label: string; predicate: (item: Ramal) => boolean }> = {
       allocated: { label: 'Ramais ocupados', predicate: isAllocated },
       free: { label: 'Ramais livres', predicate: (item) => !isAllocated(item) },
+      'extension-with-whatsapp': { label: 'Ramais com WhatsApp', predicate: hasWhatsapp },
+      'extension-missing-data': { label: 'Ramais com informacoes faltantes', predicate: hasMissingRamalData },
+      'extension-queue': { label: 'Ramais de fila', predicate: (item) => item.fila === true },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getRamalSetor(item) === filter.value,

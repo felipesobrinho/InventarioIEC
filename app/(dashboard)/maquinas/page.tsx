@@ -22,6 +22,29 @@ function isAllocated(item: Maquina) {
   return (item.alocacoes_ativas?.length ?? 0) > 0 || Boolean(item.alocacao_ativa)
 }
 
+function missing(value: unknown) {
+  if (typeof value === 'string') return value.trim().length === 0
+  return value === null || value === undefined
+}
+
+function hasMissingMachineData(item: Maquina) {
+  return [
+    item.nome_host,
+    item.identificador,
+    item.fabricante,
+    item.modelo,
+    item.categoria,
+    item.processador,
+    item.memoria_ram,
+    item.armazenamento,
+    item.endereco_ip,
+    item.patrimonio_cpu,
+    item.patrimonio_monitor,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
 export default function MaquinasPage() {
   const [data, setData] = useState<Maquina[]>([])
   const [total, setTotal] = useState(0)
@@ -137,6 +160,7 @@ export default function MaquinasPage() {
     const predicates: Record<string, { label: string; predicate: (item: Maquina) => boolean }> = {
       allocated: { label: 'Máquinas ocupadas', predicate: isAllocated },
       free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
+      'machine-missing-data': { label: 'Máquinas com informacoes faltantes', predicate: hasMissingMachineData },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getMaquinaSetor(item) === filter.value,

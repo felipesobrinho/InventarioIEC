@@ -18,6 +18,8 @@ import { toast } from 'sonner'
 
 export interface DeviceOverviewItem {
   id: string
+  nome_host?: string | null
+  identificador?: string | null
   setor?: string | null
   setor_nome?: string | null
   nome_setor?: string | null
@@ -31,8 +33,16 @@ export interface DeviceOverviewItem {
   categoria?: string | null
   processador?: string | null
   memoria?: string | null
+  memoria_ram?: string | null
   armazenamento?: string | null
   numero_patrimonio?: string | null
+  patrimonio_cpu?: string | null
+  patrimonio_monitor?: string | null
+  numero_ramal?: string | null
+  prefixo_telefonico?: string | null
+  disponibilidade?: string | null
+  fila?: boolean | null
+  senha_acesso?: string | null
   emprestado?: boolean | null
   created_at?: string | null
   data_revisao?: string | null
@@ -230,6 +240,37 @@ function hasMissingPhoneData(item: DeviceOverviewItem) {
     item.endereco_mac,
     item.setor_nome ?? item.setor,
   ].some(missing)
+}
+
+function hasMissingMachineData(item: DeviceOverviewItem) {
+  return [
+    item.nome_host,
+    item.identificador,
+    item.fabricante,
+    item.modelo,
+    item.categoria,
+    item.processador,
+    item.memoria_ram ?? item.memoria,
+    item.armazenamento,
+    item.endereco_ip,
+    item.patrimonio_cpu,
+    item.patrimonio_monitor,
+    item.data_revisao,
+    item.setor_nome ?? item.setor,
+  ].some(missing)
+}
+
+function hasMissingExtensionData(item: DeviceOverviewItem) {
+  return [
+    item.numero_ramal,
+    item.prefixo_telefonico,
+    item.senha_acesso,
+    item.setor_nome ?? item.setor ?? item.nome_setor,
+  ].some(missing)
+}
+
+function hasWhatsapp(item: DeviceOverviewItem) {
+  return item.alocacao_ativa?.whatsapp === true || (item.alocacoes_ativas ?? []).some(allocation => allocation.whatsapp === true)
 }
 
 function pct(value: number, total: number) {
@@ -433,12 +474,26 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
 }: DeviceOverviewPanelProps<T>) {
   const isNotebookOverview = title.toLowerCase() === 'notebooks'
   const isPhoneOverview = title.toLowerCase() === 'aparelhos'
+  const isExtensionOverview = title.toLowerCase() === 'ramais'
+  const isMachineOverview = title.toLowerCase() === 'máquinas'
   const analyzedTotal = items.length
   const allocated = items.filter(isOccupied).length
   const allocationOnly = items.filter(isAllocated).length
   const borrowed = items.filter(isBorrowed).length
-  const missingData = items.filter(isNotebookOverview ? hasMissingNotebookData : hasMissingPhoneData).length
+  const missingData = items.filter(
+    isNotebookOverview
+      ? hasMissingNotebookData
+      : isPhoneOverview
+        ? hasMissingPhoneData
+        : isExtensionOverview
+          ? hasMissingExtensionData
+          : isMachineOverview
+            ? hasMissingMachineData
+            : () => false
+  ).length
   const withChip = items.filter(item => item.chip === true).length
+  const withWhatsapp = items.filter(hasWhatsapp).length
+  const queueExtensions = items.filter(item => item.fila === true).length
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
@@ -484,7 +539,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
         <OverviewLoading accentClassName={accentClassName} />
       ) : (
       <div className="space-y-4">
-        <div className={cn('grid grid-cols-2 gap-2', isNotebookOverview ? 'md:grid-cols-5' : 'md:grid-cols-5')}>
+        <div className={cn('grid grid-cols-2 gap-2', isNotebookOverview ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-5')}>
           <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={total.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
           {isNotebookOverview ? (
             <>
@@ -492,6 +547,11 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
               <Metric icon={<Users className="h-3.5 w-3.5" />} label="Alocados" value={allocationOnly.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'allocated' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'allocated' }))} onFilter={onFilter} />
               <Metric icon={<CalendarClock className="h-3.5 w-3.5" />} label="Emprestados" value={borrowed.toLocaleString('pt-BR')} tone="warning" filter={{ kind: 'notebook-borrowed' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-borrowed' }))} onFilter={onFilter} />
               <Metric icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Livres" value={free.toLocaleString('pt-BR')} tone="success" filter={{ kind: 'free' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'free' }))} onFilter={onFilter} />
+              <Metric
+                icon={<CalendarClock className="h-3.5 w-3.5" />}
+                label="Última revisão"
+                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+              />
             </>
           ) : (
             <>
@@ -592,6 +652,66 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
                   detail: `${pct(withChip, analyzedTotal)}% dos aparelhos cadastrados`,
                   tone: withChip > 0 ? 'warning' : 'success',
                   filter: { kind: 'phone-with-chip' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isExtensionOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-missing-data' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-with-whatsapp' }))}
+                item={{
+                  label: 'Com WhatsApp',
+                  value: withWhatsapp.toLocaleString('pt-BR'),
+                  detail: `${pct(withWhatsapp, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: withWhatsapp > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-with-whatsapp' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'extension-queue' }))}
+                item={{
+                  label: 'Ramais de fila',
+                  value: queueExtensions.toLocaleString('pt-BR'),
+                  detail: `${pct(queueExtensions, analyzedTotal)}% dos ramais cadastrados`,
+                  tone: queueExtensions > 0 ? 'warning' : 'success',
+                  filter: { kind: 'extension-queue' },
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {isMachineOverview && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-missing-data' }))}
+                item={{
+                  label: 'Informacoes faltantes',
+                  value: missingData.toLocaleString('pt-BR'),
+                  detail: `${pct(missingData, analyzedTotal)}% das maquinas cadastradas`,
+                  tone: missingData > 0 ? 'warning' : 'success',
+                  filter: { kind: 'machine-missing-data' },
                 }}
               />
             </div>
