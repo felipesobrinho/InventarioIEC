@@ -1,5 +1,5 @@
 'use client'
-
+import { usePermission } from '@/hooks/use-permission'
 import { useState, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
@@ -82,6 +82,7 @@ const columns: ColumnDef<Aparelho>[] = [
 ]
 
 export default function AparelhosPage() {
+  const { isAdmin } = usePermission()
   const [data, setData] = useState<Aparelho[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -347,10 +348,10 @@ export default function AparelhosPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Aparelhos" total={total}>
-      <button type="button" onClick={() => setShowCriar(true)}
-        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
-        <Plus className="w-4 h-4" /> Novo aparelho
-      </button>
+      {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Novo Aparelho
+        </button>)}
     </PageHeader>
       <DeviceOverviewPanel
         title="Aparelhos"

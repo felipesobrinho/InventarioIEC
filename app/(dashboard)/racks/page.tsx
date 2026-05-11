@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -12,6 +13,7 @@ import { Search, Plus } from 'lucide-react'
 import type { Rack, PaginatedResponse } from '@/types'
 
 export default function RacksPage() {
+  const { isAdmin } = usePermission()
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect')
 
@@ -156,10 +158,10 @@ export default function RacksPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Racks" total={total}>
-        <button type="button" onClick={() => setShowCriar(true)}
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
-          <Plus className="w-4 h-4" /> Novo rack
-        </button>
+          <Plus className="w-4 h-4" /> Novo Rack
+        </button>)}
       </PageHeader>
 
       <DataTable columns={columns} data={data} total={total} page={page}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 
@@ -12,10 +12,7 @@ async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   const { setor_id, ...rest } = snapshot
   let setor_nome: string | null = null
   if (setor_id) {
-    const setor = await prisma.setores.findUnique({
-      where: { id: setor_id },
-      select: { nome: true },
-    })
+    const setor = await prisma.setores.findUnique({ where: { id: setor_id }, select: { nome: true } })
     setor_nome = setor?.nome ?? setor_id
   }
   return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
@@ -26,51 +23,28 @@ export async function GET(_: Request, { params }: Props) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
   const { id } = await params
-
   const item = await prisma.ramais.findUnique({
     where: { id },
     include: {
-      alocacoes: {
-        where: { ativo: true },
-        include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
-        orderBy: { data_inicio: 'asc' },
-      },
+      alocacoes: { where: { ativo: true }, include: { colaborador: { select: { nome: true, setor: true } } }, orderBy: { data_inicio: 'asc' } },
       setor_rel: { select: { id: true, nome: true } },
     },
   })
-
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
 
-  const result = {
+  return NextResponse.json({
     ...item,
-    alocacoes_ativas: item.alocacoes.map((a: any) => ({
-      id: a.id,
-      colaborador: a.colaborador,
-      tipo_base: a.tipo_base,
-      whatsapp: a.whatsapp,
-      setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
-      canal_adicional: a.canal_adicional,
-      data_inicio: a.data_inicio,
-    })),
-    alocacao_ativa: item.alocacoes[0]
-      ? {
-          colaborador: item.alocacoes[0].colaborador,
-          tipo_base: item.alocacoes[0].tipo_base,
-          whatsapp: item.alocacoes[0].whatsapp,
-          data_inicio: item.alocacoes[0].data_inicio,
-          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? item.alocacoes[0].colaborador?.setor ?? null,
-        }
-      : null,
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({ id: a.id, colaborador: a.colaborador, tipo_base: a.tipo_base, whatsapp: a.whatsapp, canal_adicional: a.canal_adicional, data_inicio: a.data_inicio })),
+    alocacao_ativa: item.alocacoes[0] ? { colaborador: item.alocacoes[0].colaborador, tipo_base: item.alocacoes[0].tipo_base, whatsapp: item.alocacoes[0].whatsapp, data_inicio: item.alocacoes[0].data_inicio } : null,
     alocacoes: undefined,
     setor_nome: item.setor_rel?.nome ?? item.nome_setor ?? null,
-  }
-
-  return NextResponse.json(result)
+  })
 }
 
 export async function PUT(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const denied = await requireAdmin()
+  if (denied) return denied
+
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
@@ -85,22 +59,19 @@ export async function PUT(request: Request, { params }: Props) {
   ])
 
   await registrarAuditoria({
-    tabela: 'ramais',
-    registro_id: id,
-    acao: 'UPDATE',
+    tabela: 'ramais', registro_id: id, acao: 'UPDATE',
     descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
-    dados_anteriores: anteriorEnriquecido as any,
-    dados_novos: novoEnriquecido as any,
-    usuario_id,
-    usuario_nome,
+    dados_anteriores: anteriorEnriquecido as any, dados_novos: novoEnriquecido as any,
+    usuario_id, usuario_nome,
   })
 
   return NextResponse.json(item)
 }
 
 export async function DELETE(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const denied = await requireAdmin()
+  if (denied) return denied
+
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
 
@@ -110,13 +81,10 @@ export async function DELETE(request: Request, { params }: Props) {
   const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
 
   await registrarAuditoria({
-    tabela: 'ramais',
-    registro_id: id,
-    acao: 'DELETE',
+    tabela: 'ramais', registro_id: id, acao: 'DELETE',
     descricao: `Ramal "${anterior?.numero_ramal ?? id}" excluído`,
     dados_anteriores: anteriorEnriquecido as any,
-    usuario_id,
-    usuario_nome,
+    usuario_id, usuario_nome,
   })
 
   return NextResponse.json({ ok: true })
