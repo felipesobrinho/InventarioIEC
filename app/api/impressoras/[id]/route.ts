@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import type { Prisma } from '@prisma/client'
-import { authOptions } from '@/lib/auth'
+import { authOptions, requireAdmin } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession, descricaoDiff } from '@/lib/audit'
 
@@ -13,10 +12,7 @@ async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   const { setor_id, ...rest } = snapshot
   let setor_nome: string | null = null
   if (setor_id) {
-    const setor = await prisma.setores.findUnique({
-      where: { id: setor_id },
-      select: { nome: true },
-    })
+    const setor = await prisma.setores.findUnique({ where: { id: setor_id }, select: { nome: true } })
     setor_nome = setor?.nome ?? setor_id
   }
   return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
@@ -26,30 +22,22 @@ export async function GET(_: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const item = await prisma.impressoras.findUnique({ where: { id }, include: {setor_rel: { select: { id: true, nome: true } },} })
+  const item = await prisma.impressoras.findUnique({ where: { id }, include: { setor_rel: { select: { id: true, nome: true } } } })
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
-  
-    const result = {
-    ...item,
-    setor_nome: item.setor_rel?.nome ?? null,
-  }
-
-  return NextResponse.json(result)
+  return NextResponse.json({ ...item, setor_nome: item.setor_rel?.nome ?? item.localidade ?? null })
 }
 
 export async function PUT(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const denied = await requireAdmin()
+  if (denied) return denied
+
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
   const body = await request.json()
   const { created_at, id: _id, setor_nome, setor_rel, ...data } = body
 
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
-  const item = await prisma.impressoras.update({
-    where: { id },
-    data: data as Prisma.impressorasUncheckedUpdateInput,
-  })
+  const item = await prisma.impressoras.update({ where: { id }, data })
 
   const [anteriorEnriquecido, novoEnriquecido] = await Promise.all([
     enrichAuditSnapshot(anterior as any),
@@ -57,22 +45,19 @@ export async function PUT(request: Request, { params }: Props) {
   ])
 
   await registrarAuditoria({
-    tabela: 'impressoras',
-    registro_id: id,
-    acao: 'UPDATE',
+    tabela: 'impressoras', registro_id: id, acao: 'UPDATE',
     descricao: descricaoDiff(anteriorEnriquecido as any, novoEnriquecido as any),
-    dados_anteriores: anteriorEnriquecido as any,
-    dados_novos: novoEnriquecido as any,
-    usuario_id,
-    usuario_nome,
+    dados_anteriores: anteriorEnriquecido as any, dados_novos: novoEnriquecido as any,
+    usuario_id, usuario_nome,
   })
 
   return NextResponse.json(item)
 }
 
 export async function DELETE(request: Request, { params }: Props) {
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  const denied = await requireAdmin()
+  if (denied) return denied
+
   const { id } = await params
   const { usuario_id, usuario_nome } = await getAuditSession(request)
 
@@ -82,13 +67,10 @@ export async function DELETE(request: Request, { params }: Props) {
   const anteriorEnriquecido = await enrichAuditSnapshot(anterior as any)
 
   await registrarAuditoria({
-    tabela: 'impressoras',
-    registro_id: id,
-    acao: 'DELETE',
+    tabela: 'impressoras', registro_id: id, acao: 'DELETE',
     descricao: `Impressora "${anterior?.nome_host ?? id}" excluída`,
     dados_anteriores: anteriorEnriquecido as any,
-    usuario_id,
-    usuario_nome,
+    usuario_id, usuario_nome,
   })
 
   return NextResponse.json({ ok: true })

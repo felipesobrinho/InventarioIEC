@@ -1,5 +1,5 @@
 "use client";
-
+import { usePermission } from '@/hooks/use-permission'
 import { useState } from "react";
 import { X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -37,6 +37,8 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [setorId, setSetorId] = useState<string | null>(
     (ramal as any).setor_id ?? null
   )
+  
+  const { isAdmin } = usePermission()
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
   onRefresh();
@@ -222,7 +224,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
      <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
       {mode === "view" ? (
        <>
-        <button
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -231,8 +233,8 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
         >
          <Trash2 className="w-3.5 h-3.5" /> Excluir
-        </button>
-        <button
+        </button>)}
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -241,7 +243,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
         >
          <Pencil className="w-3.5 h-3.5" /> Editar
-        </button>
+        </button>)}
        </>
       ) : (
        <>

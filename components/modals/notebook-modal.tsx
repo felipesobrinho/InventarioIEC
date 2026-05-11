@@ -1,4 +1,5 @@
 "use client";
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState } from "react";
 import { X, Pencil, Trash2, Loader2, UserPlus, Box } from "lucide-react";
@@ -25,7 +26,6 @@ const schema = z.object({
  memoria: z.string().optional().nullable(),
  armazenamento: z.string().optional().nullable(),
  numero_patrimonio: z.string().optional().nullable(),
- data_revisao: z.string().optional().nullable(),
  emprestado_setor_id: z.string().optional().nullable(),
  emprestado_colaborador_id: z.string().optional().nullable(),
  emprestado_obs: z.string().optional().nullable(),
@@ -39,6 +39,7 @@ interface Props {
 }
 
 export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
+ const { isAdmin } = usePermission()
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
  const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false);
@@ -77,7 +78,6 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
    memoria: notebook.memoria,
    armazenamento: notebook.armazenamento,
    numero_patrimonio: notebook.numero_patrimonio,
-   data_revisao: notebook.data_revisao ? String(notebook.data_revisao).slice(0, 10) : null,
   },
  });
 
@@ -278,7 +278,6 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
-        <DetailField label="Última revisão" value={formatDate(notebook.data_revisao)} />
         <DetailField label="Setor" value={(notebook as any).setor_nome ?? notebook.setor ?? '—'} />
        </DetailSection>
        {notebook.emprestado ? (
@@ -436,12 +435,8 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <label className={lbl}>Nº Patrimônio</label>
           <input {...register("numero_patrimonio")} className={inp} />
          </div>
-         <div>
-          <label className={lbl}>Última revisão</label>
-          <input type="date" {...register("data_revisao")} className={inp} />
-         </div>
          <div className="col-span-2">
-          <label className={lbl}>Setor</label>
+         <label className={lbl}>Setor</label>
             <SetorSelect
                value={setorId}
                onChange={(id) => setSetorId(id)}
@@ -456,7 +451,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
      <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
       {mode === "view" ? (
        <>
-        <button
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -465,8 +460,8 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
         >
          <Trash2 className="w-3.5 h-3.5" /> Excluir
-        </button>
-        <button
+        </button>)}
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -475,7 +470,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
         >
          <Pencil className="w-3.5 h-3.5" /> Editar
-        </button>
+        </button>)}
        </>
       ) : (
        <>

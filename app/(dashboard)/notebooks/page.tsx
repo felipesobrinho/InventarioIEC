@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
@@ -43,6 +44,7 @@ function hasMissingNotebookData(item: Notebook) {
 }
 
 export default function NotebooksPage() {
+  const { isAdmin } = usePermission()
   const [data, setData] = useState<Notebook[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -391,10 +393,10 @@ export default function NotebooksPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Notebooks" total={total}>
-        <button type="button" onClick={() => setShowCriar(true)}
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
-          <Plus className="w-4 h-4" /> Novo notebook
-        </button>
+          <Plus className="w-4 h-4" /> Novo Notebook
+        </button>)}
       </PageHeader>
       <DeviceOverviewPanel
         title="Notebooks"
