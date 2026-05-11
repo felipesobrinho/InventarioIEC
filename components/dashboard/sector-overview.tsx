@@ -443,7 +443,7 @@ function KpiChart({
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-fuchsia-500" />Ocupados</span>
         </div>
       </div>
-      <div className="relative h-52 w-full overflow-hidden rounded-md bg-white dark:bg-slate-900">
+      <div className="relative w-full overflow-hidden rounded-md bg-white dark:bg-slate-900">
         {hoveredPoint && (
           <div
             className="pointer-events-none absolute z-10 min-w-44 -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs text-slate-100 shadow-xl"
@@ -460,7 +460,7 @@ function KpiChart({
             </div>
           </div>
         )}
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" role="img" aria-label={title} preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" role="img" aria-label={title} preserveAspectRatio="xMidYMid meet">
           {[0, 0.25, 0.5, 0.75, 1].map(mark => {
             const yPos = padding.top + chartHeight * mark
             const label = Math.round(maxValue * (1 - mark))
