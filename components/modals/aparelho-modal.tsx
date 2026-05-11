@@ -141,7 +141,8 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                   onClose={onClose}
                 />
               ) : (
-                <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+                isAdmin && (
+                  <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <UserPlus className="w-4 h-4 text-slate-400" />
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Alocar Colaborador</span>
@@ -160,6 +161,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                     </button>
                   )}
                 </div>
+                )
               )}
 
               <DetailSection title="Identificação">

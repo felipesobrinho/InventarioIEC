@@ -167,6 +167,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          onClose={onClose}
         />
        ) : (
+        isAdmin && (
         <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
          <div className="flex items-center gap-2">
           <UserPlus className="w-4 h-4 text-slate-400" />
@@ -201,6 +202,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
           </button>
          )}
         </div>
+        )
        )}
 
        <DetailSection title="Identificação">

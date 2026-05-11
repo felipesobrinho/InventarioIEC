@@ -125,9 +125,6 @@ export function AlocacoesAtivasSection({
             <User className="h-4 w-4 text-slate-400" />
           </div>
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Sem colaborador alocado</p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            Use o campo abaixo para vincular este item a um colaborador.
-          </p>
         </div>
       ) : (
         <div className="space-y-2">
