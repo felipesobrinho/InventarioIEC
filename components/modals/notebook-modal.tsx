@@ -1,8 +1,8 @@
 "use client";
-import { usePermission } from '@/hooks/use-permission'
+import { usePermission } from "@/hooks/use-permission";
 
 import { useState } from "react";
-import { X, Pencil, Trash2, Loader2, UserPlus, Box } from "lucide-react";
+import { X, Pencil, Trash2, Loader2, UserPlus, Box, Plus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,7 +39,7 @@ interface Props {
 }
 
 export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
- const { isAdmin } = usePermission()
+ const { isAdmin } = usePermission();
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
  const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false);
@@ -60,8 +60,8 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
  const [savingEmp, setSavingEmp] = useState(false);
 
  const [setorId, setSetorId] = useState<string | null>(
-    (notebook as any).setor_id ?? null
-  )
+  (notebook as any).setor_id ?? null,
+ );
 
  const { update, remove, saving, deleting } = useCrud("notebooks", () => {
   onRefresh();
@@ -83,7 +83,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
 
  // Chamado APENAS pelo botão type="submit" form="nb-form"
  function onSubmit(data: FormData) {
-  update(notebook.id, {...data, setor_id: setorId});
+  update(notebook.id, { ...data, setor_id: setorId });
  }
 
  async function alocar() {
@@ -136,7 +136,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
     setSavingEmp(false);
     return;
    }
-   console.log('Salvando empréstimo para notebook ID:', notebook.id);
+   console.log("Salvando empréstimo para notebook ID:", notebook.id);
    const res = await fetch(`/api/notebooks/${notebook.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -159,14 +159,17 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
     ),
    });
    if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+    const error = await res
+     .json()
+     .catch(() => ({ error: "Erro desconhecido" }));
     throw new Error(error.error || `Erro ${res.status}`);
    }
    toast.success(ativo ? "Empréstimo registrado!" : "Empréstimo encerrado!");
    setEditandoEmprestimo(false);
    onRefresh();
   } catch (err) {
-   const message = err instanceof Error ? err.message : "Erro ao salvar empréstimo.";
+   const message =
+    err instanceof Error ? err.message : "Erro ao salvar empréstimo.";
    toast.error(message);
   } finally {
    setSavingEmp(false);
@@ -278,7 +281,10 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
-        <DetailField label="Setor" value={(notebook as any).setor_nome ?? notebook.setor ?? '—'} />
+        <DetailField
+         label="Setor"
+         value={(notebook as any).setor_nome ?? notebook.setor ?? "—"}
+        />
        </DetailSection>
        {notebook.emprestado ? (
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
@@ -286,23 +292,24 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
            📦 Emprestado
           </span>
-          <button
-           type="button"
-           onClick={() => salvarEmprestimo(false)}
-           disabled={savingEmp}
-           className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-          >
+          {isAdmin && (
+           <button
+            type="button"
+            onClick={() => salvarEmprestimo(false)}
+            disabled={savingEmp}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+           >
             <Box /> Encerrar empréstimo
-          </button>
+           </button>
+          )}
          </div>
          {notebook.emprestado_colaborador_id && (
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
            {/* Nome do colaborador — buscar via colaborador_select ou exibir ID */}
-           Colaborador vinculado: {
-            (notebook as any).emprestado_colaborador_nome ??
+           Colaborador vinculado:{" "}
+           {(notebook as any).emprestado_colaborador_nome ??
             (notebook as any).emprestado_colaborador_setor ??
-            "Emprestado"
-            }
+            "Emprestado"}
           </p>
          )}
          {notebook.emprestado_obs && (
@@ -317,75 +324,79 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
          )}
         </div>
        ) : !editandoEmprestimo ? (
-        <button
-         type="button"
-         onClick={() => setEditandoEmprestimo(true)}
-         className="w-full py-2 text-xs font-medium rounded-lg border border-dashed border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:border-amber-400 dark:hover:border-amber-600 transition"
-        >
-         + Registrar empréstimo
-        </button>
+        isAdmin && (
+         <button
+          type="button"
+          onClick={() => setEditandoEmprestimo(true)}
+          className="w-full py-2 text-xs font-medium rounded-lg border border-dashed border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 hover:border-amber-400 dark:hover:border-amber-600 transition"
+         >
+          + Registrar empréstimo
+         </button>
+        )
        ) : (
-        <div className="border border-amber-100 dark:border-amber-900 rounded-lg p-4 space-y-3 bg-amber-50/50 dark:bg-amber-950/20">
-         <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
-          Registrar Empréstimo
-         </p>
-         <div>
-          <label className="block text-xs text-slate-500 mb-1">
-           Setor de destino
-          </label>
-          <SetorSelect
-           value={empSetorId}
-           onChange={(id) => setEmpSetorId(id)}
-          />
+        isAdmin && (
+         <div className="border border-amber-100 dark:border-amber-900 rounded-lg p-4 space-y-3 bg-amber-50/50 dark:bg-amber-950/20">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+           Registrar Empréstimo
+          </p>
+          <div>
+           <label className="block text-xs text-slate-500 mb-1">
+            Setor de destino
+           </label>
+           <SetorSelect
+            value={empSetorId}
+            onChange={(id) => setEmpSetorId(id)}
+           />
+          </div>
+          <div>
+           <label className="block text-xs text-slate-500 mb-1">
+            Colaborador (opcional)
+           </label>
+           <ColaboradorSelect
+            value={empColabId ?? ""}
+            onChange={(id, nome) => {
+             setEmpColabId(id);
+             setEmpColabNome(nome);
+            }}
+            onClear={() => {
+             setEmpColabId(null);
+             setEmpColabNome(null);
+            }}
+            selectedNome={empColabNome}
+           />
+          </div>
+          <div>
+           <label className="block text-xs text-slate-500 mb-1">
+            Observação
+           </label>
+           <input
+            type="text"
+            value={empObs}
+            onChange={(e) => setEmpObs(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Motivo do empréstimo..."
+           />
+          </div>
+          <div className="flex gap-2">
+           <button
+            type="button"
+            onClick={() => setEditandoEmprestimo(false)}
+            className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+           >
+            Cancelar
+           </button>
+           <button
+            type="button"
+            onClick={() => salvarEmprestimo(true)}
+            disabled={savingEmp}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-60 transition"
+           >
+            {savingEmp && <Loader2 className="w-3 h-3 animate-spin" />}
+            Confirmar empréstimo
+           </button>
+          </div>
          </div>
-         <div>
-          <label className="block text-xs text-slate-500 mb-1">
-           Colaborador (opcional)
-          </label>
-          <ColaboradorSelect
-           value={empColabId ?? ""}
-           onChange={(id, nome) => {
-            setEmpColabId(id);
-            setEmpColabNome(nome);
-           }}
-           onClear={() => {
-            setEmpColabId(null);
-            setEmpColabNome(null);
-           }}
-           selectedNome={empColabNome}
-          />
-         </div>
-         <div>
-          <label className="block text-xs text-slate-500 mb-1">
-           Observação
-          </label>
-          <input
-           type="text"
-           value={empObs}
-           onChange={(e) => setEmpObs(e.target.value)}
-           className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-           placeholder="Motivo do empréstimo..."
-          />
-         </div>
-         <div className="flex gap-2">
-          <button
-           type="button"
-           onClick={() => setEditandoEmprestimo(false)}
-           className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-           Cancelar
-          </button>
-          <button
-           type="button"
-           onClick={() => salvarEmprestimo(true)}
-           disabled={savingEmp}
-           className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-60 transition"
-          >
-           {savingEmp && <Loader2 className="w-3 h-3 animate-spin" />}
-           Confirmar empréstimo
-          </button>
-         </div>
-        </div>
+        )
        )}
        <HistoricoPanel registroId={notebook.id} tabela="notebooks" />
       </div>
@@ -436,11 +447,8 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <input {...register("numero_patrimonio")} className={inp} />
          </div>
          <div className="col-span-2">
-         <label className={lbl}>Setor</label>
-            <SetorSelect
-               value={setorId}
-               onChange={(id) => setSetorId(id)}
-            />
+          <label className={lbl}>Setor</label>
+          <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
          </div>
         </div>
        </form>
@@ -451,26 +459,30 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
      <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
       {mode === "view" ? (
        <>
-{isAdmin && (        <button
-         type="button"
-         onClick={(e) => {
-          e.preventDefault();
-          setShowDeleteConfirm(true);
-         }}
-         className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
-        >
-         <Trash2 className="w-3.5 h-3.5" /> Excluir
-        </button>)}
-{isAdmin && (        <button
-         type="button"
-         onClick={(e) => {
-          e.preventDefault();
-          setMode("edit");
-         }}
-         className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
-        >
-         <Pencil className="w-3.5 h-3.5" /> Editar
-        </button>)}
+        {isAdmin && (
+         <button
+          type="button"
+          onClick={(e) => {
+           e.preventDefault();
+           setShowDeleteConfirm(true);
+          }}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
+         >
+          <Trash2 className="w-3.5 h-3.5" /> Excluir
+         </button>
+        )}
+        {isAdmin && (
+         <button
+          type="button"
+          onClick={(e) => {
+           e.preventDefault();
+           setMode("edit");
+          }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
+         >
+          <Pencil className="w-3.5 h-3.5" /> Editar
+         </button>
+        )}
        </>
       ) : (
        <>
