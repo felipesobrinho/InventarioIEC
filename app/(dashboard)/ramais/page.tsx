@@ -63,7 +63,7 @@ function useDebounce<T>(value: T, delayMs: number): T {
 }
 
 export default function RamaisPage() {
-  const { isAdmin } = usePermission()n
+  const { isAdmin } = usePermission()
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect')
 
