@@ -199,7 +199,7 @@ const chartColors = [
 ]
 
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
 }
 
 function getRevisionDate(item: DeviceOverviewItem) {

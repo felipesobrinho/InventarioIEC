@@ -18,7 +18,12 @@ export interface DashboardStats {
 
 export interface AlocacaoAtiva {
   id: string
-  colaborador: { nome: string; setor: string | null }
+  colaborador: {
+    nome: string
+    setor_rel?: {
+      nome: string | null
+    } | null
+  }
   data_inicio: string | null
   whatsapp?: boolean | null  // apenas para ramais
 }
