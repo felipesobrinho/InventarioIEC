@@ -360,7 +360,23 @@ export function ColaboradorAlocacoes({
   }
 
   if (total === 0) {
-    return <EmptyState />
+    return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 px-5 py-8 text-center">
+        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white dark:bg-slate-900 shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
+          <PackageOpen className="h-5 w-5 text-slate-400" />
+        </div>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Nenhum dispositivo alocado</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+          As alocações ativas deste colaborador aparecerão aqui.
+        </p>
+      </div>
+      <AdicionarAlocacaoForm
+        colaboradorId={colaboradorId}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+      />
+    </div>
+  )
   }
 
   const tipos = (['maquinas', 'notebooks', 'aparelhos', 'ramais'] as const).filter(

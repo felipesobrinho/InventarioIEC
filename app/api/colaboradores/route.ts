@@ -96,9 +96,13 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+      const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json() as Prisma.colaboradoresCreateInput
+    const { codigo } = body
+    if (codigo) {
+      const existe = await prisma.colaboradores.findFirst({ where: { codigo: Number(codigo) } })
+      if (existe) return NextResponse.json({ error: `Código ${codigo} já cadastrado para "${existe.nome}"` }, { status: 409 })
+    }
     const item = await prisma.colaboradores.create({ data: body })
 
     await registrarAuditoria({
