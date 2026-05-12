@@ -14,7 +14,14 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:all": "npm run test && npm run test:e2e",
-    "db:check-migrations": "node scripts/check-migrations.js"
+    "db:check-migrations": "node scripts/check-migrations.js",
+    "db:validate": "npm run db:check-migrations && npx prisma validate",
+    "db:diff:local": "node scripts/db-diff-local.js",
+    "db:apply:local": "node scripts/db-apply-local.js",
+    "db:apply:pending": "node scripts/db-apply-pending.js",
+    "db:dump:supa-schema": "node scripts/db-dump-supa-schema.js",
+    "db:pull:supa-prisma": "node scripts/db-pull-supa-prisma.js",
+    "db:generate:baseline": "node scripts/db-generate-baseline-from-snapshot.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

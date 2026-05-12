@@ -1,7 +1,7 @@
--- Baseline generated from prisma/schema.prisma.
--- Required because all ids use uuid_generate_v4().
+-- Baseline generated from the current Supabase production schema.
+-- Source snapshot: supabase/schema-snapshots/20260512141918_supa_current_schema.prisma
+-- This migration is intended for fresh local/CI databases only.
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- CreateEnum
 CREATE TYPE "categoria_equipamento" AS ENUM ('Administrativa', 'Academica');
 
@@ -87,6 +87,7 @@ CREATE TABLE "notebooks" (
     "emprestado_colaborador_id" UUID,
     "emprestado_desde" DATE,
     "emprestado_obs" TEXT,
+    "data_revisao" DATE,
 
     CONSTRAINT "notebooks_pkey" PRIMARY KEY ("id")
 );
@@ -380,3 +381,4 @@ ALTER TABLE "alocacoes_ramais" ADD CONSTRAINT "alocacoes_ramais_ramal_id_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "movimentacoes" ADD CONSTRAINT "movimentacoes_colaborador_id_fkey" FOREIGN KEY ("colaborador_id") REFERENCES "colaboradores"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+
