@@ -287,6 +287,7 @@ export default function AparelhosPage() {
       {/* Setor */}
       <SetorSelect
         value={setorIdFiltro}
+        localidadeId={localidadeIdFiltro}
         onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
         placeholder="Filtrar por setor..."
         allowCreate={false}
@@ -295,7 +296,7 @@ export default function AparelhosPage() {
 
       <LocalidadeSelect
         value={localidadeIdFiltro}
-        onChange={(id) => { setLocalidadeIdFiltro(id); setPage(1) }}
+        onChange={(id) => { setLocalidadeIdFiltro(id); setSetorIdFiltro(null); setPage(1); }}
         placeholder="Filtrar por localidade..."
         className="w-56"
       />

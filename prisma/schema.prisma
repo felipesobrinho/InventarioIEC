@@ -23,9 +23,11 @@ model setores {
   descricao             String?
   ativo                 Boolean         @default(true)
   created_at            DateTime?       @default(now()) @db.Timestamptz(6)
+  localidade_id         String?         @db.Uuid
   aparelhos             aparelhos[]
   colaboradores         colaboradores[]
   impressoras           impressoras[]
+  localidade_rel        localidades?    @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   maquinas              maquinas[]
   notebooks_emprestados notebooks[]     @relation("EmprestimoSetor")
   notebooks             notebooks[]
@@ -33,6 +35,7 @@ model setores {
   ramais                ramais[]
 
   @@index([ativo], map: "idx_setores_ativo")
+  @@index([localidade_id], map: "idx_setores_localidade_id")
   @@index([nome], map: "idx_setores_nome")
 }
 
@@ -48,6 +51,7 @@ model localidades {
   notebooks     notebooks[]
   racks         racks[]
   ramais        ramais[]
+  setores       setores[]
 
   @@index([ativo], map: "idx_localidades_ativo")
   @@index([nome], map: "idx_localidades_nome")

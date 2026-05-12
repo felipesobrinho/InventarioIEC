@@ -333,6 +333,7 @@ export default function NotebooksPage() {
       {/* Setor */}
       <SetorSelect
         value={setorIdFiltro}
+        localidadeId={localidadeIdFiltro}
         onChange={(value) => {
           setSetorIdFiltro(value)
           setPage(1)
@@ -344,6 +345,7 @@ export default function NotebooksPage() {
         value={localidadeIdFiltro}
         onChange={(value) => {
           setLocalidadeIdFiltro(value)
+          setSetorIdFiltro(null)
           setPage(1)
         }}
         placeholder="Filtrar por localidade..."

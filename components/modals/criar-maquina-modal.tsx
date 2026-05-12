@@ -101,6 +101,7 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Setor</label>
                   <SetorSelect
                     value={setorId}
+                    localidadeId={localidadeId}
                     onChange={(id) => setSetorId(id)}
                   />
               </div>
@@ -108,7 +109,7 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Localidade</label>
                 <LocalidadeSelect
                   value={localidadeId}
-                  onChange={(id) => setLocalidadeId(id)}
+                  onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
                 />
               </div>
               <div><label className={lbl}>Patrimônio CPU</label><input {...register('patrimonio_cpu')} className={inp} /></div>

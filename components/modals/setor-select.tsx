@@ -9,6 +9,8 @@ interface SetorOption {
   id: string
   nome: string
   ativo: boolean
+  localidade_id?: string | null
+  localidade_nome?: string | null
 }
 
 interface Props {
@@ -17,6 +19,7 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   allowCreate?: boolean
+  localidadeId?: string | null
   className?: string
 }
 
@@ -32,6 +35,7 @@ export function SetorSelect({
   placeholder = 'Selecionar setor...',
   disabled = false,
   allowCreate = true,
+  localidadeId = null,
   className = '',
 }: Props) {
   const [setores, setSetores] = useState<SetorOption[]>([])
@@ -41,7 +45,6 @@ export function SetorSelect({
   const [creating, setCreating] = useState(false)
   const [novoNome, setNovoNome] = useState('')
   const [pos, setPos] = useState<DropdownPos | null>(null)
-  const [mounted, setMounted] = useState(false)
 
   const triggerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,9 +53,6 @@ export function SetorSelect({
   const selectedNome = value
     ? setores.find(s => s.id === value)?.nome ?? null
     : null
-
-  // Garantir que estamos no cliente para o portal
-  useEffect(() => { setMounted(true) }, [])
 
   function calcPos() {
     if (!triggerRef.current) return
@@ -92,6 +92,7 @@ export function SetorSelect({
       try {
         const params = new URLSearchParams({ all: 'true', ativo: 'true' })
         if (search) params.set('search', search)
+        if (localidadeId) params.set('localidade_id', localidadeId)
         const res = await fetch(`/api/setores?${params}`)
         const json = await res.json()
         setSetores(Array.isArray(json) ? json : [])
@@ -102,7 +103,7 @@ export function SetorSelect({
       }
     }, 250)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [search, open])
+  }, [search, open, localidadeId])
 
   async function handleCreate() {
     if (!novoNome.trim()) return
@@ -111,7 +112,7 @@ export function SetorSelect({
       const res = await fetch('/api/setores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: novoNome.trim() }),
+        body: JSON.stringify({ nome: novoNome.trim(), localidade_id: localidadeId }),
       })
       if (res.status === 409) { toast.error('Setor já cadastrado.'); return }
       if (!res.ok) throw new Error()
@@ -134,7 +135,7 @@ export function SetorSelect({
     setSearch('')
   }
 
-  const dropdown = mounted && open && pos ? createPortal(
+  const dropdown = open && pos && typeof document !== 'undefined' ? createPortal(
     <>
       {/* Backdrop invisível para fechar */}
       <div

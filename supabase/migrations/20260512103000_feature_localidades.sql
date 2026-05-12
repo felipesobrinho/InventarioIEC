@@ -182,5 +182,7 @@ WHERE lower("nome") IN (
     'iec - barreiro',
     'rh',
     'máquinas backups',
-    'maquinas backups'
+    'maquinas backups',
+    'máquinas - backup',
+    'maquinas - backup'
 );

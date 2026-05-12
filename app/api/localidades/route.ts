@@ -22,7 +22,23 @@ export async function GET(request: Request) {
     const data = await prisma.localidades.findMany({
       where,
       orderBy: { nome: 'asc' },
-      select: { id: true, nome: true, ativo: true },
+      select: {
+        id: true,
+        nome: true,
+        ativo: true,
+        _count: {
+          select: {
+            setores: true,
+            colaboradores: true,
+            maquinas: true,
+            notebooks: true,
+            aparelhos: true,
+            impressoras: true,
+            ramais: true,
+            racks: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json(data)

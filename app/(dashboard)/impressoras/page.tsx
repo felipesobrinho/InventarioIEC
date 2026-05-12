@@ -14,6 +14,7 @@ import { BoolBadge } from "@/components/dashboard/status-badge";
 import { ImpressoraModal } from "@/components/modals/impressora-modal";
 import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal";
 import { SetorSelect } from "@/components/modals/setor-select";
+import { LocalidadeSelect } from "@/components/modals/localidade-select";
 import { Search, Plus } from "lucide-react";
 
 import type { Impressora, PaginatedResponse } from "@/types";
@@ -72,6 +73,9 @@ export default function ImpressorasPage() {
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(
     searchParams.get("setor_id")
   );
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(
+    searchParams.get("localidade_id")
+  );
 
   const [andar, setAndar] = useState("");
 
@@ -98,6 +102,7 @@ export default function ImpressorasPage() {
     if (search) params.set("search", search);
 
     if (setorIdFiltro) params.set("setor_id", setorIdFiltro);
+    if (localidadeIdFiltro) params.set("localidade_id", localidadeIdFiltro);
 
     if (andar) params.set("andar", andar);
 
@@ -112,7 +117,7 @@ export default function ImpressorasPage() {
     setTotalPages(json.totalPages);
 
     setLoading(false);
-  }, [page, search, setorIdFiltro, andar, status]);
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, andar, status]);
 
   useEffect(() => {
     void Promise.resolve().then(fetchData);
@@ -387,11 +392,22 @@ export default function ImpressorasPage() {
 
       <SetorSelect
         value={setorIdFiltro}
+        localidadeId={localidadeIdFiltro}
         onChange={(value) => {
           setSetorIdFiltro(value);
           setPage(1);
         }}
         placeholder="Filtrar por setor..."
+      />
+
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value);
+          setSetorIdFiltro(null);
+          setPage(1);
+        }}
+        placeholder="Filtrar por localidade..."
       />
 
       <input

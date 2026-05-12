@@ -305,6 +305,7 @@ export default function MaquinasPage() {
       {/* Setor */}
       <SetorSelect
         value={setorIdFiltro}
+        localidadeId={localidadeIdFiltro}
         onChange={(value) => {
           setSetorIdFiltro(value)
           setPage(1)
@@ -316,6 +317,7 @@ export default function MaquinasPage() {
         value={localidadeIdFiltro}
         onChange={(value) => {
           setLocalidadeIdFiltro(value)
+          setSetorIdFiltro(null)
           setPage(1)
         }}
         placeholder="Filtrar por localidade..."

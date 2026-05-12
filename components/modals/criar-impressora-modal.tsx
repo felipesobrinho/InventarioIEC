@@ -58,6 +58,7 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Setor</label>
                 <SetorSelect
                   value={setorId}
+                    localidadeId={localidadeId}
                   onChange={(id) => setSetorId(id)}
                 />
               </div>
@@ -65,7 +66,7 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Localidade</label>
                 <LocalidadeSelect
                   value={localidadeId}
-                  onChange={(id) => setLocalidadeId(id)}
+                  onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
                 />
               </div>
               <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>

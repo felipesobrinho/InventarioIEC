@@ -332,6 +332,7 @@ export default function RamaisPage() {
     {/* Setor */}
     <SetorSelect
      value={setorIdFiltro}
+        localidadeId={localidadeIdFiltro}
      onChange={(value) => {
       setSetorIdFiltro(value);
       setPage(1);
@@ -342,8 +343,7 @@ export default function RamaisPage() {
     <LocalidadeSelect
      value={localidadeIdFiltro}
      onChange={(value) => {
-      setLocalidadeIdFiltro(value);
-      setPage(1);
+      setLocalidadeIdFiltro(value); setSetorIdFiltro(null); setPage(1);
      }}
      placeholder="Filtrar por localidade..."
     />

@@ -144,6 +144,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
                     <label className={lbl}>Setor</label>
                     <SetorSelect
                       value={setorId}
+                    localidadeId={localidadeId}
                       onChange={(id) => setSetorId(id)}
                     />
                   </div>
@@ -151,7 +152,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
                     <label className={lbl}>Localidade</label>
                     <LocalidadeSelect
                       value={localidadeId}
-                      onChange={(id) => setLocalidadeId(id)}
+                      onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
                     />
                   </div>
                   <div>
