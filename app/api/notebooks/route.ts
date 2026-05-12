@@ -159,6 +159,12 @@ export async function POST(request: Request) {
     } else if (body.data_revisao === '' || body.data_revisao === null) {
       body.data_revisao = null
     }
+
+    if (body) {
+      const existe = await prisma.notebooks.findFirst({ where: { numero_patrimonio: body.numero_patrimonio } })
+      if (existe) return NextResponse.json({ error: `Número de patrimônio ${body.numero_patrimonio} já cadastrado` }, { status: 409 })
+    }
+
     const item = await prisma.notebooks.create({ data: body })
 
     await registrarAuditoria({
