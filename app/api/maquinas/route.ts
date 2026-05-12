@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -138,7 +139,14 @@ export async function POST(request: Request) {
     const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
     const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
-    const item = await prisma.maquinas.create({ data })
+    const id = randomUUID()
+    const item = await prisma.maquinas.create({
+      data: {
+        ...data,
+        id,
+        identificador: id,
+      },
+    })
 
     await registrarAuditoria({
       tabela: 'maquinas',

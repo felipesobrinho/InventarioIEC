@@ -88,7 +88,7 @@ export async function PUT(request: Request, { params }: Props) {
   const body = await request.json()
 
   // FIX: também descarta setor_nome (campo virtual) para não tentar persistir no banco
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, identificador, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
   const anterior = await prisma.maquinas.findUnique({ where: { id } })
   const item = await prisma.maquinas.update({ where: { id }, data })

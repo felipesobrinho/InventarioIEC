@@ -20,7 +20,6 @@ import { LocalidadeSelect } from "./localidade-select";
 
 const schema = z.object({
  nome_host: z.string().optional().nullable(),
- identificador: z.string().optional().nullable(),
  fabricante: z.string().optional().nullable(),
  modelo: z.string().optional().nullable(),
  categoria: z.enum(["Administrativa", "Academica"]).optional().nullable(),
@@ -62,7 +61,6 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
   resolver: zodResolver(schema),
   defaultValues: {
    nome_host: maquina.nome_host,
-   identificador: maquina.identificador,
    fabricante: maquina.fabricante,
    modelo: maquina.modelo,
    categoria: maquina.categoria,
@@ -252,10 +250,6 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          <div>
           <label className={lbl}>Nome Host</label>
           <input {...register("nome_host")} className={inp} />
-         </div>
-         <div>
-          <label className={lbl}>Identificador</label>
-          <input {...register("identificador")} className={inp} />
          </div>
          <div>
           <label className={lbl}>Fabricante</label>

@@ -13,7 +13,6 @@ import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
-  identificador: z.string().optional().nullable(),
   fabricante: z.string().optional().nullable(),
   modelo: z.string().optional().nullable(),
   categoria: z.enum(['Administrativa', 'Academica']).optional().nullable(),
@@ -82,7 +81,6 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
           <form id="criar-maq-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Nome Host</label><input {...register('nome_host')} className={inp} /></div>
-              <div><label className={lbl}>Identificador</label><input {...register('identificador')} className={inp} /></div>
               <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
               <div><label className={lbl}>Modelo</label><input {...register('modelo')} className={inp} /></div>
               <div className="col-span-2">
