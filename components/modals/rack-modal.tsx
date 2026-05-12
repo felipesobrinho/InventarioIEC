@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { DetailField, DetailSection } from '@/components/modals/detail-field'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { HistoricoPanel } from '@/components/modals/historico-panel'
 import { useCrud } from '@/hooks/use-crud'
 import { optionalInt } from '@/lib/zod-helpers'
@@ -33,7 +34,8 @@ interface Props {
 export function RackModal({ rack, onClose, onRefresh }: Props) {
   const [mode, setMode]               = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [setorId, setSetorId]         = useState<string | null>((rack as any).setor_id ?? null)
+  const [setorId, setSetorId]         = useState<string | null>(rack.setor_id ?? null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(rack.localidade_id ?? null)
 
   const { update, remove, saving, deleting } = useCrud('racks', () => {
     onRefresh()
@@ -54,7 +56,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(rack.id, { ...data, setor_id: setorId })
+    update(rack.id, { ...data, setor_id: setorId, localidade_id: localidadeId })
   }
 
   // Calcular portas livres localmente para exibição no view
@@ -79,7 +81,7 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
               </h2>
               {mode === 'view' && (
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  {(rack as any).setor_nome ?? rack.localizacao ?? '—'}
+                  {rack.setor_nome ?? rack.localizacao ?? '—'}
                 </p>
               )}
             </div>
@@ -96,7 +98,8 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
                 <DetailField label="Nome do Switch" value={rack.nome_switch} />
                 <DetailField label="Marca"          value={rack.marca_switch} />
                 <DetailField label="Patrimônio"     value={rack.numero_patrimonio} />
-                <DetailField label="Setor"          value={(rack as any).setor_nome ?? rack.localizacao} />
+                <DetailField label="Setor"          value={rack.setor_nome ?? rack.localizacao} />
+                <DetailField label="Localidade"     value={rack.localidade_nome ?? '—'} />
               </DetailSection>
 
               <DetailSection title="Portas">
@@ -142,6 +145,13 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
                     <SetorSelect
                       value={setorId}
                       onChange={(id) => setSetorId(id)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={lbl}>Localidade</label>
+                    <LocalidadeSelect
+                      value={localidadeId}
+                      onChange={(id) => setLocalidadeId(id)}
                     />
                   </div>
                   <div>

@@ -13,6 +13,7 @@ import type { Ramal } from "@/types";
 import { HistoricoPanel } from "./historico-panel";
 import { AlocacoesAtivasSection } from "@/components/modals/alocacoes-ativas-section";
 import { SetorSelect } from "./setor-select";
+import { LocalidadeSelect } from "./localidade-select";
 
 const schema = z.object({
  numero_ramal: z.string().optional().nullable(),
@@ -35,7 +36,10 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
  const [setorId, setSetorId] = useState<string | null>(
-    (ramal as any).setor_id ?? null
+    ramal.setor_id ?? null
+  )
+ const [localidadeId, setLocalidadeId] = useState<string | null>(
+    ramal.localidade_id ?? null
   )
 
  const { update, remove, saving, deleting } = useCrud("ramais", () => {
@@ -57,7 +61,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(ramal.id, {...data, setor_id: setorId});
+  update(ramal.id, {...data, setor_id: setorId, localidade_id: localidadeId});
  }
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -114,7 +118,8 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          label="Número"
          value={ramal.numero_ramal != null ? String(ramal.numero_ramal) : null}
         />
-        <DetailField label="Setor" value={(ramal as any).setor_nome ?? ramal.nome_setor ?? '—'} />
+        <DetailField label="Setor" value={ramal.setor_nome ?? ramal.nome_setor ?? '—'} />
+        <DetailField label="Localidade" value={ramal.localidade_nome ?? '—'} />
         <DetailField
          label="Prefixo Telefônico"
          value={ramal.prefixo_telefonico}
@@ -161,11 +166,18 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          </div>
          <div>
           <label className={lbl}>Setor</label>
-          <SetorSelect
+         <SetorSelect
            value={setorId}
            onChange={(id) =>
             setSetorId(id)
            }
+          />
+         </div>
+         <div>
+          <label className={lbl}>Localidade</label>
+          <LocalidadeSelect
+           value={localidadeId}
+           onChange={(id) => setLocalidadeId(id)}
           />
          </div>
          <div>

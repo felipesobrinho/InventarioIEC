@@ -22,6 +22,8 @@ export interface DeviceOverviewItem {
   identificador?: string | null
   setor?: string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   nome_setor?: string | null
   modelo?: string | null
   tipo?: number | string | null
@@ -115,6 +117,8 @@ interface ImpressoraOverviewPanelProps {
     setor: string | null
     setor_id?: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     revisao: string | null
     status: boolean | null
   }>
@@ -129,6 +133,8 @@ interface RackOverviewPanelProps {
     id: string
     nome_switch: string | null
     localizacao: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     quantidade_portas: number | null
     portas_em_uso: number | null
     portas_livres: number | null
@@ -144,6 +150,8 @@ interface ColaboradorOverviewPanelProps {
     id: string
     setor: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number
@@ -155,6 +163,8 @@ interface ColaboradorOverviewPanelProps {
     id: string
     setor: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number

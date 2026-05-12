@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { NotebookModal } from '@/components/modals/notebook-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { Notebook, PaginatedResponse } from '@/types'
@@ -62,6 +63,7 @@ export default function NotebooksPage() {
   // Filtros
   const [search, setSearch] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -80,6 +82,7 @@ export default function NotebooksPage() {
     })
     if (search)    params.set('search',    search)
     if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+    if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
     if (categoria) params.set('categoria', categoria)
     if (fabricante)params.set('fabricante',fabricante)
     if (alocacao)  params.set('alocacao',  alocacao)
@@ -98,7 +101,7 @@ export default function NotebooksPage() {
     } finally {
       if (!cancelledRef.current) setLoading(false)
     }
-  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, categoria, fabricante, alocacao, sort, dir])
 
   useEffect(() => {
     cancelledRef.current = false
@@ -335,6 +338,15 @@ export default function NotebooksPage() {
           setPage(1)
         }}
         placeholder="Filtrar por setor..."
+      />
+
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por localidade..."
       />
 
       {/* Categoria */}

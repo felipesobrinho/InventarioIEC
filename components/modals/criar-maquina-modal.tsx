@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
@@ -34,11 +35,12 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
-    const maquina = await create({ ...data, setor_id: setorId })
+    const maquina = await create({ ...data, setor_id: setorId, localidade_id: localidadeId })
     if (!maquina) return
 
     console.log(maquina)
@@ -101,6 +103,13 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                     value={setorId}
                     onChange={(id) => setSetorId(id)}
                   />
+              </div>
+              <div>
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect
+                  value={localidadeId}
+                  onChange={(id) => setLocalidadeId(id)}
+                />
               </div>
               <div><label className={lbl}>Patrimônio CPU</label><input {...register('patrimonio_cpu')} className={inp} /></div>
               <div><label className={lbl}>Patrimônio Monitor</label><input {...register('patrimonio_monitor')} className={inp} /></div>

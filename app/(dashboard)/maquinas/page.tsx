@@ -9,6 +9,7 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { Maquina, PaginatedResponse } from '@/types'
@@ -65,6 +66,7 @@ export default function MaquinasPage() {
   // Filtros
   const [search, setSearch] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')
@@ -86,6 +88,7 @@ export default function MaquinasPage() {
       })
       if (search)    params.set('search',    search)
       if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
       if (categoria) params.set('categoria', categoria)
       if (fabricante)params.set('fabricante',fabricante)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -108,7 +111,7 @@ export default function MaquinasPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -307,6 +310,15 @@ export default function MaquinasPage() {
           setPage(1)
         }}
         placeholder="Filtrar por setor..."
+      />
+
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por localidade..."
       />
 
       {/* Categoria */}

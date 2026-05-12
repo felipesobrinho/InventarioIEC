@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
@@ -28,6 +29,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   const [colabId, setColabId] = useState('')
   const [colabNome, setColabNome] = useState('')
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
   const [whatsapp, setWhatsapp] = useState(false)
   const [savingAlocacao, setSavingAlocacao] = useState(false)
 
@@ -37,7 +39,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
   })
 
   async function onSubmit(data: FormData) {
-    const ramal = await create({ ...data, setor_id: setorId })
+    const ramal = await create({ ...data, setor_id: setorId, localidade_id: localidadeId })
     if (!ramal) return
 
     if (colabId) {
@@ -91,6 +93,13 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
                 <SetorSelect
                   value={setorId}
                   onChange={(id) => setSetorId(id)}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect
+                  value={localidadeId}
+                  onChange={(id) => setLocalidadeId(id)}
                 />
               </div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>

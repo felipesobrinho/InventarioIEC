@@ -92,7 +92,19 @@ function aggregateKpiSeries(setores: SectorOverviewRow[]) {
   }))
 }
 
-export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
+export function SectorOverview({
+  setores,
+  title = 'Setores',
+  itemLabel = 'setores',
+  collaboratorLabel = 'Colaboradores por setor',
+  filterParam = 'setor_id',
+}: {
+  setores: SectorOverviewRow[]
+  title?: string
+  itemLabel?: string
+  collaboratorLabel?: string
+  filterParam?: string
+}) {
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([])
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
@@ -160,7 +172,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
 
   function buildCategoryHref(href: string) {
     if (!selectedSectorParam) return href
-    const params = new URLSearchParams({ setor_id: selectedSectorParam })
+    const params = new URLSearchParams({ [filterParam]: selectedSectorParam })
     return `${href}?${params.toString()}`
   }
 
@@ -169,7 +181,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-slate-400">Overview geral</p>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Setores</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
         </div>
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
           <Activity className="h-4 w-4" />
@@ -179,7 +191,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
       <div className="space-y-3">
         <KpiChart
           title={hasSectorSelection ? 'Disponibilidade da seleção' : 'Evolução da disponibilidade'}
-          subtitle={hasSectorSelection ? selectedSectors.map(sector => sector.nome).join(' + ') : 'Todos os setores do inventário'}
+          subtitle={hasSectorSelection ? selectedSectors.map(sector => sector.nome).join(' + ') : `Todos os ${itemLabel} do inventário`}
           points={kpiSeries}
         />
       </div>
@@ -196,7 +208,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
               <span className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white text-center dark:bg-slate-900">
                 <span className="text-xl font-bold text-slate-900 dark:text-white">{pieSectors.length}</span>
                 <span className="text-[10px] font-semibold uppercase text-slate-400">
-                  {hasSectorSelection ? 'selecionados' : 'setores'}
+                  {hasSectorSelection ? 'selecionados' : itemLabel}
                 </span>
               </span>
             </div>
@@ -204,7 +216,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
         </div>
 
         <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
-          <SectionTitle icon={<Users className="h-3.5 w-3.5" />} label="Colaboradores por setor" />
+          <SectionTitle icon={<Users className="h-3.5 w-3.5" />} label={collaboratorLabel} />
           {displayedSectors.length > 0 ? (
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {displayedSectors.map(sector => (
@@ -247,7 +259,7 @@ export function SectorOverview({ setores }: { setores: SectorOverviewRow[] }) {
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-xs text-slate-400">Sem dados para compor setores.</p>
+            <p className="mt-3 text-xs text-slate-400">Sem dados para compor {itemLabel}.</p>
           )}
         </div>
       </div>

@@ -15,6 +15,7 @@ import { useCrud } from "@/hooks/use-crud";
 import { formatDate } from "@/lib/utils";
 import type { Colaborador } from "@/types";
 import { SetorSelect } from "./setor-select";
+import { LocalidadeSelect } from "./localidade-select";
 
 const schema = z.object({
  nome: z.string().min(1, "Nome obrigatório"),
@@ -37,7 +38,10 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
  const [tab, setTab] = useState<Tab>("info");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
  const [setorId, setSetorId] = useState<string | null>(
-  (colaborador as any).setor_id ?? null
+  colaborador.setor_id ?? null
+)
+ const [localidadeId, setLocalidadeId] = useState<string | null>(
+  colaborador.localidade_id ?? null
 )
 
  const { update, remove, saving, deleting } = useCrud("colaboradores", () => {
@@ -59,7 +63,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(colaborador.id, {...data, setor_id: setorId});
+  update(colaborador.id, {...data, setor_id: setorId, localidade_id: localidadeId});
  }
 
  // Navegar para o item na respectiva página — fecha o modal e abre a página
@@ -145,7 +149,8 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
          label="Código de Pessoa"
          value={colaborador.codigo != null ? String(colaborador.codigo) : null}
         />
-      <DetailField label="Setor" value={(colaborador as any).setor_nome ?? colaborador.setor ?? '—'} />
+      <DetailField label="Setor" value={colaborador.setor_nome ?? colaborador.setor ?? '—'} />
+        <DetailField label="Localidade" value={colaborador.localidade_nome ?? '—'} />
         <DetailField
          label="Status"
          value={<StatusBadge status={colaborador.status} />}
@@ -232,6 +237,13 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
           onChange={(id) =>
            setSetorId(id)
           }
+         />
+        </div>
+        <div>
+         <label className={lbl}>Localidade</label>
+         <LocalidadeSelect
+          value={localidadeId}
+          onChange={(id) => setLocalidadeId(id)}
          />
         </div>
        </form>

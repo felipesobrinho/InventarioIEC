@@ -12,6 +12,7 @@ import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 
 type ActiveOverviewFilter = OverviewFilter & {
   key: string
@@ -82,6 +83,7 @@ export default function RamaisPage() {
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [fila, setFila] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')
@@ -168,6 +170,7 @@ export default function RamaisPage() {
       if (debouncedSearch)        params.set('search',        debouncedSearch)
       if (disponibilidade) params.set('disponibilidade', disponibilidade)
       if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
       if (fila !== '')   params.set('fila',          fila)
       if (alocacao)      params.set('alocacao',      alocacao)
       if (whatsappFiltro) params.set('whatsapp', whatsappFiltro)
@@ -190,7 +193,7 @@ export default function RamaisPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey, setorIdFiltro])
+  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey, setorIdFiltro, localidadeIdFiltro])
 
   useEffect(() => {
     let cancelled = false
@@ -334,6 +337,15 @@ export default function RamaisPage() {
       setPage(1);
      }}
      placeholder="Filtrar por setor..."
+    />
+
+    <LocalidadeSelect
+     value={localidadeIdFiltro}
+     onChange={(value) => {
+      setLocalidadeIdFiltro(value);
+      setPage(1);
+     }}
+     placeholder="Filtrar por localidade..."
     />
 
     <select

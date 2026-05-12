@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
 import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
@@ -48,6 +49,7 @@ export default function ColaboradoresPage() {
   const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
@@ -58,6 +60,7 @@ export default function ColaboradoresPage() {
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
     if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
+    if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
     if (status) params.set('status', status)
     const res = await fetch(`/api/colaboradores?${params}`)
     const json: PaginatedResponse<Colaborador> = await res.json()
@@ -65,7 +68,7 @@ export default function ColaboradoresPage() {
     setTotal(json.total)
     setTotalPages(json.totalPages)
     setLoading(false)
-  }, [page, search, setorIdFiltro, status])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, status])
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
@@ -217,6 +220,14 @@ export default function ColaboradoresPage() {
           setPage(1)
         }}
         placeholder="Filtrar por setor..."
+      />
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value)
+          setPage(1)
+        }}
+        placeholder="Filtrar por localidade..."
       />
       <select
         value={status}

@@ -92,10 +92,27 @@ async function getDashboardData() {
     },
    },
   });
+ const localidades = await prisma.localidades.findMany({
+   orderBy: { nome: "asc" },
+   include: {
+    _count: {
+     select: {
+      colaboradores: true,
+      maquinas: true,
+      notebooks: true,
+      aparelhos: true,
+      impressoras: true,
+      ramais: true,
+      racks: true,
+     },
+    },
+   },
+  });
 
  const maquinasKpi = await prisma.maquinas.findMany({
   select: {
    setor_id: true,
+   localidade_id: true,
    created_at: true,
    alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
   },
@@ -103,6 +120,7 @@ async function getDashboardData() {
  const notebooksKpi = await prisma.notebooks.findMany({
  select: {
    setor_id: true,
+   localidade_id: true,
    created_at: true,
    emprestado: true,
    emprestado_setor_id: true,
@@ -120,6 +138,7 @@ async function getDashboardData() {
  const aparelhosKpi = await prisma.aparelhos.findMany({
   select: {
    setor_id: true,
+   localidade_id: true,
    created_at: true,
    alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
   },
@@ -127,6 +146,7 @@ async function getDashboardData() {
  const ramaisKpi = await prisma.ramais.findMany({
   select: {
    setor_id: true,
+   localidade_id: true,
    created_at: true,
    alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
   },
@@ -144,6 +164,12 @@ async function getDashboardData() {
   ...notebooksKpi.map(item => ({ setor_id: getNotebookSectorId(item), created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
   ...aparelhosKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
   ...ramaisKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+ ];
+ const localidadeKpiItems: InventoryKpiItem[] = [
+  ...maquinasKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...notebooksKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
+  ...aparelhosKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...ramaisKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
  ];
 
  const notebookUnavailableIds = new Set([
@@ -175,6 +201,23 @@ async function getDashboardData() {
   },
   kpi: buildKpiSeries(kpiItems.filter(item => item.setor_id === setor.id)),
  }));
+ const localidadesOverview: SectorOverviewRow[] = localidades.map(localidade => ({
+  id: localidade.id,
+  nome: localidade.nome,
+  descricao: null,
+  ativo: localidade.ativo,
+  created_at: localidade.created_at?.toISOString() ?? null,
+  counts: {
+   colaboradores: localidade._count.colaboradores,
+   maquinas: localidade._count.maquinas,
+   notebooks: localidade._count.notebooks,
+   aparelhos: localidade._count.aparelhos,
+   impressoras: localidade._count.impressoras,
+   ramais: localidade._count.ramais,
+   racks: localidade._count.racks,
+  },
+  kpi: buildKpiSeries(localidadeKpiItems.filter(item => item.setor_id === localidade.id)),
+ }));
 
  return {
   stats: {
@@ -191,11 +234,12 @@ async function getDashboardData() {
    ramaisAlocados: ramaisAlocadosGroup.length,
   },
   setoresOverview,
+  localidadesOverview,
  };
 }
 
 export default async function DashboardPage() {
- const { stats, setoresOverview } = await getDashboardData();
+ const { stats, setoresOverview, localidadesOverview } = await getDashboardData();
 
  return (
   <div className="p-6 max-w-7xl mx-auto">
@@ -224,6 +268,13 @@ export default async function DashboardPage() {
   </div>
 </div>
 
+   <SectorOverview
+    setores={localidadesOverview}
+    title="Localidades"
+    itemLabel="localidades"
+    collaboratorLabel="Colaboradores por localidade"
+    filterParam="localidade_id"
+   />
    <SectorOverview setores={setoresOverview} />
 
    {/* Stats */}

@@ -12,6 +12,7 @@ import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Impressora } from '@/types'
 import { SetorSelect } from './setor-select'
+import { LocalidadeSelect } from './localidade-select'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
@@ -32,7 +33,10 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(
-    (impressora as any).setor_id ?? null
+    impressora.setor_id ?? null
+  )
+  const [localidadeId, setLocalidadeId] = useState<string | null>(
+    impressora.localidade_id ?? null
   )
 
   const { update, remove, saving, deleting } = useCrud('impressoras', () => {
@@ -56,7 +60,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(impressora.id, {...data, setor_id: setorId})
+    update(impressora.id, {...data, setor_id: setorId, localidade_id: localidadeId})
   }
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -98,7 +102,8 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                 <DetailField label="Endereço IP" value={impressora.endereco_ip} />
                 <DetailField label="Servidor Impressão" value={impressora.servidor_impressao} />
                 <DetailField label="Andar" value={impressora.andar} />
-                <DetailField label="Localidade/Setor" value={(impressora as any).setor_nome ?? impressora.setor ?? '—'} />
+                <DetailField label="Setor" value={impressora.setor_nome ?? impressora.setor ?? '—'} />
+                <DetailField label="Localidade" value={impressora.localidade_nome ?? impressora.localidade ?? '—'} />
                 <DetailField label="Tipo de Usuário" value={impressora.tipo_usuario} />
                 <DetailField label="Revisão" value={formatDate(impressora.revisao)} />
               </DetailSection>
@@ -120,6 +125,13 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                     <SetorSelect
                       value={setorId}
                       onChange={(id) => setSetorId(id)}
+                    />
+                  </div>
+                  <div>
+                    <label className={lbl}>Localidade</label>
+                    <LocalidadeSelect
+                      value={localidadeId}
+                      onChange={(id) => setLocalidadeId(id)}
                     />
                   </div>
                   <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>

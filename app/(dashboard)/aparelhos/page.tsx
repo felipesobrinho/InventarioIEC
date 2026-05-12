@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { BoolBadge } from '@/components/dashboard/status-badge'
 import { AparelhoModal } from '@/components/modals/aparelho-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search } from 'lucide-react'
 import { mapTipoAparelho } from '@/lib/utils'
 import type { Aparelho, PaginatedResponse } from '@/types'
@@ -101,6 +102,7 @@ export default function AparelhosPage() {
   // Filtros
   const [search, setSearch] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [status, setStatus] = useState('')
   const [chip, setChip] = useState('')
   const [alocacao, setAlocacao] = useState('')   // 'alocado' | 'livre' | ''
@@ -122,6 +124,7 @@ export default function AparelhosPage() {
       })
       if (search)    params.set('search',    search)
       if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
       if (status !== '') params.set('status', status)
       if (chip !== '') params.set('chip', chip)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -144,7 +147,7 @@ export default function AparelhosPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setorIdFiltro, status, chip, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, status, chip, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -288,6 +291,13 @@ export default function AparelhosPage() {
         placeholder="Filtrar por setor..."
         allowCreate={false}
         className="w-52"
+      />
+
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(id) => { setLocalidadeIdFiltro(id); setPage(1) }}
+        placeholder="Filtrar por localidade..."
+        className="w-56"
       />
 
       {/* Status */}

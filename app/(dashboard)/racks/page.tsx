@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { RackModal } from '@/components/modals/rack-modal'
 import { CriarRackModal } from '@/components/modals/criar-rack-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search, Plus } from 'lucide-react'
 import type { Rack, PaginatedResponse } from '@/types'
 
@@ -26,6 +27,7 @@ export default function RacksPage() {
 
   const [search, setSearch]             = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [sort, setSort]                 = useState('nome_switch')
   const [dir, setDir]                   = useState<'asc' | 'desc'>('asc')
 
@@ -93,6 +95,7 @@ export default function RacksPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20', sort, dir })
       if (search)       params.set('search',   search)
       if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
 
       try {
         const res = await fetch(`/api/racks?${params}`)
@@ -112,7 +115,7 @@ export default function RacksPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, search, setorIdFiltro, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, sort, dir, refreshKey])
 
   useEffect(() => {
     if (!inspectId) return
@@ -140,6 +143,11 @@ export default function RacksPage() {
         onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
         placeholder="Filtrar por setor..."
         allowCreate={false}
+      />
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(id) => { setLocalidadeIdFiltro(id); setPage(1) }}
+        placeholder="Filtrar por localidade..."
       />
       <select value={`${sort}:${dir}`} onChange={(e) => {
         const [s, d] = e.target.value.split(':')
