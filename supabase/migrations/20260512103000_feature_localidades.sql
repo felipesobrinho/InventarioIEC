@@ -78,6 +78,100 @@ BEGIN
     UPDATE "racks" SET "localidade_id" = sao_gabriel_id WHERE "localidade_id" IS NULL;
 END $$;
 
+DO $$
+DECLARE
+    setor_localidade_ids UUID[];
+BEGIN
+    SELECT array_agg("id") INTO setor_localidade_ids
+    FROM "setores"
+    WHERE lower("nome") IN (
+        'iec - são gabriel',
+        'iec - sao gabriel',
+        'iec - lourdes',
+        'iec - coreu',
+        'iec - betim',
+        'iec - barreiro'
+    );
+
+    UPDATE "colaboradores"
+    SET "setor_id" = NULL,
+        "setor" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids)
+       OR lower(coalesce("setor", '')) IN (
+            'iec - são gabriel',
+            'iec - sao gabriel',
+            'iec - lourdes',
+            'iec - coreu',
+            'iec - betim',
+            'iec - barreiro'
+       );
+
+    UPDATE "maquinas"
+    SET "setor_id" = NULL,
+        "setor" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids)
+       OR lower(coalesce("setor", '')) IN (
+            'iec - são gabriel',
+            'iec - sao gabriel',
+            'iec - lourdes',
+            'iec - coreu',
+            'iec - betim',
+            'iec - barreiro'
+       );
+
+    UPDATE "notebooks"
+    SET "setor_id" = NULL,
+        "setor" = NULL,
+        "emprestado_setor_id" = CASE
+            WHEN "emprestado_setor_id" = ANY(setor_localidade_ids) THEN NULL
+            ELSE "emprestado_setor_id"
+        END
+    WHERE "setor_id" = ANY(setor_localidade_ids)
+       OR "emprestado_setor_id" = ANY(setor_localidade_ids)
+       OR lower(coalesce("setor", '')) IN (
+            'iec - são gabriel',
+            'iec - sao gabriel',
+            'iec - lourdes',
+            'iec - coreu',
+            'iec - betim',
+            'iec - barreiro'
+       );
+
+    UPDATE "aparelhos"
+    SET "setor_id" = NULL,
+        "setor" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids)
+       OR lower(coalesce("setor", '')) IN (
+            'iec - são gabriel',
+            'iec - sao gabriel',
+            'iec - lourdes',
+            'iec - coreu',
+            'iec - betim',
+            'iec - barreiro'
+       );
+
+    UPDATE "impressoras"
+    SET "setor_id" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids);
+
+    UPDATE "ramais"
+    SET "setor_id" = NULL,
+        "nome_setor" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids)
+       OR lower(coalesce("nome_setor", '')) IN (
+            'iec - são gabriel',
+            'iec - sao gabriel',
+            'iec - lourdes',
+            'iec - coreu',
+            'iec - betim',
+            'iec - barreiro'
+       );
+
+    UPDATE "racks"
+    SET "setor_id" = NULL
+    WHERE "setor_id" = ANY(setor_localidade_ids);
+END $$;
+
 DELETE FROM "setores"
 WHERE lower("nome") IN (
     'iec - são gabriel',
