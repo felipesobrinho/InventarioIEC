@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
     const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
     const setorIds = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const sort    = searchParams.get('sort') || 'nome_switch'
     const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
@@ -40,12 +43,15 @@ export async function GET(request: Request) {
           { localizacao:    { contains: search, mode: 'insensitive' } },
           { numero_patrimonio: { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
         ],
       })
     }
 
     if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
     if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
 
     const where: any = AND.length > 0 ? { AND } : {}
 
@@ -57,6 +63,7 @@ export async function GET(request: Request) {
         orderBy: { [safeSort]: dir },
         include: {
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.racks.count({ where }),
@@ -65,6 +72,7 @@ export async function GET(request: Request) {
     const mapped = data.map((r: any) => ({
       ...r,
       setor_nome: r.setor_rel?.nome ?? r.localizacao ?? null,
+      localidade_nome: r.localidade_rel?.nome ?? null,
       portas_livres: r.quantidade_portas != null && r.portas_em_uso != null
         ? Math.max(0, r.quantidade_portas - r.portas_em_uso)
         : null,
@@ -88,7 +96,8 @@ export async function POST(request: Request) {
     // Nunca salvar portas_livres — é calculado
     const { portas_livres, ...data } = body
 
-    const item = await prisma.racks.create({ data })
+    const dataComLocalidade = await withLocalidadePadrao(data)
+    const item = await prisma.racks.create({ data: dataComLocalidade })
 
     await registrarAuditoria({
       tabela: 'racks',

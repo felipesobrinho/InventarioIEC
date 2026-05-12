@@ -31,6 +31,8 @@ export interface Colaborador {
   status: 'Ativo' | 'Inativo'
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   created_at: string | null
   alocacoes_maquinas_ativas?: number
   alocacoes_notebooks_ativas?: number
@@ -53,6 +55,8 @@ export interface Maquina {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   patrimonio_cpu: string | null
   patrimonio_monitor: string | null
   data_revisao: string | null
@@ -76,6 +80,8 @@ export interface Notebook {
   created_at: string | null
   setor_id: string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   emprestado: boolean
   emprestado_colaborador_id: string | null
   emprestado_setor_id: string | null
@@ -96,6 +102,8 @@ export interface Aparelho {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   status: boolean | null
   created_at: string | null
 
@@ -115,6 +123,8 @@ export interface Impressora {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   servidor_impressao: string | null
   identificador_selb: string | null
   tipo_usuario: string | null
@@ -129,6 +139,8 @@ export interface Ramal {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   nome_setor: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null
@@ -159,6 +171,8 @@ export interface Rack {
   setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
 }
 
 export interface Movimentacao {

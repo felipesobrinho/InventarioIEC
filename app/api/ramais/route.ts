@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
 import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
@@ -26,6 +27,8 @@ export async function GET(request: Request) {
     const whatsapp        = searchParams.get('whatsapp')   || ''
     const setorId         = searchParams.get('setor_id')   || ''   // ← ADICIONADO
     const setorIds        = parseSetorIds(setorId)
+    const localidadeId    = searchParams.get('localidade_id') || ''
+    const localidadeIds   = parseSetorIds(localidadeId)
     const sort            = searchParams.get('sort')       || 'numero_ramal'
     const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
@@ -57,6 +60,11 @@ export async function GET(request: Request) {
               nome: { contains: search, mode: 'insensitive' },
             },
           },
+          {
+            localidade_rel: {
+              nome: { contains: search, mode: 'insensitive' },
+            },
+          },
         ],
       })
     }
@@ -64,6 +72,8 @@ export async function GET(request: Request) {
     // Filtro por setor selecionado no SetorSelect — comparação exata por UUID
     if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
     if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
 
     if (disponibilidade) {
       AND.push({ disponibilidade: { contains: disponibilidade, mode: 'insensitive' } })
@@ -107,6 +117,7 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.ramais.count({ where }),
@@ -131,6 +142,7 @@ export async function GET(request: Request) {
     const mapped = data.map((r: any) => ({
       ...r,
       setor_nome: r.setor_rel?.nome ?? r.nome_setor ?? r.setor ?? null,
+      localidade_nome: r.localidade_rel?.nome ?? null,
       alocacoes_ativas: r.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
@@ -170,7 +182,8 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
-    const item = await prisma.ramais.create({ data: body })
+    const data = await withLocalidadePadrao(body)
+    const item = await prisma.ramais.create({ data })
 
     await registrarAuditoria({
       tabela: 'ramais',

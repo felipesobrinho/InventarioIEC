@@ -9,8 +9,9 @@ type Props = { params: Promise<{ id: string }> }
 
 async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   if (!snapshot) return snapshot
-  const { setor_id, ...rest } = snapshot
+  const { setor_id, localidade_id, ...rest } = snapshot
   let setor_nome: string | null = null
+  let localidade_nome: string | null = null
   if (setor_id) {
     const setor = await prisma.setores.findUnique({
       where: { id: setor_id },
@@ -18,7 +19,18 @@ async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
     })
     setor_nome = setor?.nome ?? setor_id
   }
-  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+  if (localidade_id) {
+    const localidade = await prisma.localidades.findUnique({
+      where: { id: localidade_id },
+      select: { nome: true },
+    })
+    localidade_nome = localidade?.nome ?? localidade_id
+  }
+  return {
+    ...rest,
+    ...(setor_id !== undefined ? { setor_nome } : {}),
+    ...(localidade_id !== undefined ? { localidade_nome } : {}),
+  }
 }
 
 export async function GET(_: Request, { params }: Props) {
@@ -37,6 +49,7 @@ export async function GET(_: Request, { params }: Props) {
       },
       // FIX: inclui setor_rel para resolver setor_nome
       setor_rel: { select: { id: true, nome: true } },
+      localidade_rel: { select: { id: true, nome: true } },
     },
   })
 
@@ -64,7 +77,9 @@ export async function GET(_: Request, { params }: Props) {
     alocacoes: undefined,
     // FIX: expõe setor_nome resolvido
     setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    localidade_nome: item.localidade_rel?.nome ?? null,
     setor_rel: undefined,
+    localidade_rel: undefined,
   }
 
   return NextResponse.json(result)
@@ -78,7 +93,7 @@ export async function PUT(request: Request, { params }: Props) {
   const body = await request.json()
 
   // FIX: também descarta setor_nome (campo virtual) para não tentar persistir no banco
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, ...data } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
   const anterior = await prisma.aparelhos.findUnique({ where: { id } })
   const item = await prisma.aparelhos.update({ where: { id }, data })

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
 
 export const runtime = 'nodejs'
 
@@ -22,6 +23,8 @@ export async function GET(request: Request) {
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
     const setorIds  = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const categoria = searchParams.get('categoria')  || ''
     const enderecoIp = searchParams.get('endereco_ip')  || ''
     const fabricante= searchParams.get('fabricante') || ''
@@ -45,6 +48,7 @@ export async function GET(request: Request) {
           { fabricante:   { contains: search, mode: 'insensitive' } },
           { endereco_ip:   { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
               some: {
@@ -59,6 +63,8 @@ export async function GET(request: Request) {
 
     if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
     if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
     if (enderecoIp) AND.push({ endereco_ip: { contains: enderecoIp, mode: 'insensitive' } })
@@ -88,6 +94,7 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.maquinas.count({ where }),
@@ -96,6 +103,7 @@ export async function GET(request: Request) {
     const mapped = data.map((m: any) => ({
       ...m,
       setor_nome: m.setor_rel?.nome ?? m.setor ?? null,
+      localidade_nome: m.localidade_rel?.nome ?? null,
       alocacoes_ativas: m.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
@@ -128,7 +136,8 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
-    const item = await prisma.maquinas.create({ data: body })
+    const data = await withLocalidadePadrao(body)
+    const item = await prisma.maquinas.create({ data })
 
     await registrarAuditoria({
       tabela: 'maquinas',

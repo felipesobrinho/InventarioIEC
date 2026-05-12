@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +22,8 @@ export async function GET(request: Request) {
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
     const setorIds  = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const categoria = searchParams.get('categoria')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
@@ -42,6 +45,7 @@ export async function GET(request: Request) {
           { fabricante:       { contains: search, mode: 'insensitive' } },
           { numero_patrimonio:{ contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
               some: {
@@ -72,6 +76,8 @@ export async function GET(request: Request) {
         ],
       })
     }
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
 
@@ -105,6 +111,7 @@ export async function GET(request: Request) {
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
           emprestado_colaborador: { select: { nome: true, setor: true } },
           emprestado_setor:       { select: { nome: true } },
         },
@@ -115,6 +122,7 @@ export async function GET(request: Request) {
     const mapped = data.map((n: any) => ({
       ...n,
       setor_nome: n.setor_rel?.nome ?? n.setor ?? null,
+      localidade_nome: n.localidade_rel?.nome ?? null,
       emprestado_colaborador_nome: n.emprestado_colaborador?.nome ?? null,
       emprestado_setor_nome:       n.emprestado_setor?.nome ?? null,
       // limpar relações aninhadas
@@ -159,7 +167,8 @@ export async function POST(request: Request) {
     } else if (body.data_revisao === '' || body.data_revisao === null) {
       body.data_revisao = null
     }
-    const item = await prisma.notebooks.create({ data: body })
+    const data = await withLocalidadePadrao(body)
+    const item = await prisma.notebooks.create({ data })
 
     await registrarAuditoria({
       tabela: 'notebooks',

@@ -10,8 +10,9 @@ type Props = { params: Promise<{ id: string }> }
 // Substitui setor_id por setor_nome num snapshot para exibição legível na auditoria
 async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   if (!snapshot) return snapshot
-  const { setor_id, ...rest } = snapshot
+  const { setor_id, localidade_id, ...rest } = snapshot
   let setor_nome: string | null = null
+  let localidade_nome: string | null = null
   if (setor_id) {
     const setor = await prisma.setores.findUnique({
       where: { id: setor_id },
@@ -19,7 +20,18 @@ async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
     })
     setor_nome = setor?.nome ?? setor_id
   }
-  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+  if (localidade_id) {
+    const localidade = await prisma.localidades.findUnique({
+      where: { id: localidade_id },
+      select: { nome: true },
+    })
+    localidade_nome = localidade?.nome ?? localidade_id
+  }
+  return {
+    ...rest,
+    ...(setor_id !== undefined ? { setor_nome } : {}),
+    ...(localidade_id !== undefined ? { localidade_nome } : {}),
+  }
 }
 
 export async function GET(_: Request, { params }: Props) {
@@ -29,7 +41,10 @@ export async function GET(_: Request, { params }: Props) {
   const { id } = await params
   const item = await prisma.racks.findUnique({
     where: { id },
-    include: { setor_rel: { select: { id: true, nome: true } } },
+    include: {
+      setor_rel: { select: { id: true, nome: true } },
+      localidade_rel: { select: { id: true, nome: true } },
+    },
   })
 
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
@@ -37,6 +52,7 @@ export async function GET(_: Request, { params }: Props) {
   return NextResponse.json({
     ...item,
     setor_nome: item.setor_rel?.nome ?? item.localizacao ?? null,
+    localidade_nome: item.localidade_rel?.nome ?? null,
     portas_livres: item.quantidade_portas != null && item.portas_em_uso != null
       ? Math.max(0, item.quantidade_portas - item.portas_em_uso)
       : null,
@@ -53,7 +69,7 @@ export async function PUT(request: Request, { params }: Props) {
     const body = await request.json()
 
     // Nunca salvar portas_livres, setor_rel, setor_nome — campos calculados/virtuais
-    const { portas_livres, setor_rel, setor_nome, created_at, id: _id, ...rest } = body
+    const { portas_livres, setor_rel, setor_nome, localidade_rel, localidade_nome, created_at, id: _id, ...rest } = body
 
     const anterior = await prisma.racks.findUnique({ where: { id } })
     if (!anterior) return NextResponse.json({ error: 'Rack não encontrado' }, { status: 404 })
@@ -80,6 +96,7 @@ export async function PUT(request: Request, { params }: Props) {
     return NextResponse.json({
       ...item,
       setor_nome: null, // será resolvido na próxima listagem
+      localidade_nome: null,
       portas_livres: item.quantidade_portas != null && item.portas_em_uso != null
         ? Math.max(0, item.quantidade_portas - item.portas_em_uso)
         : null,
