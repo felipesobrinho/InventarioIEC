@@ -19,7 +19,8 @@ VALUES
     ('IEC - Lourdes', true),
     ('IEC - Coreu', true),
     ('IEC - Betim', true),
-    ('IEC - Barreiro', true)
+    ('IEC - Barreiro', true),
+    ('IEC - Contagem', true)
 ON CONFLICT ("nome") DO UPDATE SET "ativo" = EXCLUDED."ativo";
 
 ALTER TABLE "colaboradores" ADD COLUMN IF NOT EXISTS "localidade_id" UUID;
@@ -90,7 +91,9 @@ BEGIN
         'iec - lourdes',
         'iec - coreu',
         'iec - betim',
-        'iec - barreiro'
+        'iec - barreiro',
+        'iec - contagem',
+        'iec contagem'
     );
 
     UPDATE "colaboradores"
@@ -103,7 +106,9 @@ BEGIN
             'iec - lourdes',
             'iec - coreu',
             'iec - betim',
-            'iec - barreiro'
+            'iec - barreiro',
+            'iec - contagem',
+            'iec contagem'
        );
 
     UPDATE "maquinas"
@@ -116,7 +121,9 @@ BEGIN
             'iec - lourdes',
             'iec - coreu',
             'iec - betim',
-            'iec - barreiro'
+            'iec - barreiro',
+            'iec - contagem',
+            'iec contagem'
        );
 
     UPDATE "notebooks"
@@ -134,7 +141,9 @@ BEGIN
             'iec - lourdes',
             'iec - coreu',
             'iec - betim',
-            'iec - barreiro'
+            'iec - barreiro',
+            'iec - contagem',
+            'iec contagem'
        );
 
     UPDATE "aparelhos"
@@ -147,7 +156,9 @@ BEGIN
             'iec - lourdes',
             'iec - coreu',
             'iec - betim',
-            'iec - barreiro'
+            'iec - barreiro',
+            'iec - contagem',
+            'iec contagem'
        );
 
     UPDATE "impressoras"
@@ -164,7 +175,9 @@ BEGIN
             'iec - lourdes',
             'iec - coreu',
             'iec - betim',
-            'iec - barreiro'
+            'iec - barreiro',
+            'iec - contagem',
+            'iec contagem'
        );
 
     UPDATE "racks"
@@ -180,6 +193,8 @@ WHERE lower("nome") IN (
     'iec - coreu',
     'iec - betim',
     'iec - barreiro',
+    'iec - contagem',
+    'iec contagem',
     'rh',
     'máquinas backups',
     'maquinas backups',
