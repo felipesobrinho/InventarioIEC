@@ -160,7 +160,12 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          entidade="maquinas"
          alocacoes={(maquina.alocacoes_ativas ?? []).map((a) => ({
           id: a.id,
-          colaborador: a.colaborador,
+          colaborador: {
+                nome: a.colaborador.nome,
+                setor_rel: {
+                        nome: a.colaborador.setor_rel?.nome ?? null,
+                },
+          },
           data_inicio: a.data_inicio ?? null,
          }))}
          onRefresh={onRefresh}

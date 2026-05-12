@@ -410,7 +410,7 @@ export default function MaquinasPage() {
 }
 
 function getMaquinaSetor(item?: Maquina | null) {
-  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
