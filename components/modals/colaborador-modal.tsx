@@ -234,7 +234,6 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
          <label className={lbl}>Setor</label>
          <SetorSelect
           value={setorId}
-                    localidadeId={localidadeId}
           onChange={(id) =>
            setSetorId(id)
           }
@@ -244,7 +243,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
          <label className={lbl}>Localidade</label>
          <LocalidadeSelect
           value={localidadeId}
-          onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
+          onChange={(id) => { setLocalidadeId(id) }}
          />
         </div>
        </form>

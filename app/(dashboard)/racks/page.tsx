@@ -140,7 +140,6 @@ export default function RacksPage() {
       </div>
       <SetorSelect
         value={setorIdFiltro}
-        localidadeId={localidadeIdFiltro}
         onChange={(id) => { setSetorIdFiltro(id); setPage(1) }}
         placeholder="Filtrar por setor..."
         allowCreate={false}

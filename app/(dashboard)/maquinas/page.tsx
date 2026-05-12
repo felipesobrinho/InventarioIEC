@@ -305,7 +305,6 @@ export default function MaquinasPage() {
       {/* Setor */}
       <SetorSelect
         value={setorIdFiltro}
-        localidadeId={localidadeIdFiltro}
         onChange={(value) => {
           setSetorIdFiltro(value)
           setPage(1)

@@ -69,11 +69,11 @@ export function CriarRackModal({ onClose, onRefresh }: Props) {
               </div>
               <div className="col-span-2">
                 <label className={lbl}>Setor</label>
-                <SetorSelect value={setorId} localidadeId={localidadeId} onChange={(id) => setSetorId(id)} />
+                <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
               </div>
               <div className="col-span-2">
                 <label className={lbl}>Localidade</label>
-                <LocalidadeSelect value={localidadeId} onChange={(id) => { setLocalidadeId(id); setSetorId(null) }} />
+                <LocalidadeSelect value={localidadeId} onChange={(id) => { setLocalidadeId(id) }} />
               </div>
               <div>
                 <label className={lbl}>Total de Portas</label>

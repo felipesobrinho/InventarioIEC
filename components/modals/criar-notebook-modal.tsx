@@ -94,7 +94,6 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Setor</label>
                 <SetorSelect
                   value={setorId}
-                    localidadeId={localidadeId}
                   onChange={(id) => setSetorId(id)}
                 />
               </div>
@@ -102,7 +101,7 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Localidade</label>
                 <LocalidadeSelect
                   value={localidadeId}
-                  onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
+                  onChange={(id) => { setLocalidadeId(id) }}
                 />
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">

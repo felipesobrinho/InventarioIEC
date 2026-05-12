@@ -92,7 +92,6 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Setor</label>
                 <SetorSelect
                   value={setorId}
-                    localidadeId={localidadeId}
                   onChange={(id) => setSetorId(id)}
                 />
               </div>
@@ -100,7 +99,7 @@ export function CriarRamalModal({ onClose, onRefresh }: Props) {
                 <label className={lbl}>Localidade</label>
                 <LocalidadeSelect
                   value={localidadeId}
-                  onChange={(id) => { setLocalidadeId(id); setSetorId(null) }}
+                  onChange={(id) => { setLocalidadeId(id) }}
                 />
               </div>
               <div><label className={lbl}>Prefixo Telefônico</label><input {...register('prefixo_telefonico')} className={inp} /></div>

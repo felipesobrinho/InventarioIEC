@@ -215,7 +215,6 @@ export default function ColaboradoresPage() {
       </div>
       <SetorSelect
         value={setorIdFiltro}
-        localidadeId={localidadeIdFiltro}
         onChange={(value) => {
           setSetorIdFiltro(value)
           setPage(1)

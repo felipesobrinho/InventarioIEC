@@ -28,7 +28,6 @@ export async function GET(request: Request) {
         ativo: true,
         _count: {
           select: {
-            setores: true,
             colaboradores: true,
             maquinas: true,
             notebooks: true,

@@ -17,7 +17,6 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   allowCreate?: boolean
-  localidadeId?: string | null
   className?: string
 }
 
@@ -33,7 +32,6 @@ export function SetorSelect({
   placeholder = 'Selecionar setor...',
   disabled = false,
   allowCreate = true,
-  localidadeId = null,
   className = '',
 }: Props) {
   const [setores, setSetores] = useState<SetorOption[]>([])
@@ -100,7 +98,7 @@ export function SetorSelect({
       }
     }, 250)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [search, open, localidadeId])
+  }, [search, open])
 
   async function handleCreate() {
     if (!novoNome.trim()) return
