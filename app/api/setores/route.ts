@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
-import { getLocalidadePadraoId } from '@/lib/localidades'
 import type { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
@@ -16,7 +15,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const search  = searchParams.get('search') || ''
     const ativo   = searchParams.get('ativo')  || ''
-    const localidadeId = searchParams.get('localidade_id') || ''
     const all     = searchParams.get('all')    === 'true'
     const page    = parseInt(searchParams.get('page')  || '1')
     const limit   = parseInt(searchParams.get('limit') || '50')
@@ -24,7 +22,6 @@ export async function GET(request: Request) {
     const where: Prisma.setoresWhereInput = {}
     if (search) where.nome = { contains: search, mode: 'insensitive' }
     if (ativo !== '') where.ativo = ativo === 'true'
-    if (localidadeId) where.localidade_id = localidadeId
 
     if (all) {
       const data = await prisma.setores.findMany({
@@ -34,15 +31,9 @@ export async function GET(request: Request) {
           id: true,
           nome: true,
           ativo: true,
-          localidade_id: true,
-          localidade_rel: { select: { id: true, nome: true } },
         },
       })
-      return NextResponse.json(data.map(item => ({
-        ...item,
-        localidade_nome: item.localidade_rel?.nome ?? null,
-        localidade_rel: undefined,
-      })))
+      return NextResponse.json(data)
     }
 
     const [data, total] = await Promise.all([
@@ -63,18 +54,13 @@ export async function GET(request: Request) {
               racks: true,
             },
           },
-          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.setores.count({ where }),
     ])
 
     return NextResponse.json({
-      data: data.map(item => ({
-        ...item,
-        localidade_nome: item.localidade_rel?.nome ?? null,
-        localidade_rel: undefined,
-      })),
+      data,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -91,7 +77,7 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { usuario_id, usuario_nome } = await getAuditSession()
-    const { nome, descricao, localidade_id } = await request.json()
+    const { nome, descricao } = await request.json()
 
     if (!nome?.trim()) {
       return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
@@ -100,13 +86,10 @@ export async function POST(request: Request) {
     const existe = await prisma.setores.findUnique({ where: { nome: nome.trim() } })
     if (existe) return NextResponse.json({ error: 'Setor já cadastrado' }, { status: 409 })
 
-    const localidadeId = localidade_id || await getLocalidadePadraoId()
-
     const item = await prisma.setores.create({
       data: {
         nome: nome.trim(),
         descricao: descricao || null,
-        localidade_id: localidadeId,
         ativo: true,
       },
     })

@@ -9,8 +9,6 @@ interface SetorOption {
   id: string
   nome: string
   ativo: boolean
-  localidade_id?: string | null
-  localidade_nome?: string | null
 }
 
 interface Props {
@@ -92,7 +90,6 @@ export function SetorSelect({
       try {
         const params = new URLSearchParams({ all: 'true', ativo: 'true' })
         if (search) params.set('search', search)
-        if (localidadeId) params.set('localidade_id', localidadeId)
         const res = await fetch(`/api/setores?${params}`)
         const json = await res.json()
         setSetores(Array.isArray(json) ? json : [])
@@ -112,7 +109,7 @@ export function SetorSelect({
       const res = await fetch('/api/setores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: novoNome.trim(), localidade_id: localidadeId }),
+        body: JSON.stringify({ nome: novoNome.trim() }),
       })
       if (res.status === 409) { toast.error('Setor já cadastrado.'); return }
       if (!res.ok) throw new Error()

@@ -5,7 +5,6 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
-import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search, Plus, Pencil, Trash2, Loader2, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import { BoolBadge } from '@/components/dashboard/status-badge'
@@ -15,8 +14,6 @@ interface Setor {
   nome: string
   descricao: string | null
   ativo: boolean
-  localidade_id: string | null
-  localidade_nome?: string | null
   created_at: string | null
   _count?: {
     colaboradores: number
@@ -38,7 +35,6 @@ export default function SetoresPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [search, setSearch]   = useState('')
   const [ativo, setAtivo]     = useState('')
-  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(null)
 
   // Modal de criação/edição
   const [showForm, setShowForm]   = useState(false)
@@ -46,7 +42,6 @@ export default function SetoresPage() {
   const [formNome, setFormNome]   = useState('')
   const [formDesc, setFormDesc]   = useState('')
   const [formAtivo, setFormAtivo] = useState(true)
-  const [formLocalidadeId, setFormLocalidadeId] = useState<string | null>(null)
   const [saving, setSaving]       = useState(false)
 
   // Confirm delete
@@ -62,7 +57,6 @@ export default function SetoresPage() {
     const params = new URLSearchParams({ page: String(page), limit: '30' })
     if (search) params.set('search', search)
     if (ativo)  params.set('ativo', ativo)
-    if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
 
     fetch(`/api/setores?${params}`)
       .then(r => r.json())
@@ -77,14 +71,14 @@ export default function SetoresPage() {
       .finally(() => { if (!cancelledRef.current) setLoading(false) })
 
     return () => { cancelledRef.current = true }
-  }, [page, search, ativo, localidadeIdFiltro, refreshKey])
+  }, [page, search, ativo, refreshKey])
 
   function openCreate() {
-    setEditing(null); setFormNome(''); setFormDesc(''); setFormAtivo(true); setFormLocalidadeId(localidadeIdFiltro); setShowForm(true)
+    setEditing(null); setFormNome(''); setFormDesc(''); setFormAtivo(true); setShowForm(true)
   }
 
   function openEdit(s: Setor) {
-    setEditing(s); setFormNome(s.nome); setFormDesc(s.descricao || ''); setFormAtivo(s.ativo); setFormLocalidadeId(s.localidade_id); setShowForm(true)
+    setEditing(s); setFormNome(s.nome); setFormDesc(s.descricao || ''); setFormAtivo(s.ativo); setShowForm(true)
   }
 
   async function handleSave() {
@@ -96,7 +90,7 @@ export default function SetoresPage() {
       const res    = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: formNome.trim(), descricao: formDesc || null, ativo: formAtivo, localidade_id: formLocalidadeId }),
+        body: JSON.stringify({ nome: formNome.trim(), descricao: formDesc || null, ativo: formAtivo }),
       })
       if (res.status === 409) { toast.error('Setor já cadastrado.'); return }
       if (!res.ok) throw new Error()
@@ -135,11 +129,6 @@ export default function SetoresPage() {
           <span className="font-medium text-slate-800 dark:text-slate-200">{row.original.nome}</span>
         </div>
       ),
-    },
-    {
-      accessorKey: 'localidade_nome',
-      header: 'Localidade',
-      cell: ({ row }) => row.original.localidade_nome || <span className="text-slate-400 text-xs">Sem localidade</span>,
     },
     {
       accessorKey: 'descricao',
@@ -200,11 +189,6 @@ export default function SetoresPage() {
         <option value="true">Ativos</option>
         <option value="false">Inativos</option>
       </select>
-      <LocalidadeSelect
-        value={localidadeIdFiltro}
-        onChange={(id) => { setLocalidadeIdFiltro(id); setPage(1) }}
-        placeholder="Filtrar por localidade..."
-      />
     </>
   )
 
@@ -239,13 +223,6 @@ export default function SetoresPage() {
                 <input value={formNome} onChange={e => setFormNome(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Ex: Informática" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Localidade</label>
-                <LocalidadeSelect
-                  value={formLocalidadeId}
-                  onChange={(id) => setFormLocalidadeId(id)}
-                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Descrição</label>
