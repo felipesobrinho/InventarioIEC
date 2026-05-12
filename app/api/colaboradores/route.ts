@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 import { status_colaborador, type Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
 
     const mapped = data.map((c) => ({
       ...c,
-      setor_nome: c.setor_rel?.nome ?? c.setor ?? null,
+      setor_nome: c.setor_rel?.nome ?? null,
       localidade_nome: c.localidade_rel?.nome ?? null,
       alocacoes_maquinas_ativas: c._count?.alocacoes_maquinas ?? 0,
       alocacoes_notebooks_ativas: (c._count?.alocacoes_notebooks ?? 0) + (c._count?.notebooks_emprestados ?? 0),
@@ -105,9 +106,9 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json() as Prisma.colaboradoresCreateInput
-    const data = await withLocalidadePadrao(body as any)
+    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body as any))
     const item = await prisma.colaboradores.create({ data })
 
     await registrarAuditoria({

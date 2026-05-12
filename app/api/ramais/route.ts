@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     const dir: Prisma.SortOrder = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
-      numero_ramal: true, nome_setor: true,
+      numero_ramal: true, setor_id: true,
       prefixo_telefonico: true, disponibilidade: true, created_at: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'numero_ramal'
@@ -45,7 +46,6 @@ export async function GET(request: Request) {
       AND.push({
         OR: [
           { numero_ramal: { contains: search, mode: 'insensitive' } },
-          { nome_setor: { contains: search, mode: 'insensitive' } },
           {
             alocacoes: {
               some: {
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
     const where: any = AND.length > 0 ? { AND } : {}
 
     // Ordenação — setor via relação precisa de sintaxe diferente
-    const orderBy = safeSort === 'nome_setor'
+    const orderBy = safeSort === 'setor_id'
       ? { setor_rel: { nome: dir } }
       : { [safeSort]: dir }
 
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+            include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
@@ -141,14 +141,14 @@ export async function GET(request: Request) {
 
     const mapped = data.map((r: any) => ({
       ...r,
-      setor_nome: r.setor_rel?.nome ?? r.nome_setor ?? r.setor ?? null,
+      setor_nome: r.setor_rel?.nome ?? null,
       localidade_nome: r.localidade_rel?.nome ?? null,
       alocacoes_ativas: r.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
         tipo_base: a.tipo_base,
         whatsapp: a.whatsapp,
-        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? null,
         canal_adicional: a.canal_adicional,
         data_inicio: a.data_inicio,
       })),
@@ -158,9 +158,7 @@ export async function GET(request: Request) {
             tipo_base: r.alocacoes[0].tipo_base,
             whatsapp: r.alocacoes[0].whatsapp,
             setor:
-              r.alocacoes[0].colaborador?.setor_rel?.nome ??
-              r.alocacoes[0].colaborador?.setor ??
-              null,
+              r.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
             data_inicio: r.alocacoes[0].data_inicio,
           }
         : null,
@@ -180,9 +178,9 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
-    const data = await withLocalidadePadrao(body)
+    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
     const item = await prisma.ramais.create({ data })
 
     await registrarAuditoria({

@@ -37,7 +37,7 @@ function hasMissingRamalData(item: Ramal) {
     item.numero_ramal,
     item.prefixo_telefonico,
     item.senha_acesso,
-    item.setor_nome ?? item.setor ?? item.nome_setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -113,9 +113,9 @@ export default function RamaisPage() {
       },
     },
     {
-      accessorKey: 'nome_setor',
+      accessorKey: 'setor_nome',
       header: 'Setor',
-      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+      cell: ({ row }) => row.original.setor_nome ?? '—',
     },
     {
       accessorKey: 'fila',
@@ -400,7 +400,7 @@ export default function RamaisPage() {
      <option value="numero_ramal:desc">Ramal ↓</option>
      <option value="created_at:desc">Mais recentes</option>
      <option value="created_at:asc">Mais antigos</option>
-     <option value="nome_setor:asc">Setor A→Z</option>
+     <option value="setor_id:asc">Setor A→Z</option>
     </select>
    </>
   );
@@ -454,7 +454,7 @@ export default function RamaisPage() {
 }
 
 function getRamalSetor(item?: Ramal | null) {
-  return item?.setor_nome || item?.setor || item?.nome_setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

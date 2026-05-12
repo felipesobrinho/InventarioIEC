@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id: alocacao_id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
 
     console.log('[PATCH alocacao ramal] alocacao_id:', alocacao_id, 'body:', body)
@@ -71,7 +71,7 @@ export async function DELETE(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id: alocacao_id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
 
     const alocacao = await prisma.alocacoes_ramais.findUnique({
       where: { id: alocacao_id },

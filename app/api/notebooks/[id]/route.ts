@@ -44,7 +44,7 @@ export async function GET(_: Request, { params }: Props) {
     include: {
       alocacoes: {
         where: { ativo: true },
-        include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+        include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
         orderBy: { data_inicio: 'asc' },
       },
       setor_rel: { select: { id: true, nome: true } },
@@ -62,7 +62,7 @@ export async function GET(_: Request, { params }: Props) {
       id: a.id,
       colaborador: a.colaborador,
       motivo_alocacao: a.motivo_alocacao,
-      setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+      setor: a.colaborador.setor_rel?.nome ?? null,
       tipo_posse: a.tipo_posse,
       data_inicio: a.data_inicio,
     })),
@@ -72,11 +72,11 @@ export async function GET(_: Request, { params }: Props) {
           motivo_alocacao: item.alocacoes[0].motivo_alocacao,
           tipo_posse: item.alocacoes[0].tipo_posse,
           data_inicio: item.alocacoes[0].data_inicio,
-          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? item.alocacoes[0].colaborador?.setor ?? null,
+          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
         }
       : null,
     alocacoes: undefined,
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
     localidade_nome: item.localidade_rel?.nome ?? null,
     emprestado_colaborador_nome: (item as any).emprestado_colaborador?.nome ?? null,
     emprestado_setor_nome:       (item as any).emprestado_setor?.nome ?? null,
@@ -94,9 +94,9 @@ export async function PUT(request: Request, { params }: Props) {
   
   if (!id) return NextResponse.json({ error: 'ID do notebook não fornecido' }, { status: 400 })
   
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, localidade_nome, localidade_rel, ...rest } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...rest } = body
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   if (!anterior) return NextResponse.json({ error: `Notebook não encontrado (ID: ${id})` }, { status: 404 })
@@ -160,7 +160,7 @@ export async function DELETE(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   await prisma.notebooks.delete({ where: { id } })

@@ -283,7 +283,7 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
         <DetailField label="Última revisão" value={formatDate(notebook.data_revisao)} />
-        <DetailField label="Setor" value={notebook.setor_nome ?? notebook.setor ?? '—'} />
+        <DetailField label="Setor" value={notebook.setor_nome ?? '—'} />
         <DetailField label="Localidade" value={notebook.localidade_nome ?? '—'} />
        </DetailSection>
        {notebook.emprestado ? (

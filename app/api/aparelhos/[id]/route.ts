@@ -44,7 +44,7 @@ export async function GET(_: Request, { params }: Props) {
     include: {
       alocacoes: {
         where: { ativo: true },
-        include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+        include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
         orderBy: { data_inicio: 'asc' },
       },
       // FIX: inclui setor_rel para resolver setor_nome
@@ -61,7 +61,7 @@ export async function GET(_: Request, { params }: Props) {
       id: a.id,
       colaborador: a.colaborador,
       descricao_alocacao: a.descricao_alocacao,
-      setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+      setor: a.colaborador.setor_rel?.nome ?? null,
       motivo_alocacao: a.motivo_alocacao,
       data_inicio: a.data_inicio,
     })),
@@ -70,13 +70,13 @@ export async function GET(_: Request, { params }: Props) {
           colaborador: item.alocacoes[0].colaborador,
           descricao_alocacao: item.alocacoes[0].descricao_alocacao,
           motivo_alocacao: item.alocacoes[0].motivo_alocacao,
-          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? item.alocacoes[0].colaborador?.setor ?? null,
+          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
           data_inicio: item.alocacoes[0].data_inicio,
         }
       : null,
     alocacoes: undefined,
     // FIX: expõe setor_nome resolvido
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
     localidade_nome: item.localidade_rel?.nome ?? null,
     setor_rel: undefined,
     localidade_rel: undefined,
@@ -89,11 +89,11 @@ export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
 
   // FIX: também descarta setor_nome (campo virtual) para não tentar persistir no banco
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
+  const { alocacoes, alocacao_ativa, created_at, id: _id, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
   const anterior = await prisma.aparelhos.findUnique({ where: { id } })
   const item = await prisma.aparelhos.update({ where: { id }, data })
@@ -122,7 +122,7 @@ export async function DELETE(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.aparelhos.findUnique({ where: { id } })
   await prisma.aparelhos.delete({ where: { id } })

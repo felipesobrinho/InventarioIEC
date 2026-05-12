@@ -350,7 +350,7 @@ export default function ImpressorasPage() {
         accessorKey: "setor",
         header: "Setor",
         cell: ({ row }) =>
-          row.original.setor_nome ?? row.original.setor ?? "—",
+          row.original.setor_nome ?? "—",
       },
 
       {

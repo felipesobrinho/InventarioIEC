@@ -24,7 +24,6 @@ export interface DeviceOverviewItem {
   setor_nome?: string | null
   localidade_id?: string | null
   localidade_nome?: string | null
-  nome_setor?: string | null
   modelo?: string | null
   tipo?: number | string | null
   chip?: boolean | null
@@ -114,7 +113,6 @@ interface ImpressoraOverviewPanelProps {
     numero_serie: string | null
     endereco_ip: string | null
     andar: string | null
-    setor: string | null
     setor_id?: string | null
     setor_nome?: string | null
     localidade_id?: string | null
@@ -148,7 +146,6 @@ interface ColaboradorOverviewPanelProps {
   total: number
   items: Array<{
     id: string
-    setor: string | null
     setor_nome?: string | null
     localidade_id?: string | null
     localidade_nome?: string | null
@@ -161,7 +158,6 @@ interface ColaboradorOverviewPanelProps {
   metricTotal?: number
   metricItems?: Array<{
     id: string
-    setor: string | null
     setor_nome?: string | null
     localidade_id?: string | null
     localidade_nome?: string | null
@@ -209,7 +205,7 @@ const chartColors = [
 ]
 
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item.setor_nome || item.alocacao_ativa?.setor || 'Sem setor'
 }
 
 function getRevisionDate(item: DeviceOverviewItem) {
@@ -238,7 +234,7 @@ function hasMissingNotebookData(item: DeviceOverviewItem) {
     item.armazenamento,
     item.numero_patrimonio,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -248,7 +244,7 @@ function hasMissingPhoneData(item: DeviceOverviewItem) {
     item.tipo,
     item.endereco_ip,
     item.endereco_mac,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -266,7 +262,7 @@ function hasMissingMachineData(item: DeviceOverviewItem) {
     item.patrimonio_cpu,
     item.patrimonio_monitor,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -275,7 +271,7 @@ function hasMissingExtensionData(item: DeviceOverviewItem) {
     item.numero_ramal,
     item.prefixo_telefonico,
     item.senha_acesso,
-    item.setor_nome ?? item.setor ?? item.nome_setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -893,8 +889,8 @@ export function ColaboradorOverviewPanel({
   const activeItems = items.filter(item => item.status === 'Ativo')
   const metricActiveItems = metricItems.filter(item => item.status === 'Ativo')
   const active = metricActiveItems.length
-  const sectors = groupByLabel(items, item => item.setor_nome ?? item.setor ?? 'Sem setor', items.length)
-  const metricSectors = groupByLabel(metricItems, item => item.setor_nome ?? item.setor ?? 'Sem setor', metricItems.length)
+  const sectors = groupByLabel(items, item => item.setor_nome ?? 'Sem setor', items.length)
+  const metricSectors = groupByLabel(metricItems, item => item.setor_nome ?? 'Sem setor', metricItems.length)
   const withoutMachine = activeItems.filter(item => !item.alocacoes_maquinas_ativas).length
   const withoutNotebook = activeItems.filter(item => !item.alocacoes_notebooks_ativas).length
   const withoutPhone = activeItems.filter(item => !item.alocacoes_aparelhos_ativas).length

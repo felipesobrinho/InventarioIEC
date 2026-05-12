@@ -149,7 +149,7 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
          label="Código de Pessoa"
          value={colaborador.codigo != null ? String(colaborador.codigo) : null}
         />
-      <DetailField label="Setor" value={colaborador.setor_nome ?? colaborador.setor ?? '—'} />
+      <DetailField label="Setor" value={colaborador.setor_nome ?? '—'} />
         <DetailField label="Localidade" value={colaborador.localidade_nome ?? '—'} />
         <DetailField
          label="Status"

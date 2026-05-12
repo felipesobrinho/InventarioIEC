@@ -15,7 +15,7 @@ export async function PUT(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const { nome, descricao, ativo, localidade_id } = await request.json()
 
     const anterior = await prisma.setores.findUnique({ where: { id } })
@@ -50,7 +50,7 @@ export async function DELETE(_: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(_)
+    const { usuario_id, usuario_nome } = await getAuditSession()
 
     // Soft delete — desativa em vez de deletar para preservar histórico
     const item = await prisma.setores.update({

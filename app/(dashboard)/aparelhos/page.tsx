@@ -31,7 +31,7 @@ function hasMissingPhoneData(item: Aparelho) {
     item.tipo,
     item.endereco_ip,
     item.endereco_mac,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(value => value === null || value === undefined || value === '')
 }
 
@@ -49,7 +49,7 @@ const columns: ColumnDef<Aparelho>[] = [
   {
     accessorKey: 'setor',
     header: 'Setor',
-    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+    cell: ({ row }) => row.original.setor_nome ?? '—',
   },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
   { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
@@ -384,7 +384,7 @@ export default function AparelhosPage() {
 }
 
 function getAparelhoSetor(item?: Aparelho | null) {
-  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

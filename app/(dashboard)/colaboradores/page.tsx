@@ -26,7 +26,7 @@ const columns: ColumnDef<Colaborador>[] = [
   {
     accessorKey: 'setor',
     header: 'Setor',
-    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+    cell: ({ row }) => row.original.setor_nome ?? '—',
   },
   {
     accessorKey: 'status', header: 'Status',
@@ -278,7 +278,7 @@ export default function ColaboradoresPage() {
 }
 
 function getColaboradorSetor(item?: Colaborador | null) {
-  return item?.setor_nome || item?.setor || 'Sem setor'
+  return item?.setor_nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

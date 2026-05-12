@@ -30,7 +30,6 @@ export async function GET(request: Request) {
         },
         select: {
           id: true, nome: true, status: true,
-          setor: true,
           setor_rel: { select: { nome: true } },
         },
         take: 5,
@@ -96,12 +95,11 @@ export async function GET(request: Request) {
         where: {
           OR: [
             { numero_ramal: { contains: q, mode: 'insensitive' } },
-            { nome_setor: { contains: q, mode: 'insensitive' } },
             { setor_rel: { nome: { contains: q, mode: 'insensitive' } } },
           ],
         },
         select: {
-          id: true, numero_ramal: true, nome_setor: true,
+          id: true, numero_ramal: true,
           setor_rel: { select: { nome: true } },
         },
         take: 5,
@@ -153,7 +151,7 @@ export async function GET(request: Request) {
         id: c.id,
         tipo: 'colaborador',
         label: c.nome,
-        sub: c.setor_rel?.nome ?? c.setor ?? '',
+        sub: c.setor_rel?.nome ?? '',
         meta: c.status ?? '',
         href: `/colaboradores?inspect=${c.id}`,
       })),
@@ -185,7 +183,7 @@ export async function GET(request: Request) {
         id: r.id,
         tipo: 'ramal',
         label: r.numero_ramal != null ? `Ramal ${r.numero_ramal}` : '—',
-        sub: r.setor_rel?.nome ?? r.nome_setor ?? '',
+        sub: r.setor_rel?.nome ?? '',
         meta: '',
         href: `/ramais?inspect=${r.id}`,
       })),

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 
 export const runtime = 'nodejs'
 
@@ -107,12 +108,12 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+            include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
           localidade_rel: { select: { id: true, nome: true } },
-          emprestado_colaborador: { select: { nome: true, setor: true } },
+          emprestado_colaborador: { select: { nome: true } },
           emprestado_setor:       { select: { nome: true } },
         },
       }),
@@ -121,7 +122,7 @@ export async function GET(request: Request) {
 
     const mapped = data.map((n: any) => ({
       ...n,
-      setor_nome: n.setor_rel?.nome ?? n.setor ?? null,
+      setor_nome: n.setor_rel?.nome ?? null,
       localidade_nome: n.localidade_rel?.nome ?? null,
       emprestado_colaborador_nome: n.emprestado_colaborador?.nome ?? null,
       emprestado_setor_nome:       n.emprestado_setor?.nome ?? null,
@@ -133,7 +134,7 @@ export async function GET(request: Request) {
         colaborador: a.colaborador,
         motivo_alocacao: a.motivo_alocacao,
         tipo_posse: a.tipo_posse,
-        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? null,
         data_inicio: a.data_inicio,
       })),
       alocacao_ativa: n.alocacoes[0]
@@ -141,7 +142,7 @@ export async function GET(request: Request) {
             colaborador: n.alocacoes[0].colaborador,
             motivo_alocacao: n.alocacoes[0].motivo_alocacao,
             tipo_posse: n.alocacoes[0].tipo_posse,
-            setor: n.alocacoes[0].colaborador?.setor_rel?.nome ?? n.alocacoes[0].colaborador?.setor ?? null,
+            setor: n.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
             data_inicio: n.alocacoes[0].data_inicio,
           }
         : null,
@@ -160,14 +161,14 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
     if (body.data_revisao) {
       body.data_revisao = new Date(body.data_revisao + 'T00:00:00.000Z')
     } else if (body.data_revisao === '' || body.data_revisao === null) {
       body.data_revisao = null
     }
-    const data = await withLocalidadePadrao(body)
+    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
     const item = await prisma.notebooks.create({ data })
 
     await registrarAuditoria({

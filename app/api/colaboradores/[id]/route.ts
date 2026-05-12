@@ -48,7 +48,7 @@ export async function GET(_: Request, { params }: Props) {
 
   return NextResponse.json({
     ...item,
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
     localidade_nome: item.localidade_rel?.nome ?? null,
   })
 }
@@ -57,11 +57,11 @@ export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
 
   // FIX: descarta campos virtuais que não existem no banco
-  const { created_at, id: _id, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
+  const { created_at, id: _id, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
   const anterior = await prisma.colaboradores.findUnique({ where: { id } })
   const item = await prisma.colaboradores.update({ where: { id }, data })
@@ -90,7 +90,7 @@ export async function DELETE(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.colaboradores.findUnique({ where: { id } })
   await prisma.colaboradores.delete({ where: { id } })

@@ -60,7 +60,7 @@ export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
   const { created_at, id: _id, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
@@ -93,7 +93,7 @@ export async function DELETE(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.impressoras.findUnique({ where: { id } })
   await prisma.impressoras.delete({ where: { id } })

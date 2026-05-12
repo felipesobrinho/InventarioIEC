@@ -62,7 +62,7 @@ export function ColaboradorSelect({ value, onChange, onClear, selectedNome }: Pr
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                     >
                       <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{c.nome}</p>
-                      {c.setor && <p className="text-xs text-slate-400">{c.setor}</p>}
+                      {c.setor_nome && <p className="text-xs text-slate-400">{c.setor_nome}</p>}
                     </button>
                   ))
                 )}

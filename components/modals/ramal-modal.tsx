@@ -85,7 +85,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
        </h2>
        {mode === "view" && (
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-         {ramal.setor || "—"}
+         {ramal.setor_nome || "—"}
         </p>
        )}
       </div>
@@ -118,7 +118,7 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
          label="Número"
          value={ramal.numero_ramal != null ? String(ramal.numero_ramal) : null}
         />
-        <DetailField label="Setor" value={ramal.setor_nome ?? ramal.nome_setor ?? '—'} />
+        <DetailField label="Setor" value={ramal.setor_nome ?? '—'} />
         <DetailField label="Localidade" value={ramal.localidade_nome ?? '—'} />
         <DetailField
          label="Prefixo Telefônico"

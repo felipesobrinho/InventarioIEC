@@ -44,7 +44,7 @@ export async function GET(_: Request, { params }: Props) {
     include: {
       alocacoes: {
         where: { ativo: true },
-        include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+        include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
         orderBy: { data_inicio: 'asc' },
       },
       setor_rel: { select: { id: true, nome: true } },
@@ -61,7 +61,7 @@ export async function GET(_: Request, { params }: Props) {
       colaborador: a.colaborador,
       tipo_base: a.tipo_base,
       whatsapp: a.whatsapp,
-      setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+      setor: a.colaborador.setor_rel?.nome ?? null,
       canal_adicional: a.canal_adicional,
       data_inicio: a.data_inicio,
     })),
@@ -71,11 +71,11 @@ export async function GET(_: Request, { params }: Props) {
           tipo_base: item.alocacoes[0].tipo_base,
           whatsapp: item.alocacoes[0].whatsapp,
           data_inicio: item.alocacoes[0].data_inicio,
-          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? item.alocacoes[0].colaborador?.setor ?? null,
+          setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
         }
       : null,
     alocacoes: undefined,
-    setor_nome: item.setor_rel?.nome ?? item.nome_setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
     localidade_nome: item.localidade_rel?.nome ?? null,
   }
 
@@ -86,9 +86,9 @@ export async function PUT(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
-  const { created_at, id: _id, alocacoes, alocacao_ativa, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
+  const { created_at, id: _id, alocacoes, alocacao_ativa, setor, nome_setor, setor_nome, setor_rel, localidade_nome, localidade_rel, ...data } = body
 
   const anterior = await prisma.ramais.findUnique({ where: { id } })
   const item = await prisma.ramais.update({ where: { id }, data })
@@ -116,7 +116,7 @@ export async function DELETE(request: Request, { params }: Props) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.ramais.findUnique({ where: { id } })
   await prisma.ramais.delete({ where: { id } })

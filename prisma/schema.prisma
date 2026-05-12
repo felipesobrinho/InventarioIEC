@@ -61,7 +61,6 @@ model colaboradores {
   id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   codigo                Int?
   nome                  String
-  setor                 String?
   status                status_colaborador    @default(Ativo)
   created_at            DateTime?             @default(now()) @db.Timestamptz(6)
   setor_id              String?               @db.Uuid
@@ -76,7 +75,6 @@ model colaboradores {
   notebooks_emprestados notebooks[]           @relation("EmprestimoColaborador")
 
   @@index([nome], map: "idx_colaboradores_nome")
-  @@index([setor], map: "idx_colaboradores_setor")
   @@index([localidade_id], map: "idx_colaboradores_localidade_id")
 }
 
@@ -93,7 +91,6 @@ model maquinas {
   armazenamento      String?
   endereco_ip        String?
   localizacao        String?
-  setor              String?
   patrimonio_cpu     String?
   patrimonio_monitor String?
   data_revisao       DateTime?              @db.Date
@@ -106,7 +103,6 @@ model maquinas {
 
   @@index([identificador], map: "idx_maquinas_identificador")
   @@index([localidade_id], map: "idx_maquinas_localidade_id")
-  @@index([setor], map: "idx_maquinas_setor")
 }
 
 model notebooks {
@@ -118,7 +114,6 @@ model notebooks {
   memoria                   String?
   armazenamento             String?
   numero_patrimonio         String?
-  setor                     String?
   data_revisao              DateTime?              @db.Date
   created_at                DateTime?              @default(now()) @db.Timestamptz(6)
   setor_id                  String?                @db.Uuid
@@ -145,7 +140,6 @@ model aparelhos {
   chip           Boolean?              @default(false)
   endereco_ip    String?
   endereco_mac   String?
-  setor          String?
   status         Boolean?              @default(true)
   created_at     DateTime?             @default(now()) @db.Timestamptz(6)
   setor_id       String?               @db.Uuid
@@ -183,7 +177,6 @@ model impressoras {
 model ramais {
   id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   numero_ramal        String?
-  nome_setor          String?
   prefixo_telefonico  String?
   disponibilidade     String?
   fila                Boolean?           @default(false)

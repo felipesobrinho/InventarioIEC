@@ -39,7 +39,7 @@ function hasMissingNotebookData(item: Notebook) {
     item.armazenamento,
     item.numero_patrimonio,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(value => value === null || value === undefined || value === '')
 }
 
@@ -260,7 +260,7 @@ export default function NotebooksPage() {
   {
     accessorKey: 'setor',
     header: 'Setor',
-    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+    cell: ({ row }) => row.original.setor_nome ?? '—',
   },
   {
     accessorKey: 'data_revisao',
@@ -429,7 +429,7 @@ export default function NotebooksPage() {
 }
 
 function getNotebookSetor(item?: Notebook | null) {
-  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

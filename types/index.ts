@@ -18,7 +18,8 @@ export interface DashboardStats {
 
 export interface AlocacaoAtiva {
   id: string
-  colaborador: { nome: string; setor: string | null }
+  colaborador: { nome: string }
+  setor?: string | null
   data_inicio: string | null
   whatsapp?: boolean | null  // apenas para ramais
 }
@@ -27,7 +28,6 @@ export interface Colaborador {
   id: string
   codigo: number
   nome: string
-  setor: string | null
   status: 'Ativo' | 'Inativo'
   setor_id?:   string | null
   setor_nome?: string | null
@@ -52,7 +52,6 @@ export interface Maquina {
   memoria_ram: string | null
   armazenamento: string | null
   endereco_ip: string | null
-  setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
   localidade_id?: string | null
@@ -75,7 +74,6 @@ export interface Notebook {
   memoria: string | null
   armazenamento: string | null
   numero_patrimonio: string | null
-  setor: string | null
   data_revisao: string | null
   created_at: string | null
   setor_id: string | null
@@ -99,7 +97,6 @@ export interface Aparelho {
   chip: boolean | null
   endereco_ip: string | null
   endereco_mac: string | null
-  setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
   localidade_id?: string | null
@@ -120,7 +117,6 @@ export interface Impressora {
   endereco_ip: string | null
   andar: string | null
   localidade: string | null
-  setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
   localidade_id?: string | null
@@ -136,12 +132,10 @@ export interface Impressora {
 export interface Ramal {
   id: string
   numero_ramal: string | null
-  setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
   localidade_id?: string | null
   localidade_nome?: string | null
-  nome_setor: string | null
   prefixo_telefonico: string | null
   disponibilidade: string | null
   fila: boolean | null
@@ -168,7 +162,6 @@ export interface Rack {
   portas_academicas: string | null
   portas_vlan_impressoras: string | null
   created_at: string | null
-  setor: string | null
   setor_id?:   string | null
   setor_nome?: string | null
   localidade_id?: string | null

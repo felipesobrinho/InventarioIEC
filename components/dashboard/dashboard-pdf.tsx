@@ -190,9 +190,8 @@ function buildSetores(items: any[]) {
  const map = new Map<string, { total: number; alocados: number }>();
  for (const item of items) {
   const setor =
-   item.setor ||
-   item.nome_setor ||
-   item.alocacao_ativa?.colaborador?.setor ||
+   item.setor_nome ||
+   item.alocacao_ativa?.setor ||
    "Sem setor";
   const cur = map.get(setor) ?? { total: 0, alocados: 0 };
   cur.total++;
@@ -546,7 +545,7 @@ export function DashboardPDF({ data }: Props) {
      getModelo={(i) =>
       [i.fabricante, i.modelo].filter(Boolean).join(" ") || "—"
      }
-     getSetor={(i) => i.setor || "—"}
+     getSetor={(i) => i.setor_nome || "—"}
      getExtra={(i) => i.categoria || "—"}
     />
 
@@ -561,7 +560,7 @@ export function DashboardPDF({ data }: Props) {
      getModelo={(i) =>
       [i.fabricante, i.modelo].filter(Boolean).join(" ") || "—"
      }
-     getSetor={(i) => i.setor || "—"}
+     getSetor={(i) => i.setor_nome || "—"}
      getExtra={(i) => i.categoria || "—"}
     />
 
@@ -587,7 +586,7 @@ export function DashboardPDF({ data }: Props) {
      geradoEm={gerado_em}
      getIdentifier={(i) => i.modelo || "—"}
      getModelo={(i) => i.modelo || "—"}
-     getSetor={(i) => i.setor || "—"}
+     getSetor={(i) => i.setor_nome || "—"}
     />
 
     {/* ── Seção Ramais ── */}
@@ -600,7 +599,7 @@ export function DashboardPDF({ data }: Props) {
      getIdentifier={(i) =>
       i.numero_ramal != null ? String(i.numero_ramal) : "—"
      }
-     getModelo={(i) => i.nome_setor || "—"}
+     getModelo={(i) => i.setor_nome || "—"}
      getSetor={(i) => i.prefixo_telefonico || "—"}
      getExtra={(i) => (i.fila ? "Fila" : i.contemplacao ? "Contemplado" : "—")}
     />

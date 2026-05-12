@@ -42,7 +42,7 @@ function hasMissingMachineData(item: Maquina) {
     item.patrimonio_cpu,
     item.patrimonio_monitor,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -256,7 +256,7 @@ export default function MaquinasPage() {
     {
       accessorKey: 'setor',
       header: 'Setor',
-      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+      cell: ({ row }) => row.original.setor_nome ?? '—',
     },
     {
       id: 'alocado',
@@ -425,7 +425,7 @@ export default function MaquinasPage() {
 }
 
 function getMaquinaSetor(item?: Maquina | null) {
-  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

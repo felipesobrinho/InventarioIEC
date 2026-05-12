@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
 import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
 
     const validSortFields: Record<string, boolean> = {
       nome_host: true, identificador: true, fabricante: true,
-      modelo: true, created_at: true, enderecoIp: true,
+      modelo: true, created_at: true, enderecoIp: true, setor_id: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'nome_host'
 
@@ -90,7 +91,7 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+            include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
@@ -102,21 +103,21 @@ export async function GET(request: Request) {
 
     const mapped = data.map((m: any) => ({
       ...m,
-      setor_nome: m.setor_rel?.nome ?? m.setor ?? null,
+      setor_nome: m.setor_rel?.nome ?? null,
       localidade_nome: m.localidade_rel?.nome ?? null,
       alocacoes_ativas: m.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
         tipo_uso: a.tipo_uso,
         data_inicio: a.data_inicio,
-        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? null,
       })),
       alocacao_ativa: m.alocacoes[0]
         ? {
             colaborador: m.alocacoes[0].colaborador,
             tipo_uso: m.alocacoes[0].tipo_uso,
             data_inicio: m.alocacoes[0].data_inicio,
-            setor: m.alocacoes[0].colaborador.setor_rel?.nome ?? m.alocacoes[0].colaborador.setor ?? null,
+            setor: m.alocacoes[0].colaborador.setor_rel?.nome ?? null,
           }
         : null,
       alocacoes: undefined,
@@ -134,9 +135,9 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
-    const data = await withLocalidadePadrao(body)
+    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
     const item = await prisma.maquinas.create({ data })
 
     await registrarAuditoria({

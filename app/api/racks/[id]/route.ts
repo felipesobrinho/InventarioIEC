@@ -65,7 +65,7 @@ export async function PUT(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
 
     // Nunca salvar portas_livres, setor_rel, setor_nome — campos calculados/virtuais
@@ -113,7 +113,7 @@ export async function DELETE(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
 
     const anterior = await prisma.racks.findUnique({ where: { id } })
     await prisma.racks.delete({ where: { id } })
