@@ -128,6 +128,17 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession(request)
     const body = await request.json()
+
+    if (body) {
+      const existe = await prisma.maquinas.findFirst({ where: { endereco_ip: body.endereco_ip } })
+      if (existe) return NextResponse.json({ error: `Endereço IP ${body.endereco_ip} já cadastrado` }, { status: 409 })
+    }
+
+    if (body) {
+      const existe = await prisma.maquinas.findFirst({ where: { nome_host: body.nome_host } })
+      if (existe) return NextResponse.json({ error: `Hostname ${body.nome_host} já cadastrado` }, { status: 409 })
+    }
+  
     const item = await prisma.maquinas.create({ data: body })
 
     await registrarAuditoria({
