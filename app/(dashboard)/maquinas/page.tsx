@@ -241,25 +241,30 @@ export default function MaquinasPage() {
           <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
         </div>
       ),
+      enableSorting: true,
     },
     {
       accessorKey: 'identificador',
       header: 'ID',
       cell: ({ row }) => <span className="font-mono text-xs">{row.original.identificador || '—'}</span>,
+      enableSorting: true,
     },
     {
       accessorKey: 'categoria',
       header: 'Categoria',
       cell: ({ row }) => <CategoriaBadge categoria={row.original.categoria} />,
+      enableSorting: false,
     },
     {
       accessorKey: 'setor',
       header: 'Setor',
       cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+      enableSorting: false,
     },
     {
       id: 'alocado',
       header: 'Uso',
+      enableSorting: false,
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
         if (alocacoes.length === 0) {
@@ -390,6 +395,9 @@ export default function MaquinasPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
 
       {selected && (

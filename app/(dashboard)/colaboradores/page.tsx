@@ -21,15 +21,16 @@ type ActiveOverviewFilter = OverviewFilter & {
 }
 
 const columns: ColumnDef<Colaborador>[] = [
-  { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'nome', header: 'Nome', cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+  { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—', enableSorting: true},
+  { accessorKey: 'nome', enableSorting: true, header: 'Nome', cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
   {
     accessorKey: 'setor',
     header: 'Setor',
+    enableSorting: false,
     cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
   },
   {
-    accessorKey: 'status', header: 'Status',
+    accessorKey: 'status', header: 'Status', enableSorting: false,
     cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
   },
 ]
@@ -54,19 +55,24 @@ export default function ColaboradoresPage() {
   const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
+  const [sort, setSort] = useState('nome')
+  const [dir, setDir]   = useState<'asc' | 'desc'>('asc')
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
     if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
     if (status) params.set('status', status)
+    if (sort) params.set('sort', sort)
+    if (dir) params.set('dir', dir)
     const res = await fetch(`/api/colaboradores?${params}`)
     const json: PaginatedResponse<Colaborador> = await res.json()
     setData(json.data)
     setTotal(json.total)
     setTotalPages(json.totalPages)
     setLoading(false)
-  }, [page, search, setorIdFiltro, status])
+  }, [page, search, setorIdFiltro, status, sort, dir])
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
@@ -258,6 +264,9 @@ export default function ColaboradoresPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
       {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k + 1)}/>}
       {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}
