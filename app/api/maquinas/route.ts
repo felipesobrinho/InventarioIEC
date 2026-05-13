@@ -101,14 +101,14 @@ export async function GET(request: Request) {
         colaborador: a.colaborador,
         tipo_uso: a.tipo_uso,
         data_inicio: a.data_inicio,
-        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? a.colaborador?.setor ?? null,
       })),
       alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: m.alocacoes[0].colaborador,
+            colaborador: m.alocacoes[0].colaborador ?? null,
             tipo_uso: m.alocacoes[0].tipo_uso,
             data_inicio: m.alocacoes[0].data_inicio,
-            setor: m.alocacoes[0].colaborador.setor_rel?.nome ?? m.alocacoes[0].colaborador.setor ?? null,
+            setor: m.alocacoes[0].colaborador.setor_rel?.nome ?? m.alocacoes[0].colaborador?.setor ?? null,
           }
         : null,
       alocacoes: undefined,

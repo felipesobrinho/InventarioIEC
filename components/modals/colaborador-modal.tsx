@@ -61,8 +61,11 @@ export function ColaboradorModal({ colaborador, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(colaborador.id, {...data, setor_id: setorId});
- }
+  update(colaborador.id, { ...data, setor_id: setorId }, {
+    previousData: colaborador,
+    label: `Colaborador "${colaborador.nome}" atualizado`,
+  })
+}
 
  // Navegar para o item na respectiva página — fecha o modal e abre a página
  function handleNavigate(

@@ -62,8 +62,11 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(aparelho.id, {...data, setor_id: setorId})
-  }
+  update(aparelho.id, { ...data, setor_id: setorId }, {
+    previousData: aparelho,
+    label: `Aparelho "${aparelho.modelo}" atualizado`,
+  })
+}
 
   async function alocar() {
     if (!colabId) return

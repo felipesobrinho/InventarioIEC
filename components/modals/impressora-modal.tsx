@@ -58,8 +58,11 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(impressora.id, {...data, setor_id: setorId})
-  }
+  update(impressora.id, { ...data, setor_id: setorId }, {
+    previousData: impressora,
+    label: `Impressora "${impressora.nome_host ?? impressora.modelo }" atualizada`,
+  })
+}
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
   const lbl = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"

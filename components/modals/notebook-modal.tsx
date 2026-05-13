@@ -83,8 +83,11 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
 
  // Chamado APENAS pelo botão type="submit" form="nb-form"
  function onSubmit(data: FormData) {
-  update(notebook.id, { ...data, setor_id: setorId });
- }
+  update(notebook.id, { ...data, setor_id: setorId }, {
+    previousData: notebook,
+    label: `Notebook "${notebook.numero_patrimonio}" atualizado`,
+  })
+}
 
  async function alocar() {
   if (!colabId) return;

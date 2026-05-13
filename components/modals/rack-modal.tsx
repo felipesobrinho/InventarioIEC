@@ -56,8 +56,11 @@ export function RackModal({ rack, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(rack.id, { ...data, setor_id: setorId })
-  }
+  update(rack.id, { ...data, setor_id: setorId }, {
+    previousData: rack,
+    label: `Rack "${rack.nome_switch}" atualizado`,
+  })
+}
 
   // Calcular portas livres localmente para exibição no view
   const portasLivres = rack.quantidade_portas != null && rack.portas_em_uso != null
