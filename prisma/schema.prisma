@@ -326,6 +326,7 @@ model audit_log {
 enum categoria_equipamento {
   Administrativa
   Academica
+  Backup
 }
 
 enum status_colaborador {

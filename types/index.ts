@@ -46,7 +46,7 @@ export interface Maquina {
   identificador: string | null
   fabricante: string | null
   modelo: string | null
-  categoria: 'Administrativa' | 'Academica' | null
+  categoria: 'Administrativa' | 'Academica' | 'Backup' | null
   tipo: string | null
   processador: string | null
   memoria_ram: string | null

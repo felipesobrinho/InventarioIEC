@@ -345,6 +345,10 @@ function hasMissingMachineData(item: DeviceOverviewItem) {
   ].some(missing)
 }
 
+function isBackupMachine(item: DeviceOverviewItem) {
+  return item.categoria === 'Backup'
+}
+
 function hasMissingExtensionData(item: DeviceOverviewItem) {
   return [
     item.numero_ramal,
@@ -704,6 +708,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   const withChip = scopedItems.filter(item => item.chip === true).length
   const withWhatsapp = scopedItems.filter(hasWhatsapp).length
   const queueExtensions = scopedItems.filter(item => item.fila === true).length
+  const backupMachines = isMachineOverview ? scopedItems.filter(isBackupMachine).length : 0
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
@@ -924,6 +929,17 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
           <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
             <SectionTitle icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Pontos de atencao" />
             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <OverviewListCard
+                onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-backup' }))}
+                item={{
+                  label: 'Backups',
+                  value: backupMachines.toLocaleString('pt-BR'),
+                  detail: `${pct(backupMachines, analyzedTotal)}% das maquinas cadastradas`,
+                  tone: backupMachines > 0 ? 'warning' : 'success',
+                  filter: { kind: 'machine-backup' },
+                }}
+              />
               <OverviewListCard
                 onFilter={onFilter}
                 isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-missing-data' }))}

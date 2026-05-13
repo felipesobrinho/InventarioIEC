@@ -15,7 +15,7 @@ const schema = z.object({
   nome_host: z.string().optional().nullable(),
   fabricante: z.string().optional().nullable(),
   modelo: z.string().optional().nullable(),
-  categoria: z.enum(['Administrativa', 'Academica']).optional().nullable(),
+  categoria: z.enum(['Administrativa', 'Academica', 'Backup']).optional().nullable(),
   processador: z.string().optional().nullable(),
   memoria_ram: z.string().optional().nullable(),
   armazenamento: z.string().optional().nullable(),
@@ -89,6 +89,7 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                   <option value="">Selecione...</option>
                   <option value="Administrativa">Administrativa</option>
                   <option value="Academica">Acadêmica</option>
+                  <option value="Backup">Backup</option>
                 </select>
               </div>
               <div><label className={lbl}>Processador</label><input {...register('processador')} className={inp} /></div>

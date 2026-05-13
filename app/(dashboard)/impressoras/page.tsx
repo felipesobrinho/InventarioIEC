@@ -45,6 +45,7 @@ function hasMissingPrinterData(item: Impressora) {
     item.fabricante,
     item.modelo,
     item.numero_serie,
+    item.identificador_selb,
     item.endereco_ip,
   ].some(isMissing);
 }
@@ -350,6 +351,12 @@ export default function ImpressorasPage() {
       },
 
       {
+        accessorKey: "identificador_selb",
+        header: "SELB",
+        cell: ({ getValue }) => getValue() || "—",
+      },
+
+      {
         accessorKey: "endereco_ip",
         header: "IP",
         cell: ({ getValue }) => getValue() || "—",
@@ -401,7 +408,7 @@ export default function ImpressorasPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder="Buscar por nome host ou nº série..."
+          placeholder="Buscar por nome host, nº série ou SELB..."
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

@@ -46,6 +46,10 @@ function hasMissingMachineData(item: Maquina) {
   ].some(missing)
 }
 
+function isBackupMachine(item: Maquina) {
+  return item.categoria === 'Backup'
+}
+
 export default function MaquinasPage() {
   const [data, setData] = useState<Maquina[]>([])
   const [total, setTotal] = useState(0)
@@ -165,6 +169,7 @@ export default function MaquinasPage() {
       allocated: { label: 'Máquinas ocupadas', predicate: isAllocated },
       free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
       'machine-missing-data': { label: 'Máquinas com informacoes faltantes', predicate: hasMissingMachineData },
+      'machine-backup': { label: 'Máquinas backup', predicate: isBackupMachine },
       location: {
         label: filter.label ?? 'Unidade selecionada',
         predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
@@ -336,6 +341,7 @@ export default function MaquinasPage() {
         <option value="">Todas as categorias</option>
         <option value="Administrativa">Administrativa</option>
         <option value="Academica">Acadêmica</option>
+        <option value="Backup">Backup</option>
       </select>
 
       {/* Fabricante */}

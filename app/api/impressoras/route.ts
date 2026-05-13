@@ -44,6 +44,8 @@ export async function GET(request: Request) {
           { fabricante:  { contains: search, mode: 'insensitive' } },
           { localidade:  { contains: search, mode: 'insensitive' } },
           { endereco_ip: { contains: search, mode: 'insensitive' } },
+          { numero_serie: { contains: search, mode: 'insensitive' } },
+          { identificador_selb: { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
           { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
         ],
