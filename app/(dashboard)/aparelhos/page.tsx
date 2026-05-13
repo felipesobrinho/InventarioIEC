@@ -51,6 +51,11 @@ const columns: ColumnDef<Aparelho>[] = [
     header: 'Setor',
     cell: ({ row }) => row.original.setor_nome ?? '—',
   },
+  {
+    accessorKey: 'localidade_nome',
+    header: 'Localidade',
+    cell: ({ row }) => row.original.localidade_nome ?? '—',
+  },
   { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} labelTrue="Ativo" labelFalse="Inativo" /> },
   { accessorKey: 'chip', header: 'Chip', cell: ({ getValue }) => <BoolBadge value={getValue() as boolean} /> },
   {
@@ -161,6 +166,7 @@ export default function AparelhosPage() {
           sort: 'modelo',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/aparelhos?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Aparelho> = await res.json()
@@ -177,7 +183,7 @@ export default function AparelhosPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -201,6 +207,10 @@ export default function AparelhosPage() {
       free: { label: 'Aparelhos livres', predicate: (item) => !isAllocated(item) },
       'phone-missing-data': { label: 'Aparelhos com informacoes faltantes', predicate: hasMissingPhoneData },
       'phone-with-chip': { label: 'Aparelhos com chip', predicate: (item) => item.chip === true },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getAparelhoSetor(item) === filter.value,
@@ -391,6 +401,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

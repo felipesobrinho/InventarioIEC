@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
+import { RackOverviewPanel, type OverviewFilter, notifyOverviewFilter } from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { RackModal } from '@/components/modals/rack-modal'
 import { CriarRackModal } from '@/components/modals/criar-rack-modal'
@@ -12,6 +13,11 @@ import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search, Plus } from 'lucide-react'
 import type { Rack, PaginatedResponse } from '@/types'
 
+type ActiveOverviewFilter = OverviewFilter & {
+  key: string
+  predicate: (item: Rack) => boolean
+}
+
 export default function RacksPage() {
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect')
@@ -19,8 +25,13 @@ export default function RacksPage() {
   const [data, setData]         = useState<Rack[]>([])
   const [total, setTotal]       = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [overviewData, setOverviewData] = useState<Rack[]>([])
+  const [overviewTotal, setOverviewTotal] = useState(0)
+  const [overviewLoading, setOverviewLoading] = useState(true)
   const [page, setPage]         = useState(1)
   const [loading, setLoading]   = useState(true)
+  const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
+  const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [selected, setSelected] = useState<Rack | null>(null)
   const [showCriar, setShowCriar] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -49,8 +60,13 @@ export default function RacksPage() {
     },
     {
       accessorKey: 'setor_nome',
-      header: 'Setor / Localidade',
-      cell: ({ row }) => row.original.setor_nome ?? row.original.localizacao ?? '—',
+      header: 'Setor',
+      cell: ({ row }) => row.original.setor_nome ?? '—',
+    },
+    {
+      accessorKey: 'localidade_nome',
+      header: 'Localidade',
+      cell: ({ row }) => row.original.localidade_nome ?? row.original.localizacao ?? '—',
     },
     {
       accessorKey: 'numero_patrimonio',
@@ -118,6 +134,33 @@ export default function RacksPage() {
   }, [page, search, setorIdFiltro, localidadeIdFiltro, sort, dir, refreshKey])
 
   useEffect(() => {
+    let cancelled = false
+    setOverviewLoading(true)
+
+    async function fetchOverview() {
+      const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'nome_switch', dir: 'asc' })
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
+
+      try {
+        const res = await fetch(`/api/racks?${params}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const json: PaginatedResponse<Rack> = await res.json()
+        if (!cancelled) {
+          setOverviewData(json.data)
+          setOverviewTotal(json.total)
+        }
+      } catch (err) {
+        console.error('[racks overview]', err)
+      } finally {
+        if (!cancelled) setOverviewLoading(false)
+      }
+    }
+
+    fetchOverview()
+    return () => { cancelled = true }
+  }, [refreshKey, localidadeIdFiltro])
+
+  useEffect(() => {
     if (!inspectId) return
     fetch(`/api/racks/${inspectId}`)
       .then(r => r.ok ? r.json() : null)
@@ -126,6 +169,69 @@ export default function RacksPage() {
   }, [inspectId])
 
   const inputCls = "px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+  const filteredOverviewData = activeOverviewFilters.length > 0
+    ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
+    : null
+  const tableData = filteredOverviewData
+    ? filteredOverviewData.slice((page - 1) * 20, page * 20)
+    : data
+  const tableTotal = filteredOverviewData?.length ?? total
+  const tableTotalPages = filteredOverviewData ? Math.max(1, Math.ceil(filteredOverviewData.length / 20)) : totalPages
+
+  function applyOverviewFilter(filter: OverviewFilter) {
+    if (filter.kind === 'all') {
+      setActiveOverviewFilters([])
+      setPage(1)
+      notifyOverviewFilter([])
+      return
+    }
+
+    const predicates: Record<string, { label: string; predicate: (item: Rack) => boolean }> = {
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
+      'rack-location': {
+        label: `Local: ${filter.value ?? 'Sem localizacao'}`,
+        predicate: (item) => (item.localizacao || 'Sem localizacao') === filter.value,
+      },
+      'rack-id': {
+        label: 'Rack selecionado',
+        predicate: (item) => item.id === filter.value,
+      },
+      'rack-critical': {
+        label: 'Racks críticos',
+        predicate: (item) => !item.quantidade_portas || item.portas_em_uso == null || Math.round(((item.portas_em_uso ?? 0) / item.quantidade_portas) * 100) >= 85,
+      },
+      'rack-missing-ports': {
+        label: 'Racks sem total de portas',
+        predicate: (item) => !item.quantidade_portas,
+      },
+      'rack-missing-used': {
+        label: 'Racks sem uso informado',
+        predicate: (item) => item.portas_em_uso == null,
+      },
+    }
+    const nextFilter = predicates[filter.kind]
+    if (!nextFilter) return
+    const candidate: ActiveOverviewFilter = {
+      ...filter,
+      key: getOverviewFilterKey(filter),
+      label: nextFilter.label,
+      predicate: nextFilter.predicate,
+    }
+
+    setOverviewFilterLoading(true)
+    window.setTimeout(() => {
+      setActiveOverviewFilters(currentFilters => {
+        const nextFilters = toggleOverviewFilter(currentFilters, candidate)
+        notifyOverviewFilter(nextFilters)
+        return nextFilters
+      })
+      setPage(1)
+      setOverviewFilterLoading(false)
+    }, 120)
+  }
 
   const filters = (
     <>
@@ -170,12 +276,46 @@ export default function RacksPage() {
         </button>
       </PageHeader>
 
-      <DataTable columns={columns} data={data} total={total} page={page}
-        totalPages={totalPages} onPageChange={setPage} onRowClick={setSelected}
-        isLoading={loading} filters={filters} />
+      <RackOverviewPanel
+        total={overviewTotal || total}
+        items={overviewData}
+        isLoading={overviewLoading}
+        onFilter={applyOverviewFilter}
+      />
+
+      <DataTable columns={columns} data={tableData} total={tableTotal} page={page}
+        totalPages={tableTotalPages} onPageChange={setPage} onRowClick={setSelected}
+        isLoading={loading || overviewFilterLoading} filters={filters} />
 
       {selected && <RackModal rack={selected} onClose={() => setSelected(null)} onRefresh={refresh} />}
       {showCriar && <CriarRackModal onClose={() => setShowCriar(false)} onRefresh={refresh} />}
     </div>
+  )
+}
+
+function getOverviewFilterKey(filter: OverviewFilter) {
+  return `${filter.kind}:${filter.value ?? ''}`
+}
+
+function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
+  const exists = filters.some(filter => filter.key === candidate.key)
+  if (exists) return filters.filter(filter => filter.key !== candidate.key)
+  return [...filters, candidate]
+}
+
+function matchesOverviewFilters(item: Rack, filters: ActiveOverviewFilter[]) {
+  const filtersByKind = filters.reduce((map, filter) => {
+    const group = map.get(filter.kind) ?? []
+    group.push(filter)
+    map.set(filter.kind, group)
+    return map
+  }, new Map<string, ActiveOverviewFilter[]>())
+
+  return Array.from(filtersByKind.values()).every(group =>
+    group.some(filter => filter.predicate(item))
   )
 }

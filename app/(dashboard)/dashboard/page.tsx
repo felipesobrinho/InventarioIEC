@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { StatsCards } from "@/components/dashboard/stats-cards";
-import { SectorOverview, type SectorOverviewRow } from "@/components/dashboard/sector-overview";
+import { SectorOverview, type LocationOverviewScope, type SectorOverviewRow } from "@/components/dashboard/sector-overview";
 import { TrendingUp } from "lucide-react";
 import { UltimasAuditoriasCard } from "@/components/dashboard/last-audits";
 import { ExportPdfButton } from "@/components/dashboard/export-pdf-button";
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 type InventoryKpiItem = {
  setor_id: string | null
+ localidade_id?: string | null
  created_at: Date | null
  unavailable: boolean
 }
@@ -151,6 +152,16 @@ async function getDashboardData() {
    alocacoes: { where: { ativo: true }, select: { id: true }, take: 1 },
   },
  });
+ const colaboradoresKpi = await prisma.colaboradores.findMany({
+  where: { status: "Ativo" },
+  select: { setor_id: true, localidade_id: true },
+ });
+ const impressorasKpi = await prisma.impressoras.findMany({
+  select: { setor_id: true, localidade_id: true },
+ });
+ const racksKpi = await prisma.racks.findMany({
+  select: { setor_id: true, localidade_id: true },
+ });
 
  function getNotebookSectorId(item: (typeof notebooksKpi)[number]) {
   return item.emprestado_colaborador?.setor_id
@@ -160,16 +171,10 @@ async function getDashboardData() {
  }
 
  const kpiItems: InventoryKpiItem[] = [
-  ...maquinasKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
-  ...notebooksKpi.map(item => ({ setor_id: getNotebookSectorId(item), created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
-  ...aparelhosKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
-  ...ramaisKpi.map(item => ({ setor_id: item.setor_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
- ];
- const localidadeKpiItems: InventoryKpiItem[] = [
-  ...maquinasKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
-  ...notebooksKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
-  ...aparelhosKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
-  ...ramaisKpi.map(item => ({ setor_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...maquinasKpi.map(item => ({ setor_id: item.setor_id, localidade_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...notebooksKpi.map(item => ({ setor_id: getNotebookSectorId(item), localidade_id: item.localidade_id, created_at: item.created_at, unavailable: item.emprestado || item.alocacoes.length > 0 })),
+  ...aparelhosKpi.map(item => ({ setor_id: item.setor_id, localidade_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
+  ...ramaisKpi.map(item => ({ setor_id: item.setor_id, localidade_id: item.localidade_id, created_at: item.created_at, unavailable: item.alocacoes.length > 0 })),
  ];
 
  const notebookUnavailableIds = new Set([
@@ -191,7 +196,7 @@ async function getDashboardData() {
   ativo: setor.ativo,
   created_at: setor.created_at?.toISOString() ?? null,
   counts: {
-   colaboradores: setor._count.colaboradores,
+   colaboradores: countByScope(colaboradoresKpi, setor.id),
    maquinas: setor._count.maquinas,
    notebooks: notebooksPorSetor.get(setor.id) ?? 0,
    aparelhos: setor._count.aparelhos,
@@ -201,23 +206,56 @@ async function getDashboardData() {
   },
   kpi: buildKpiSeries(kpiItems.filter(item => item.setor_id === setor.id)),
  }));
- const localidadesOverview: SectorOverviewRow[] = localidades.map(localidade => ({
-  id: localidade.id,
-  nome: localidade.nome,
-  descricao: null,
-  ativo: localidade.ativo,
-  created_at: localidade.created_at?.toISOString() ?? null,
-  counts: {
-   colaboradores: localidade._count.colaboradores,
-   maquinas: localidade._count.maquinas,
-   notebooks: localidade._count.notebooks,
-   aparelhos: localidade._count.aparelhos,
-   impressoras: localidade._count.impressoras,
-   ramais: localidade._count.ramais,
-   racks: localidade._count.racks,
-  },
-  kpi: buildKpiSeries(localidadeKpiItems.filter(item => item.setor_id === localidade.id)),
- }));
+ function countByScope<T extends { setor_id: string | null; localidade_id: string | null }>(
+  items: T[],
+  setorId: string,
+  localidadeId?: string
+ ) {
+  return items.filter(item =>
+   item.setor_id === setorId &&
+   (!localidadeId || item.localidade_id === localidadeId)
+  ).length
+ }
+
+ function buildSetorRow(setor: (typeof setores)[number], localidadeId?: string): SectorOverviewRow {
+  return {
+   id: setor.id,
+   nome: setor.nome,
+   descricao: setor.descricao,
+   ativo: setor.ativo,
+   created_at: setor.created_at?.toISOString() ?? null,
+   counts: {
+    colaboradores: countByScope(colaboradoresKpi, setor.id, localidadeId),
+    maquinas: localidadeId ? countByScope(maquinasKpi, setor.id, localidadeId) : setor._count.maquinas,
+    notebooks: localidadeId ? countByScope(notebooksKpi.map(item => ({ ...item, setor_id: getNotebookSectorId(item) })), setor.id, localidadeId) : notebooksPorSetor.get(setor.id) ?? 0,
+    aparelhos: localidadeId ? countByScope(aparelhosKpi, setor.id, localidadeId) : setor._count.aparelhos,
+    impressoras: localidadeId ? countByScope(impressorasKpi, setor.id, localidadeId) : setor._count.impressoras,
+    ramais: localidadeId ? countByScope(ramaisKpi, setor.id, localidadeId) : setor._count.ramais,
+    racks: localidadeId ? countByScope(racksKpi, setor.id, localidadeId) : setor._count.racks,
+   },
+   kpi: buildKpiSeries(kpiItems.filter(item => item.setor_id === setor.id && (!localidadeId || item.localidade_id === localidadeId))),
+  }
+ }
+
+ const locationScopes: LocationOverviewScope[] = localidades.map(localidade => {
+  const scopedSetores = setores
+   .map(setor => buildSetorRow(setor, localidade.id))
+   .filter(setor => Object.values(setor.counts).some(count => count > 0))
+  return {
+   id: localidade.id,
+   nome: localidade.nome,
+   counts: {
+    colaboradores: colaboradoresKpi.filter(colaborador => colaborador.localidade_id === localidade.id).length,
+    maquinas: localidade._count.maquinas,
+    notebooks: localidade._count.notebooks,
+    aparelhos: localidade._count.aparelhos,
+    impressoras: localidade._count.impressoras,
+    ramais: localidade._count.ramais,
+    racks: localidade._count.racks,
+   },
+   setores: scopedSetores,
+  }
+ });
 
  return {
   stats: {
@@ -234,12 +272,12 @@ async function getDashboardData() {
    ramaisAlocados: ramaisAlocadosGroup.length,
   },
   setoresOverview,
-  localidadesOverview,
+  locationScopes,
  };
 }
 
 export default async function DashboardPage() {
- const { stats, setoresOverview, localidadesOverview } = await getDashboardData();
+ const { stats, setoresOverview, locationScopes } = await getDashboardData();
 
  return (
   <div className="p-6 max-w-7xl mx-auto">
@@ -268,14 +306,7 @@ export default async function DashboardPage() {
   </div>
 </div>
 
-   <SectorOverview
-    setores={localidadesOverview}
-    title="Localidades"
-    itemLabel="localidades"
-    collaboratorLabel="Colaboradores por localidade"
-    filterParam="localidade_id"
-   />
-   <SectorOverview setores={setoresOverview} />
+   <SectorOverview setores={setoresOverview} locationScopes={locationScopes} />
 
    {/* Stats */}
    <StatsCards stats={stats} />

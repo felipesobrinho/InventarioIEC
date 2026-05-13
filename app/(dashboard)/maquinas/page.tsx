@@ -125,6 +125,7 @@ export default function MaquinasPage() {
           sort: 'nome_host',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/maquinas?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Maquina> = await res.json()
@@ -141,7 +142,7 @@ export default function MaquinasPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -164,6 +165,10 @@ export default function MaquinasPage() {
       allocated: { label: 'Máquinas ocupadas', predicate: isAllocated },
       free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
       'machine-missing-data': { label: 'Máquinas com informacoes faltantes', predicate: hasMissingMachineData },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getMaquinaSetor(item) === filter.value,
@@ -238,15 +243,10 @@ export default function MaquinasPage() {
       header: 'Máquina',
       cell: ({ row }) => (
         <div>
-          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.identificador || '—'}</span>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.modelo || '—'}</span>
           <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
         </div>
       ),
-    },
-    {
-      accessorKey: 'identificador',
-      header: 'ID',
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.identificador || '—'}</span>,
     },
     {
       accessorKey: 'categoria',
@@ -257,6 +257,11 @@ export default function MaquinasPage() {
       accessorKey: 'setor',
       header: 'Setor',
       cell: ({ row }) => row.original.setor_nome ?? '—',
+    },
+    {
+      accessorKey: 'localidade_nome',
+      header: 'Localidade',
+      cell: ({ row }) => row.original.localidade_nome ?? '—',
     },
     {
       id: 'alocado',
@@ -432,6 +437,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

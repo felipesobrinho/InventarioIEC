@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   Activity,
   ArrowUpRight,
+  ChevronDown,
   Laptop,
   Loader2,
   MapPin,
@@ -39,6 +40,13 @@ export interface SectorOverviewRow {
   }>
 }
 
+export interface LocationOverviewScope {
+  id: string
+  nome: string
+  counts: SectorOverviewRow['counts']
+  setores: SectorOverviewRow[]
+}
+
 const chartColors = [
   '#3b82f6',
   '#8b5cf6',
@@ -58,12 +66,48 @@ const chartColors = [
   '#f43f5e',
 ]
 
+const locationColors = [
+  '#2563eb',
+  '#0f766e',
+  '#7c3aed',
+  '#b45309',
+  '#be123c',
+  '#0891b2',
+  '#4d7c0f',
+  '#4338ca',
+  '#a21caf',
+  '#475569',
+]
+
 function getSectorColor(seed: string) {
   let hash = 0
   for (let index = 0; index < seed.length; index += 1) {
     hash = (hash * 31 + seed.charCodeAt(index)) % 9973
   }
   return chartColors[hash % chartColors.length]
+}
+
+function getDistinctColor(index: number) {
+  const hue = (index * 137.508) % 360
+  return `hsl(${hue.toFixed(1)} 84% 52%)`
+}
+
+function getLocationColor(index: number) {
+  return locationColors[index % locationColors.length]
+}
+
+function applyDistinctSectorColors<T extends { nome: string; color?: string }>(items: T[]) {
+  const used = new Set<string>()
+  return items.map((item, index) => {
+    let color = item.color ?? getSectorColor(item.nome)
+    let attempt = index
+    while (used.has(color)) {
+      color = getDistinctColor(attempt)
+      attempt += 1
+    }
+    used.add(color)
+    return { ...item, color }
+  })
 }
 
 function pct(value: number, total: number) {
@@ -94,31 +138,38 @@ function aggregateKpiSeries(setores: SectorOverviewRow[]) {
 
 export function SectorOverview({
   setores,
+  locationScopes = [],
   title = 'Setores',
   itemLabel = 'setores',
   collaboratorLabel = 'Colaboradores por setor',
   filterParam = 'setor_id',
 }: {
   setores: SectorOverviewRow[]
+  locationScopes?: LocationOverviewScope[]
   title?: string
   itemLabel?: string
   collaboratorLabel?: string
   filterParam?: string
 }) {
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([])
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const [locationsOpen, setLocationsOpen] = useState(false)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const selectedLocation = locationScopes.find(location => location.id === selectedLocationId) ?? null
+  const selectedLocationIndex = selectedLocation ? locationScopes.findIndex(location => location.id === selectedLocation.id) : -1
+  const selectedLocationColor = selectedLocationIndex >= 0 ? getLocationColor(selectedLocationIndex) : '#64748b'
+  const scopedSetores = selectedLocation?.setores ?? setores
 
-  const summary = useMemo(() => {
-    const totalSectors = setores.length
-    const totals = {
-      aparelhos: setores.reduce((sum, row) => sum + row.counts.aparelhos, 0),
-      maquinas: setores.reduce((sum, row) => sum + row.counts.maquinas, 0),
-      ramais: setores.reduce((sum, row) => sum + row.counts.ramais, 0),
-      notebooks: setores.reduce((sum, row) => sum + row.counts.notebooks, 0),
-      colaboradores: setores.reduce((sum, row) => sum + row.counts.colaboradores, 0),
-    }
-
-    const sectorItems = [...setores]
+  const totals = {
+    aparelhos: scopedSetores.reduce((sum, row) => sum + row.counts.aparelhos, 0),
+    maquinas: scopedSetores.reduce((sum, row) => sum + row.counts.maquinas, 0),
+    ramais: scopedSetores.reduce((sum, row) => sum + row.counts.ramais, 0),
+    notebooks: scopedSetores.reduce((sum, row) => sum + row.counts.notebooks, 0),
+    colaboradores: scopedSetores.reduce((sum, row) => sum + row.counts.colaboradores, 0),
+  }
+  const summary = {
+    totalSectors: scopedSetores.length,
+    sectorItems: applyDistinctSectorColors([...scopedSetores]
       .map((row) => ({
         ...row,
         total: row.counts.colaboradores,
@@ -128,13 +179,12 @@ export function SectorOverview({
       .map((row) => ({
         ...row,
         distribution: pct(row.counts.colaboradores, totals.colaboradores),
-      }))
-
-    return { totalSectors, sectorItems, totals }
-  }, [setores])
+      }))),
+    totals,
+  }
 
   const selectedSectors = selectedSectorIds
-    .map(id => setores.find(row => row.id === id))
+    .map(id => scopedSetores.find(row => row.id === id))
     .filter((row): row is SectorOverviewRow => Boolean(row))
   const hasSectorSelection = selectedSectors.length > 0
   const displayedSectors = summary.sectorItems
@@ -142,8 +192,8 @@ export function SectorOverview({
     ? summary.sectorItems.filter(row => selectedSectorIds.includes(row.id))
     : summary.sectorItems
 
-  const countRows = hasSectorSelection ? selectedSectors : setores
-  const kpiSeries = hasSectorSelection ? aggregateKpiSeries(selectedSectors) : aggregateKpiSeries(setores)
+  const countRows = hasSectorSelection ? selectedSectors : scopedSetores
+  const kpiSeries = hasSectorSelection ? aggregateKpiSeries(selectedSectors) : aggregateKpiSeries(scopedSetores)
   const selectedSectorParam = selectedSectorIds.join(',')
 
   const categories = [
@@ -160,20 +210,29 @@ export function SectorOverview({
         ? currentIds.filter(id => id !== sector.id)
         : [...currentIds, sector.id]
 
-      notifyFocusChange(nextIds, setores)
+      notifyFocusChange(nextIds, scopedSetores, selectedLocation?.nome ?? null)
       return nextIds
     })
   }
 
   function clearSelection() {
     setSelectedSectorIds([])
-    notifyFocusChange([], setores)
+    notifyFocusChange([], scopedSetores)
+  }
+
+  function selectLocation(locationId: string | null) {
+    setSelectedLocationId(locationId)
+    setSelectedSectorIds([])
+    notifyFocusChange([], scopedSetores, locationScopes.find(location => location.id === locationId)?.nome ?? null)
   }
 
   function buildCategoryHref(href: string) {
-    if (!selectedSectorParam) return href
-    const params = new URLSearchParams({ [filterParam]: selectedSectorParam })
-    return `${href}?${params.toString()}`
+    const params = new URLSearchParams()
+    if (selectedSectorParam) params.set(filterParam, selectedSectorParam)
+    if (selectedLocationId) params.set('localidade_id', selectedLocationId)
+    const query = params.toString()
+    if (!query) return href
+    return `${href}?${query}`
   }
 
   return (
@@ -188,10 +247,105 @@ export function SectorOverview({
         </span>
       </div>
 
+      {locationScopes.length > 0 && (
+        <div className="mb-4 rounded-lg border border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40">
+          <button
+            type="button"
+            onClick={() => setLocationsOpen(value => !value)}
+            className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: selectedLocationColor }} />
+              <span className="truncate text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                Unidade: {selectedLocation?.nome ?? 'Todas'}
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
+            {selectedLocation && (
+              <span
+                onClick={(event) => {
+                  event.stopPropagation()
+                  selectLocation(null)
+                }}
+                className="text-[11px] font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400"
+              >
+                Todas as unidades
+              </span>
+            )}
+              <ChevronDown className={cn('h-3.5 w-3.5 text-slate-400 transition', locationsOpen && 'rotate-180')} />
+            </span>
+          </button>
+          {locationsOpen && (
+          <div className="grid gap-2 border-t border-slate-100 p-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-4">
+            <button
+              type="button"
+              onClick={() => selectLocation(null)}
+              className={cn(
+                'relative rounded-lg border border-l-4 bg-white px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900',
+                !selectedLocationId
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
+                  : 'border-transparent hover:bg-blue-50 dark:hover:bg-blue-950/20'
+              )}
+              style={{ borderLeftColor: '#64748b' }}
+            >
+              {!selectedLocationId && (
+                <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+                  x
+                </span>
+              )}
+              <span className="mb-1 flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
+                <span className="h-2 w-2 rounded-full bg-slate-500" />
+                Todas
+              </span>
+              <span className="text-[11px] text-slate-400">Visão geral do inventário</span>
+            </button>
+            {locationScopes.map((location, index) => {
+              const selected = selectedLocationId === location.id
+              const totalAssets = location.counts.maquinas + location.counts.notebooks + location.counts.aparelhos + location.counts.impressoras + location.counts.ramais + location.counts.racks
+              const locationColor = getLocationColor(index)
+              return (
+                <button
+                  key={location.id}
+                  type="button"
+                  onClick={() => selectLocation(selected ? null : location.id)}
+                  className={cn(
+                    'relative rounded-lg border border-l-4 bg-white px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900',
+                    selected
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
+                      : 'border-transparent hover:bg-blue-50 dark:hover:bg-blue-950/20'
+                  )}
+                  style={{ borderLeftColor: locationColor }}
+                >
+                  {selected && (
+                    <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+                      x
+                    </span>
+                  )}
+                  <span className="mb-1 flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: locationColor }} />
+                      <span className="truncate">{location.nome}</span>
+                    </span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                      {location.setores.length} setores
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {totalAssets.toLocaleString('pt-BR')} ativos · {location.counts.colaboradores.toLocaleString('pt-BR')} colaboradores ativos
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         <KpiChart
           title={hasSectorSelection ? 'Disponibilidade da seleção' : 'Evolução da disponibilidade'}
-          subtitle={hasSectorSelection ? selectedSectors.map(sector => sector.nome).join(' + ') : `Todos os ${itemLabel} do inventário`}
+          subtitle={hasSectorSelection ? selectedSectors.map(sector => sector.nome).join(' + ') : selectedLocation ? `${selectedLocation.nome} · ${itemLabel}` : `Todos os ${itemLabel} do inventário`}
           points={kpiSeries}
         />
       </div>
@@ -341,7 +495,7 @@ export function SectorOverview({
   )
 }
 
-function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[]) {
+function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[], locationName?: string | null) {
   const toastId = 'overview-filter-toast'
   const selected = selectedIds
     .map(id => setores.find(row => row.id === id))
@@ -352,7 +506,9 @@ function notifyFocusChange(selectedIds: string[], setores: SectorOverviewRow[]) 
       ? `Overview focado em ${selected[0].nome}`
       : `${selected.length} setores na seleção`
   const detail = selected.length === 0
-    ? 'Resumo, gráfico e atalhos usando todos os setores.'
+    ? locationName
+      ? `Resumo, gráfico e atalhos filtrados por ${locationName}.`
+      : 'Resumo, gráfico e atalhos usando todos os setores.'
     : 'Resumo, gráfico e atalhos filtrados pela pilha selecionada.'
   const colors = selected.length > 0
     ? selected.map(sector => getSectorColor(sector.nome))

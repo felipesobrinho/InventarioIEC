@@ -3,7 +3,12 @@
 import { useState, useMemo, useEffect } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@/components/tables/data-table'
-import { AuditOverviewPanel, type OverviewFilter, OverviewFilterToastDescription } from '@/components/tables/device-overview-panel'
+import {
+  AuditOverviewPanel,
+  getAuditLocalidadeId,
+  type OverviewFilter,
+  OverviewFilterToastDescription,
+} from '@/components/tables/device-overview-panel'
 import { PageHeader } from '@/components/layout/page-header'
 import { AuditLogModal } from '@/components/modals/audit-log-modal'
 import { useFetchData } from '@/hooks/use-fetch-data'
@@ -62,8 +67,22 @@ export default function MovimentacoesPage() {
       return
     }
 
+    if (filter.kind === 'location' && !filter.value) {
+      setActiveOverviewFilter(null)
+      setPage(1)
+      toast.success('Filtro de unidade removido.')
+      return
+    }
+
     const labelToAction = Object.entries(ACAO_LABELS).find(([, label]) => label === filter.value)?.[0] ?? filter.value
     const predicates: Record<string, { label: string; predicate: (item: AuditLog) => boolean }> = {
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => {
+          const locationId = getAuditLocalidadeId(item)
+          return filter.value === '__sem_localidade__' ? !locationId : locationId === filter.value
+        },
+      },
       'audit-edits': {
         label: 'Edicoes registradas',
         predicate: (item) => item.acao === 'UPDATE' || item.acao === 'EDITAR_ALOCACAO',

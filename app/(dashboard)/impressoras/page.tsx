@@ -227,6 +227,14 @@ export default function ImpressorasPage() {
           hasMissingPrinterData(item),
       },
 
+      location: {
+        label: filter.label ?? "Unidade selecionada",
+        predicate: (item) =>
+          filter.value === "__sem_localidade__"
+            ? !item.localidade_id
+            : item.localidade_id === filter.value,
+      },
+
       "printer-sector": {
         label: `Setor: ${filter.value ?? "Sem setor registrado"}`,
         predicate: (item) =>
@@ -287,6 +295,7 @@ export default function ImpressorasPage() {
           sort: "created_at",
           dir: "desc",
         });
+        if (localidadeIdFiltro) params.set("localidade_id", localidadeIdFiltro);
 
         const res = await fetch(`/api/impressoras?${params}`);
 
@@ -308,7 +317,7 @@ export default function ImpressorasPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, localidadeIdFiltro]);
 
   const columns = useMemo<ColumnDef<Impressora, unknown>[]>(
     () => [
@@ -351,6 +360,13 @@ export default function ImpressorasPage() {
         header: "Setor",
         cell: ({ row }) =>
           row.original.setor_nome ?? "—",
+      },
+
+      {
+        accessorKey: "localidade_nome",
+        header: "Localidade",
+        cell: ({ row }) =>
+          row.original.localidade_nome ?? row.original.localidade ?? "—",
       },
 
       {
@@ -495,6 +511,14 @@ function toggleOverviewFilter(
   filters: ActiveOverviewFilter[],
   candidate: ActiveOverviewFilter
 ) {
+  if (candidate.kind === "location") {
+    const withoutLocation = filters.filter(
+      (filter) => filter.kind !== "location"
+    );
+
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation;
+  }
+
   const exists = filters.some(
     (filter) => filter.key === candidate.key
   );

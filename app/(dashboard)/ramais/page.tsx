@@ -118,6 +118,11 @@ export default function RamaisPage() {
       cell: ({ row }) => row.original.setor_nome ?? '—',
     },
     {
+      accessorKey: 'localidade_nome',
+      header: 'Localidade',
+      cell: ({ row }) => row.original.localidade_nome ?? '—',
+    },
+    {
       accessorKey: 'fila',
       header: 'Recursos',
       cell: ({ row }) => (
@@ -207,6 +212,7 @@ export default function RamaisPage() {
           sort: 'numero_ramal',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/ramais?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Ramal> = await res.json()
@@ -223,7 +229,7 @@ export default function RamaisPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -248,6 +254,10 @@ export default function RamaisPage() {
       'extension-with-whatsapp': { label: 'Ramais com WhatsApp', predicate: hasWhatsapp },
       'extension-missing-data': { label: 'Ramais com informacoes faltantes', predicate: hasMissingRamalData },
       'extension-queue': { label: 'Ramais de fila', predicate: (item) => item.fila === true },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getRamalSetor(item) === filter.value,
@@ -461,6 +471,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

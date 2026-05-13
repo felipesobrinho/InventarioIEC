@@ -29,6 +29,11 @@ const columns: ColumnDef<Colaborador>[] = [
     cell: ({ row }) => row.original.setor_nome ?? '—',
   },
   {
+    accessorKey: 'localidade_nome',
+    header: 'Localidade',
+    cell: ({ row }) => row.original.localidade_nome ?? '—',
+  },
+  {
     accessorKey: 'status', header: 'Status',
     cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
   },
@@ -103,6 +108,10 @@ export default function ColaboradoresPage() {
       'collaborator-sector': {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getColaboradorSetor(item) === filter.value,
+      },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
       },
       'collaborator-without-any': {
         label: 'Colaboradores sem alocacao',
@@ -185,6 +194,7 @@ export default function ColaboradoresPage() {
       setOverviewLoading(true)
       try {
         const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'nome', dir: 'asc', overview: 'true' })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/colaboradores?${params}`)
         const json: PaginatedResponse<Colaborador> = await res.json()
         if (!cancelled) {
@@ -200,7 +210,7 @@ export default function ColaboradoresPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
   
   const filters = (
     <>
@@ -285,6 +295,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

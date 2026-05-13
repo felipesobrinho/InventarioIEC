@@ -122,6 +122,7 @@ export default function NotebooksPage() {
           sort: 'modelo',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/notebooks?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Notebook> = await res.json()
@@ -138,7 +139,7 @@ export default function NotebooksPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -163,6 +164,10 @@ export default function NotebooksPage() {
       'notebook-borrowed': { label: 'Notebooks emprestados', predicate: (item) => item.emprestado === true },
       'notebook-missing-data': { label: 'Notebooks com informacoes faltantes', predicate: hasMissingNotebookData },
       free: { label: 'Notebooks livres', predicate: (item) => !isOccupied(item) },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getNotebookSetor(item) === filter.value,
@@ -261,6 +266,11 @@ export default function NotebooksPage() {
     accessorKey: 'setor',
     header: 'Setor',
     cell: ({ row }) => row.original.setor_nome ?? '—',
+  },
+  {
+    accessorKey: 'localidade_nome',
+    header: 'Localidade',
+    cell: ({ row }) => row.original.localidade_nome ?? '—',
   },
   {
     accessorKey: 'data_revisao',
@@ -436,6 +446,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]
