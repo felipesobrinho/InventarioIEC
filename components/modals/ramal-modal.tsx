@@ -59,8 +59,12 @@ export function RamalModal({ ramal, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(ramal.id, {...data, setor_id: setorId});
- }
+  update(ramal.id, { ...data, setor_id: setorId }, {
+    previousData: ramal,
+    label: `Ramal "${ramal.numero_ramal}" atualizado`,
+  })
+}
+
  const inp =
   "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
  const lbl =

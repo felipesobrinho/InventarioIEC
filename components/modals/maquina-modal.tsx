@@ -74,8 +74,11 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(maquina.id, {...data, setor_id: setorId});
- }
+  update(maquina.id, { ...data, setor_id: setorId }, {
+    previousData: maquina,
+    label: `Máquina "${maquina.nome_host ?? maquina.identificador}" atualizada`,
+  })
+}
 
  async function alocar() {
   if (!colabId) return;
