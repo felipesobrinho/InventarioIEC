@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -21,11 +22,12 @@ type ActiveOverviewFilter = OverviewFilter & {
 }
 
 const columns: ColumnDef<Colaborador>[] = [
-  { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—' },
-  { accessorKey: 'nome', header: 'Nome', cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+  { accessorKey: 'codigo', header: 'Código', cell: ({ getValue }) => getValue() || '—', enableSorting: true},
+  { accessorKey: 'nome', enableSorting: true, header: 'Nome', cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
   {
     accessorKey: 'setor',
     header: 'Setor',
+    enableSorting: false,
     cell: ({ row }) => row.original.setor_nome ?? '—',
   },
   {
@@ -34,14 +36,14 @@ const columns: ColumnDef<Colaborador>[] = [
     cell: ({ row }) => row.original.localidade_nome ?? '—',
   },
   {
-    accessorKey: 'status', header: 'Status',
+    accessorKey: 'status', header: 'Status', enableSorting: false,
     cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
   },
 ]
 
 export default function ColaboradoresPage() {
   const searchParams = useSearchParams()
-
+  const { isAdmin } = usePermission()
   const [data, setData] = useState<Colaborador[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -60,6 +62,9 @@ export default function ColaboradoresPage() {
   const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
   const [overviewFilterLoading, setOverviewFilterLoading] = useState(false)
 
+  const [sort, setSort] = useState('nome')
+  const [dir, setDir]   = useState<'asc' | 'desc'>('asc')
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
@@ -67,13 +72,15 @@ export default function ColaboradoresPage() {
     if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
     if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
     if (status) params.set('status', status)
+    if (sort) params.set('sort', sort)
+    if (dir) params.set('dir', dir)
     const res = await fetch(`/api/colaboradores?${params}`)
     const json: PaginatedResponse<Colaborador> = await res.json()
     setData(json.data)
     setTotal(json.total)
     setTotalPages(json.totalPages)
     setLoading(false)
-  }, [page, search, setorIdFiltro, localidadeIdFiltro, status])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, status, sort, dir])
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
@@ -255,10 +262,10 @@ export default function ColaboradoresPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Colaboradores" total={total}>
-        <button type="button" onClick={() => setShowCriar(true)}
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
           <Plus className="w-4 h-4" /> Novo colaborador
-        </button>
+        </button>)}
       </PageHeader>
       <ColaboradorOverviewPanel
         total={overviewTotal || total}
@@ -279,6 +286,9 @@ export default function ColaboradoresPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
       {selected && <ColaboradorModal colaborador={selected} onClose={() => setSelected(null)} onRefresh={() => setRefreshKey(k => k + 1)}/>}
       {showCriar && <CriarColaboradorModal onClose={() => setShowCriar(false)} onRefresh={() => setRefreshKey(k => k + 1)} />}

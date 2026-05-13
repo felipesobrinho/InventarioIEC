@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState } from 'react'
 import {
@@ -18,13 +19,7 @@ import { formatDate } from '@/lib/utils'
 
 interface AlocacaoItem {
   id: string
-  colaborador: { 
-    nome: string; 
-    setor_rel?: {
-      nome: string
-    } 
-    | null 
-  }
+  colaborador: { nome: string; setor_rel: { nome: string | null } }
   data_inicio: string | null
   whatsapp?: boolean | null    // apenas ramais
   extra?: React.ReactNode      // slot para campos específicos
@@ -44,6 +39,7 @@ export function AlocacoesAtivasSection({
   alocacoes,
   onRefresh,
 }: Props) {
+  const { isAdmin } = usePermission()
   const [novoColabId, setNovoColabId] = useState('')
   const [novoColabNome, setNovoColabNome] = useState('')
   const [savingNova, setSavingNova] = useState(false)
@@ -53,8 +49,6 @@ export function AlocacoesAtivasSection({
   const [novoWhatsapp, setNovoWhatsapp] = useState(false)
   const [savingWhatsapp, setSavingWhatsapp] = useState(false)
   const totalAlocacoes = alocacoes.length
-
-  console.log(alocacoes)
 
   // Alocar novo colaborador
   async function alocar() {
@@ -131,9 +125,6 @@ export function AlocacoesAtivasSection({
             <User className="h-4 w-4 text-slate-400" />
           </div>
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Sem colaborador alocado</p>
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-            Use o campo abaixo para vincular este item a um colaborador.
-          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -169,10 +160,10 @@ export function AlocacoesAtivasSection({
                           {aloc.colaborador.nome}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1.5">
-                          {aloc.colaborador.setor_rel?.nome && (
+                          {aloc.colaborador.setor_rel.nome && (
                             <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 dark:bg-slate-800 px-1.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
                               <Building2 className="h-3 w-3" />
-                              {aloc.colaborador.setor_rel?.nome}
+                              {aloc.colaborador.setor_rel.nome}
                             </span>
                           )}
                           {aloc.data_inicio && (
@@ -190,7 +181,7 @@ export function AlocacoesAtivasSection({
                         </div>
                       </div>
                     </div>
-                    <button
+                    {isAdmin && <button
                       type="button"
                       onClick={() => setConfirmDesalocar(aloc)}
                       className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-400"
@@ -200,7 +191,7 @@ export function AlocacoesAtivasSection({
                         : <UserMinus className="w-3.5 h-3.5" />
                       }
                       Desalocar
-                    </button>
+                    </button>}
                   </div>
 
                   {aloc.extra && (
@@ -211,8 +202,8 @@ export function AlocacoesAtivasSection({
                 </div>
               </div>
 
-              {/* Edição de WhatsApp para ramais */}
-              {entidade === 'ramais' && editandoWhatsappId === aloc.id ? (
+              {/* Edição de WhatsApp para ramais — apenas admin */}
+              {isAdmin && entidade === 'ramais' && editandoWhatsappId === aloc.id ? (
                 <div className="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900 px-3 py-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -246,7 +237,7 @@ export function AlocacoesAtivasSection({
                     Cancelar
                   </button>
                 </div>
-              ) : entidade === 'ramais' ? (
+              ) : isAdmin && entidade === 'ramais' ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -264,8 +255,8 @@ export function AlocacoesAtivasSection({
         </div>
       )}
 
-      {/* Adicionar nova alocação */}
-      <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2 bg-slate-50/60 dark:bg-slate-900/40">
+      {/* Adicionar nova alocação — apenas admin */}
+      {isAdmin && <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2 bg-slate-50/60 dark:bg-slate-900/40">
         <div className="flex items-center gap-2">
           <UserPlus className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
@@ -289,7 +280,7 @@ export function AlocacoesAtivasSection({
             Confirmar alocação
           </button>
         )}
-      </div>
+      </div>}
 
       {/* Confirm desalocar */}
       {confirmDesalocar && (

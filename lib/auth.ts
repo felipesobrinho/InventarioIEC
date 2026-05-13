@@ -2,6 +2,8 @@ import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { NextResponse } from 'next/server'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -50,4 +52,24 @@ export const authOptions: NextAuthOptions = {
   },
   pages: { signIn: '/login' },
   session: { strategy: 'jwt' },
+}
+
+/**
+ * Verifica se a sessão corrente pertence a um admin.
+ * Retorna null se autorizado, ou um NextResponse 403 pronto para retornar.
+ *
+ * Uso nas rotas PUT/DELETE:
+ *   const denied = await requireAdmin()
+ *   if (denied) return denied
+ */
+export async function requireAdmin(): Promise<NextResponse | null> {
+  const session = await getServerSession(authOptions)
+  const perfil = (session?.user as any)?.perfil ?? 'viewer'
+  if (perfil !== 'admin') {
+    return NextResponse.json(
+      { error: 'Acesso negado. Apenas administradores podem realizar esta ação.' },
+      { status: 403 },
+    )
+  }
+  return null
 }

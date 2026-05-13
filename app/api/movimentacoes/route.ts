@@ -23,7 +23,24 @@ export async function GET(request: Request) {
     const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
 
     const where: any = {}
-    if (search) where.identificador_dispositivo = { contains: search, mode: 'insensitive' }
+    
+    if (search) {
+      where.OR = [
+        {
+          identificador_dispositivo: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          descricao: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ]
+    }
+
     if (tipoDispositivoRaw !== '') {
       const n = parseInt(tipoDispositivoRaw)
       if (!isNaN(n)) where.tipo_dispositivo = n

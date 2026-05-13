@@ -111,14 +111,17 @@ export async function GET(request: Request) {
         colaborador: a.colaborador,
         tipo_uso: a.tipo_uso,
         data_inicio: a.data_inicio,
-        setor: a.colaborador.setor_rel?.nome ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? a.colaborador?.setor ?? null,
       })),
       alocacao_ativa: m.alocacoes[0]
         ? {
-            colaborador: m.alocacoes[0].colaborador,
+            colaborador: m.alocacoes[0].colaborador ?? null,
             tipo_uso: m.alocacoes[0].tipo_uso,
             data_inicio: m.alocacoes[0].data_inicio,
-            setor: m.alocacoes[0].colaborador.setor_rel?.nome ?? null,
+            setor:
+              m.alocacoes[0].colaborador.setor_rel?.nome ??
+              m.alocacoes[0].colaborador?.setor ??
+              null,
           }
         : null,
       alocacoes: undefined,
@@ -137,16 +140,51 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { usuario_id, usuario_nome } = await getAuditSession()
-    const body = await request.json()
-    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
-    const id = randomUUID()
-    const item = await prisma.maquinas.create({
-      data: {
-        ...data,
-        id,
-        identificador: id,
-      },
-    })
+const body = await request.json()
+
+if (body?.endereco_ip) {
+  const existeIp = await prisma.maquinas.findFirst({
+    where: {
+      endereco_ip: body.endereco_ip,
+    },
+  })
+
+  if (existeIp) {
+    return NextResponse.json(
+      { error: `Endereço IP ${body.endereco_ip} já cadastrado` },
+      { status: 409 }
+    )
+  }
+}
+
+if (body?.nome_host) {
+  const existeHostname = await prisma.maquinas.findFirst({
+    where: {
+      nome_host: body.nome_host,
+    },
+  })
+
+  if (existeHostname) {
+    return NextResponse.json(
+      { error: `Hostname ${body.nome_host} já cadastrado` },
+      { status: 409 }
+    )
+  }
+}
+
+const data = await withLocalidadePadrao(
+  withoutLegacyVirtualFields(body)
+)
+
+const id = randomUUID()
+
+const item = await prisma.maquinas.create({
+  data: {
+    ...data,
+    id,
+    identificador: id,
+  },
+})
 
     await registrarAuditoria({
       tabela: 'maquinas',

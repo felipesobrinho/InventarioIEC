@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -63,6 +64,7 @@ function useDebounce<T>(value: T, delayMs: number): T {
 }
 
 export default function RamaisPage() {
+  const { isAdmin } = usePermission()
   const searchParams = useSearchParams()
   const inspectId = searchParams.get('inspect')
 
@@ -100,6 +102,7 @@ export default function RamaisPage() {
     {
       accessorKey: 'numero_ramal',
       header: 'Ramal',
+      enableSorting: true,
       cell: ({ row }) => {
         const ramal = formatRamalNumber(row.original.numero_ramal)
         return (
@@ -115,6 +118,7 @@ export default function RamaisPage() {
     {
       accessorKey: 'setor_nome',
       header: 'Setor',
+      enableSorting: false,
       cell: ({ row }) => row.original.setor_nome ?? '—',
     },
     {
@@ -125,6 +129,7 @@ export default function RamaisPage() {
     {
       accessorKey: 'fila',
       header: 'Recursos',
+      enableSorting: false,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
           <BoolBadge value={row.original.fila} labelTrue="Fila" labelFalse="Sem fila" />
@@ -134,6 +139,7 @@ export default function RamaisPage() {
     },
     {
       id: 'alocado',
+      enableSorting: false,
       header: 'Uso',
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
@@ -417,13 +423,10 @@ export default function RamaisPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Ramais" total={total}>
-        <button
-          type="button"
-          onClick={() => setShowCriar(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
-        >
-          <Plus className="w-4 h-4" /> Novo ramal
-        </button>
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Novo Ramal
+        </button>)}
       </PageHeader>
 
       <DeviceOverviewPanel
@@ -446,6 +449,9 @@ export default function RamaisPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
 
       {showCriar && (
@@ -463,7 +469,7 @@ export default function RamaisPage() {
 }
 
 function getRamalSetor(item?: Ramal | null) {
-  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.colaborador?.setor_rel?.nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {

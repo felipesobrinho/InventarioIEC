@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
@@ -51,6 +52,7 @@ function isBackupMachine(item: Maquina) {
 }
 
 export default function MaquinasPage() {
+  const { isAdmin } = usePermission()
   const [data, setData] = useState<Maquina[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -252,11 +254,13 @@ export default function MaquinasPage() {
           <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
         </div>
       ),
+      enableSorting: true,
     },
     {
       accessorKey: 'categoria',
       header: 'Categoria',
       cell: ({ row }) => <CategoriaBadge categoria={row.original.categoria} />,
+      enableSorting: false,
     },
     {
       accessorKey: 'setor',
@@ -267,10 +271,12 @@ export default function MaquinasPage() {
       accessorKey: 'localidade_nome',
       header: 'Localidade',
       cell: ({ row }) => row.original.localidade_nome ?? '—',
+      enableSorting: false,
     },
     {
       id: 'alocado',
       header: 'Uso',
+      enableSorting: false,
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
         if (alocacoes.length === 0) {
@@ -386,13 +392,10 @@ export default function MaquinasPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Máquinas" total={total}>
-        <button
-          type="button"
-          onClick={() => setShowCriar(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
-        >
-          <Plus className="w-4 h-4" /> Nova máquina
-        </button>
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Nova Máquina
+        </button>)}
       </PageHeader>
 
       <DeviceOverviewPanel
@@ -415,6 +418,9 @@ export default function MaquinasPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
 
       {selected && (
@@ -435,7 +441,7 @@ export default function MaquinasPage() {
 }
 
 function getMaquinaSetor(item?: Maquina | null) {
-  return item?.setor_nome || item?.alocacao_ativa?.setor || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
