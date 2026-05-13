@@ -100,6 +100,7 @@ export default function RamaisPage() {
     {
       accessorKey: 'numero_ramal',
       header: 'Ramal',
+      enableSorting: true,
       cell: ({ row }) => {
         const ramal = formatRamalNumber(row.original.numero_ramal)
         return (
@@ -115,11 +116,13 @@ export default function RamaisPage() {
     {
       accessorKey: 'nome_setor',
       header: 'Setor',
+      enableSorting: false,
       cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
     },
     {
       accessorKey: 'fila',
       header: 'Recursos',
+      enableSorting: false,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
           <BoolBadge value={row.original.fila} labelTrue="Fila" labelFalse="Sem fila" />
@@ -129,6 +132,7 @@ export default function RamaisPage() {
     },
     {
       id: 'alocado',
+      enableSorting: false,
       header: 'Uso',
       cell: ({ row }) => {
         const alocacoes = row.original.alocacoes_ativas ?? []
@@ -424,6 +428,9 @@ export default function RamaisPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
 
       {showCriar && (

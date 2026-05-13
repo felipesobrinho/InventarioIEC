@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     const dir     = searchParams.get('dir') === 'desc' ? 'desc' : 'asc'
 
     const validSortFields: Record<string, boolean> = {
-      modelo: true, fabricante: true, localidade: true, created_at: true,
+      modelo: true, fabricante: true, andar: true, numero_serie: true, nome_host: true, created_at: true,
     }
     const safeSort = validSortFields[sort] ? sort : 'modelo'
 
