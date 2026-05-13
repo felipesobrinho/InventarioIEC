@@ -4,7 +4,7 @@ import {
   useReactTable, getCoreRowModel, flexRender,
   type ColumnDef, type SortingState,
 } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,9 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void
   isLoading?: boolean
   filters?: React.ReactNode
+  sort?: string
+  dir?: 'asc' | 'desc'
+  onSort?: (field: string, dir: 'asc' | 'desc') => void
 }
 
 function SkeletonRow({ cols }: { cols: number }) {
@@ -34,7 +37,7 @@ function SkeletonRow({ cols }: { cols: number }) {
 
 export function DataTable<T>({
   columns, data, total, page, totalPages,
-  onPageChange, onRowClick, isLoading, filters,
+  onPageChange, onRowClick, isLoading, filters, sort, dir, onSort
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -42,11 +45,32 @@ export function DataTable<T>({
     data,
     columns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater
+      setSorting(next)
+      // Propagar para a página pai se onSort fornecido
+      if (onSort && next.length > 0) {
+        onSort(next[0].id, next[0].desc ? 'desc' : 'asc')
+      } else if (onSort && next.length === 0) {
+        // clicou 3x — reset para default (ignorar ou definir default na página)
+      }
+    },
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualSorting: true,   // NOVO — desliga sort client-side
     pageCount: totalPages,
+    enableSortingRemoval: false, // NOVO — alterna só asc/desc sem reset
   })
+
+  useState(() => {
+    if (sort) {
+      setSorting([{ id: sort, desc: dir === 'desc' }])
+    }
+  })
+
+  useEffect(() => {
+  if (sort) setSorting([{ id: sort, desc: dir === 'desc' }])
+}, [sort, dir])
 
   return (
     <div className="flex flex-col gap-3">

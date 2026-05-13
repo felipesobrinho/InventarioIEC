@@ -1,4 +1,5 @@
 "use client";
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState } from "react";
 import { X, Pencil, Trash2, Loader2, UserPlus } from "lucide-react";
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
+ const { isAdmin } = usePermission()
  const [mode, setMode] = useState<"view" | "edit">("view");
  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
  const [showDesalocarConfirm, setShowDesalocarConfirm] = useState(false);
@@ -74,8 +76,11 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(maquina.id, {...data, setor_id: setorId, localidade_id: localidadeId});
- }
+  update(maquina.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
+    previousData: maquina,
+    label: `Máquina "${maquina.nome_host ?? maquina.identificador}" atualizada`,
+  })
+}
 
  async function alocar() {
   if (!colabId) return;
@@ -160,13 +165,19 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          entidade="maquinas"
          alocacoes={(maquina.alocacoes_ativas ?? []).map((a) => ({
           id: a.id,
-          colaborador: a.colaborador,
+          colaborador: {
+                nome: a.colaborador.nome,
+                setor_rel: {
+                        nome: a.colaborador.setor_rel?.nome ?? null,
+                },
+          },
           data_inicio: a.data_inicio ?? null,
          }))}
          onRefresh={onRefresh}
          onClose={onClose}
         />
        ) : (
+        isAdmin && (
         <div className="border border-dashed border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
          <div className="flex items-center gap-2">
           <UserPlus className="w-4 h-4 text-slate-400" />
@@ -201,6 +212,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
           </button>
          )}
         </div>
+        )
        )}
 
        <DetailSection title="Identificação">
@@ -316,7 +328,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
      <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
       {mode === "view" ? (
        <>
-        <button
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -325,8 +337,8 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition"
         >
          <Trash2 className="w-3.5 h-3.5" /> Excluir
-        </button>
-        <button
+        </button>)}
+{isAdmin && (        <button
          type="button"
          onClick={(e) => {
           e.preventDefault();
@@ -335,7 +347,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
         >
          <Pencil className="w-3.5 h-3.5" /> Editar
-        </button>
+        </button>)}
        </>
       ) : (
        <>

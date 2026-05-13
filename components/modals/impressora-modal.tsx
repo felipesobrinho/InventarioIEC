@@ -1,4 +1,5 @@
 'use client'
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState } from 'react'
 import { X, Pencil, Trash2, Loader2 } from 'lucide-react'
@@ -31,6 +32,7 @@ type FormData = z.infer<typeof schema>
 interface Props { impressora: Impressora; onClose: () => void; onRefresh: () => void }
 
 export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
+  const { isAdmin } = usePermission()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(
@@ -62,8 +64,12 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-    update(impressora.id, {...data, setor_id: setorId, localidade_id: localidadeId})
-  }
+  update(impressora.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
+    previousData: impressora,
+    label: `Impressora "${impressora.nome_host ?? impressora.modelo }" atualizada`,
+  })
+}
+
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
   const lbl = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
@@ -153,14 +159,14 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
           <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex gap-2">
             {mode === 'view' ? (
               <>
-                <button type="button" onClick={(e) => {e.preventDefault(); setShowDeleteConfirm(true)}}
+{isAdmin && (                <button type="button" onClick={(e) => {e.preventDefault(); setShowDeleteConfirm(true)}}
                   className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition">
                   <Trash2 className="w-3.5 h-3.5" /> Excluir
-                </button>
-                <button type="button" onClick={(e) => {e.preventDefault(); setMode('edit')}}
+                </button>)}
+{isAdmin && (                <button type="button" onClick={(e) => {e.preventDefault(); setMode('edit')}}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
                   <Pencil className="w-3.5 h-3.5" /> Editar
-                </button>
+                </button>)}
               </>
             ) : (
               <>

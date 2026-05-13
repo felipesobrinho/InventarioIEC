@@ -163,13 +163,35 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
+    
     if (body.data_revisao) {
       body.data_revisao = new Date(body.data_revisao + 'T00:00:00.000Z')
     } else if (body.data_revisao === '' || body.data_revisao === null) {
       body.data_revisao = null
     }
-    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
-    const item = await prisma.notebooks.create({ data })
+
+    if (body?.numero_patrimonio) {
+      const existe = await prisma.notebooks.findFirst({
+        where: {
+          numero_patrimonio: body.numero_patrimonio,
+        },
+      })
+
+      if (existe) {
+        return NextResponse.json(
+          {
+            error: `Número de patrimônio ${body.numero_patrimonio} já cadastrado`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+const data = await withLocalidadePadrao(
+  withoutLegacyVirtualFields(body)
+)
+
+const item = await prisma.notebooks.create({ data })
 
     await registrarAuditoria({
       tabela: 'notebooks',

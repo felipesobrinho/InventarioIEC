@@ -180,8 +180,27 @@ export async function POST(request: Request) {
 
     const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
-    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
-    const item = await prisma.ramais.create({ data })
+
+    if (body?.numero_ramal) {
+      const existe = await prisma.ramais.findFirst({
+        where: {
+          numero_ramal: body.numero_ramal,
+        },
+      })
+
+      if (existe) {
+        return NextResponse.json(
+          { error: `Número do ramal ${body.numero_ramal} já cadastrado` },
+          { status: 409 }
+        )
+      }
+    }
+
+    const data = await withLocalidadePadrao(
+      withoutLegacyVirtualFields(body)
+    )
+
+const item = await prisma.ramais.create({ data })
 
     await registrarAuditoria({
       tabela: 'ramais',

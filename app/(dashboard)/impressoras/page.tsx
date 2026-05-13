@@ -1,4 +1,5 @@
 "use client";
+import { usePermission } from '@/hooks/use-permission'
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -51,6 +52,7 @@ function hasMissingPrinterData(item: Impressora) {
 }
 
 export default function ImpressorasPage() {
+  const { isAdmin } = usePermission()
   const searchParams = useSearchParams();
 
   const inspectId = searchParams.get("inspect");
@@ -92,6 +94,9 @@ export default function ImpressorasPage() {
     ActiveOverviewFilter[]
   >([]);
 
+    const [sort, setSort] = useState('nome')
+    const [dir, setDir]   = useState<'asc' | 'desc'>('asc')
+
   const fetchData = useCallback(async () => {
     setLoading(true);
 
@@ -108,6 +113,8 @@ export default function ImpressorasPage() {
     if (andar) params.set("andar", andar);
 
     if (status) params.set("status", status);
+    if (sort) params.set('sort', sort)
+    if (dir) params.set('dir', dir)
 
     const res = await fetch(`/api/impressoras?${params}`);
 
@@ -118,7 +125,8 @@ export default function ImpressorasPage() {
     setTotalPages(json.totalPages);
 
     setLoading(false);
-  }, [page, search, setorIdFiltro, localidadeIdFiltro, andar, status]);
+  }, [page, search, setorIdFiltro, andar, status, sort, dir, localidadeIdFiltro]);
+
 
   useEffect(() => {
     void Promise.resolve().then(fetchData);
@@ -325,6 +333,7 @@ export default function ImpressorasPage() {
       {
         accessorKey: "nome_host",
         header: "Nome Host",
+        enableSorting: true,
         cell: ({ getValue }) => (
           <span className="font-medium">
             {(getValue() as string) || "—"}
@@ -335,18 +344,21 @@ export default function ImpressorasPage() {
       {
         accessorKey: "fabricante",
         header: "Fabricante",
+        enableSorting: true,
         cell: ({ getValue }) => getValue() || "—",
       },
 
       {
         accessorKey: "modelo",
         header: "Modelo",
+        enableSorting: true,
         cell: ({ getValue }) => getValue() || "—",
       },
 
       {
         accessorKey: "numero_serie",
         header: "Nº Série",
+        enableSorting: true,
         cell: ({ getValue }) => getValue() || "—",
       },
 
@@ -359,12 +371,14 @@ export default function ImpressorasPage() {
       {
         accessorKey: "endereco_ip",
         header: "IP",
+        enableSorting: false,
         cell: ({ getValue }) => getValue() || "—",
       },
 
       {
         accessorKey: "setor",
         header: "Setor",
+        enableSorting: false,
         cell: ({ row }) =>
           row.original.setor_nome ?? "—",
       },
@@ -379,12 +393,14 @@ export default function ImpressorasPage() {
       {
         accessorKey: "andar",
         header: "Andar",
+        enableSorting: true,
         cell: ({ getValue }) => getValue() || "—",
       },
 
       {
         accessorKey: "status",
         header: "Status",
+        enableSorting: false,
         cell: ({ getValue }) => (
           <BoolBadge
             value={getValue() as boolean}
@@ -462,14 +478,10 @@ export default function ImpressorasPage() {
   return (
     <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
       <PageHeader title="Impressoras" total={total}>
-        <button
-          type="button"
-          onClick={() => setShowCriar(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition"
-        >
-          <Plus className="w-4 h-4" />
-          Nova impressora
-        </button>
+        {isAdmin && (<button type="button" onClick={() => setShowCriar(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition">
+          <Plus className="w-4 h-4" /> Nova Impressora
+        </button>)}
       </PageHeader>
 
       <ImpressoraOverviewPanel
@@ -490,6 +502,9 @@ export default function ImpressorasPage() {
         onRowClick={setSelected}
         isLoading={loading || overviewFilterLoading}
         filters={filters}
+        sort={sort}
+        dir={dir}
+        onSort={(field, newDir) => { setSort(field); setDir(newDir); setPage(1) }}
       />
 
       {selected && (
