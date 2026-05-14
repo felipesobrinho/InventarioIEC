@@ -1270,16 +1270,9 @@ export function notifyOverviewFilter(filters: ActiveOverviewFilterState[]) {
 }
 
 export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }: AuditOverviewPanelProps) {
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
-  const itemsWithLocation = items.map(item => ({
-    ...item,
-    localidade_id: getAuditLocalidadeId(item),
-    localidade_nome: getAuditLocalidadeNome(item),
-  }))
-  const locations = buildLocationScopes(itemsWithLocation)
-  const scopedItems = filterByLocation(itemsWithLocation, selectedLocationId)
+  const scopedItems = items
   const analyzedTotal = scopedItems.length
-  const displayedTotal = selectedLocationId ? analyzedTotal : total || analyzedTotal
+  const displayedTotal = total || analyzedTotal
   const edits = scopedItems.filter(item => item.acao === 'UPDATE' || item.acao === 'EDITAR_ALOCACAO')
   const deletes = scopedItems.filter(item => item.acao === 'DELETE')
   const latest = latestDate(edits.map(item => item.created_at)) ?? latestDate(scopedItems.map(item => item.created_at))
@@ -1287,23 +1280,11 @@ export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }
   const actions = groupByLabel(scopedItems, item => ACAO_LABELS[item.acao] || item.acao || 'Sem acao', scopedItems.length)
   const latestLabel = latest ? formatDate(String(latest)) : '—'
 
-  function applyLocationScope(location: { id: string; label: string } | null) {
-    setSelectedLocationId(location?.id ?? null)
-    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
-  }
-
   return (
     <OverviewShell
       title="Auditoria"
       accentClassName="bg-amber-500"
       icon={<ShieldAlert className="h-4 w-4" />}
-      beforeContent={
-        <LocationScopeAccordion
-          locations={locations}
-          selectedLocationId={selectedLocationId}
-          onSelect={applyLocationScope}
-        />
-      }
       metrics={[
         { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Registros', value: displayedTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <Activity className="h-3.5 w-3.5" />, label: 'Edicoes', value: edits.length.toLocaleString('pt-BR'), tone: 'warning', filter: { kind: 'audit-edits' } },
