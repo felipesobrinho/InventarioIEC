@@ -121,8 +121,6 @@ model notebooks {
   emprestado_colaborador_id String?                @db.Uuid
   emprestado_desde          DateTime?              @db.Date
   emprestado_obs            String?
-  data_revisao              DateTime?              @db.Date
-  localidade_id             String?                @db.Uuid
   alocacoes                 alocacoes_notebooks[]
   emprestado_colaborador    colaboradores?         @relation("EmprestimoColaborador", fields: [emprestado_colaborador_id], references: [id], onUpdate: NoAction)
   emprestado_setor          setores?               @relation("EmprestimoSetor", fields: [emprestado_setor_id], references: [id], onUpdate: NoAction)
@@ -187,7 +185,6 @@ model ramais {
   setor_id            String?            @db.Uuid
   localidade_id       String?            @db.Uuid
   password            String?
-  localidade_id       String?            @db.Uuid
   alocacoes           alocacoes_ramais[]
   localidade_rel      localidades?       @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   setor_rel           setores?           @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
