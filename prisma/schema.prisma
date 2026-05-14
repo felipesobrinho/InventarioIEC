@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp")]
 }
 
 model usuarios {
@@ -36,24 +38,42 @@ model setores {
   @@index([nome], map: "idx_setores_nome")
 }
 
+model localidades {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nome          String          @unique
+  ativo         Boolean         @default(true)
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  aparelhos     aparelhos[]
+  colaboradores colaboradores[]
+  impressoras   impressoras[]
+  maquinas      maquinas[]
+  notebooks     notebooks[]
+  racks         racks[]
+  ramais        ramais[]
+
+  @@index([ativo], map: "idx_localidades_ativo")
+  @@index([nome], map: "idx_localidades_nome")
+}
+
 model colaboradores {
   id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   codigo                Int?
   nome                  String
-  setor                 String?
   status                status_colaborador    @default(Ativo)
   created_at            DateTime?             @default(now()) @db.Timestamptz(6)
   setor_id              String?               @db.Uuid
+  localidade_id         String?               @db.Uuid
   alocacoes_aparelhos   alocacoes_aparelhos[]
   alocacoes_maquinas    alocacoes_maquinas[]
   alocacoes_notebooks   alocacoes_notebooks[]
   alocacoes_ramais      alocacoes_ramais[]
+  localidade_rel        localidades?          @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   setor_rel             setores?              @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
   movimentacoes         movimentacoes[]
   notebooks_emprestados notebooks[]           @relation("EmprestimoColaborador")
 
   @@index([nome], map: "idx_colaboradores_nome")
-  @@index([setor], map: "idx_colaboradores_setor")
+  @@index([localidade_id], map: "idx_colaboradores_localidade_id")
 }
 
 model maquinas {
@@ -69,17 +89,18 @@ model maquinas {
   armazenamento      String?
   endereco_ip        String?
   localizacao        String?
-  setor              String?
   patrimonio_cpu     String?
   patrimonio_monitor String?
   data_revisao       DateTime?              @db.Date
   created_at         DateTime?              @default(now()) @db.Timestamptz(6)
   setor_id           String?                @db.Uuid
+  localidade_id      String?                @db.Uuid
   alocacoes          alocacoes_maquinas[]
+  localidade_rel     localidades?           @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   setor_rel          setores?               @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 
   @@index([identificador], map: "idx_maquinas_identificador")
-  @@index([setor], map: "idx_maquinas_setor")
+  @@index([localidade_id], map: "idx_maquinas_localidade_id")
 }
 
 model notebooks {
@@ -91,10 +112,10 @@ model notebooks {
   memoria                   String?
   armazenamento             String?
   numero_patrimonio         String?
-  setor                     String?
   data_revisao              DateTime?              @db.Date
   created_at                DateTime?              @default(now()) @db.Timestamptz(6)
   setor_id                  String?                @db.Uuid
+  localidade_id             String?                @db.Uuid
   emprestado                Boolean                @default(false)
   emprestado_setor_id       String?                @db.Uuid
   emprestado_colaborador_id String?                @db.Uuid
@@ -103,28 +124,33 @@ model notebooks {
   alocacoes                 alocacoes_notebooks[]
   emprestado_colaborador    colaboradores?         @relation("EmprestimoColaborador", fields: [emprestado_colaborador_id], references: [id], onUpdate: NoAction)
   emprestado_setor          setores?               @relation("EmprestimoSetor", fields: [emprestado_setor_id], references: [id], onUpdate: NoAction)
+  localidade_rel            localidades?           @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   setor_rel                 setores?               @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
 
   @@index([emprestado_colaborador_id], map: "idx_notebooks_emprestado_colab")
+  @@index([localidade_id], map: "idx_notebooks_localidade_id")
 }
 
 model aparelhos {
-  id           String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  modelo       String?
-  tipo         Int?
-  chip         Boolean?              @default(false)
-  endereco_ip  String?
-  endereco_mac String?
-  setor        String?
-  status       Boolean?              @default(true)
-  created_at   DateTime?             @default(now()) @db.Timestamptz(6)
-  setor_id     String?               @db.Uuid
-  alocacoes    alocacoes_aparelhos[]
-  setor_rel    setores?              @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+  id             String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelo         String?
+  tipo           Int?
+  chip           Boolean?              @default(false)
+  endereco_ip    String?
+  endereco_mac   String?
+  status         Boolean?              @default(true)
+  created_at     DateTime?             @default(now()) @db.Timestamptz(6)
+  setor_id       String?               @db.Uuid
+  localidade_id  String?               @db.Uuid
+  alocacoes      alocacoes_aparelhos[]
+  localidade_rel localidades?          @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  setor_rel      setores?              @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+
+  @@index([localidade_id], map: "idx_aparelhos_localidade_id")
 }
 
 model impressoras {
-  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                 String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   nome_host          String?
   fabricante         String?
   modelo             String?
@@ -135,17 +161,20 @@ model impressoras {
   servidor_impressao String?
   identificador_selb String?
   tipo_usuario       String?
-  revisao            DateTime? @db.Timestamptz(6)
-  status             Boolean?  @default(true)
-  created_at         DateTime? @default(now()) @db.Timestamptz(6)
-  setor_id           String?   @db.Uuid
-  setor_rel          setores?  @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+  revisao            DateTime?    @db.Timestamptz(6)
+  status             Boolean?     @default(true)
+  created_at         DateTime?    @default(now()) @db.Timestamptz(6)
+  setor_id           String?      @db.Uuid
+  localidade_id      String?      @db.Uuid
+  localidade_rel     localidades? @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  setor_rel          setores?     @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+
+  @@index([localidade_id], map: "idx_impressoras_localidade_id")
 }
 
 model ramais {
   id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   numero_ramal        String?
-  nome_setor          String?
   prefixo_telefonico  String?
   disponibilidade     String?
   fila                Boolean?           @default(false)
@@ -154,13 +183,17 @@ model ramais {
   senha_acesso        String?
   created_at          DateTime?          @default(now()) @db.Timestamptz(6)
   setor_id            String?            @db.Uuid
+  localidade_id       String?            @db.Uuid
   password            String?
   alocacoes           alocacoes_ramais[]
+  localidade_rel      localidades?       @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   setor_rel           setores?           @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+
+  @@index([localidade_id], map: "idx_ramais_localidade_id")
 }
 
 model racks {
-  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                      String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   nome_switch             String?
   marca_switch            String?
   localizacao             String?
@@ -170,9 +203,13 @@ model racks {
   portas_livres           Int?
   portas_academicas       String?
   portas_vlan_impressoras String?
-  created_at              DateTime? @default(now()) @db.Timestamptz(6)
-  setor_id                String?   @db.Uuid
-  setor_rel               setores?  @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+  created_at              DateTime?    @default(now()) @db.Timestamptz(6)
+  setor_id                String?      @db.Uuid
+  localidade_id           String?      @db.Uuid
+  localidade_rel          localidades? @relation(fields: [localidade_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  setor_rel               setores?     @relation(fields: [setor_id], references: [id], onUpdate: NoAction)
+
+  @@index([localidade_id], map: "idx_racks_localidade_id")
 }
 
 model alocacoes_maquinas {
@@ -291,6 +328,7 @@ model audit_log {
 enum categoria_equipamento {
   Administrativa
   Academica
+  Backup
 }
 
 enum status_colaborador {
