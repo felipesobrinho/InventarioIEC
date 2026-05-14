@@ -78,6 +78,7 @@ export async function GET(_: Request, { params }: Props) {
   setor_nome: item.setor_rel?.nome ?? item.nome_setor ?? null,
   localidade_nome: item.localidade_rel?.nome ?? null,
 })
+}
 
 export async function PUT(request: Request, { params }: Props) {
   const denied = await requireAdmin()
