@@ -2,7 +2,7 @@
 import { usePermission } from "@/hooks/use-permission";
 
 import { useState } from "react";
-import { X, Pencil, Trash2, Loader2, UserPlus, Box, Plus } from "lucide-react";
+import { X, Pencil, Trash2, Loader2, UserPlus, Box } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -87,16 +87,11 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
 
  // Chamado APENAS pelo botão type="submit" form="nb-form"
  function onSubmit(data: FormData) {
-<<<<<<< HEAD
-  update(notebook.id, {...data, setor_id: setorId, localidade_id: localidadeId});
- }
-=======
-  update(notebook.id, { ...data, setor_id: setorId }, {
+  update(notebook.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
     previousData: notebook,
     label: `Notebook "${notebook.numero_patrimonio}" atualizado`,
   })
 }
->>>>>>> merge-prod
 
  async function alocar() {
   if (!colabId) return;
@@ -300,16 +295,9 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
-<<<<<<< HEAD
         <DetailField label="Última revisão" value={formatDate(notebook.data_revisao)} />
-        <DetailField label="Setor" value={notebook.setor_nome ?? '—'} />
+        <DetailField label="Setor" value={notebook.setor_nome ?? notebook.setor ?? '—'} />
         <DetailField label="Localidade" value={notebook.localidade_nome ?? '—'} />
-=======
-        <DetailField
-         label="Setor"
-         value={(notebook as any).setor_nome ?? notebook.setor ?? "—"}
-        />
->>>>>>> merge-prod
        </DetailSection>
        {notebook.emprestado ? (
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
@@ -332,8 +320,8 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
            {/* Nome do colaborador — buscar via colaborador_select ou exibir ID */}
            Colaborador vinculado:{" "}
-           {(notebook as any).emprestado_colaborador_nome ??
-            (notebook as any).emprestado_colaborador_setor ??
+           {notebook.emprestado_colaborador_nome ??
+            notebook.emprestado_colaborador_setor ??
             "Emprestado"}
           </p>
          )}
@@ -470,18 +458,11 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
          <div>
           <label className={lbl}>Nº Patrimônio</label>
           <input {...register("numero_patrimonio")} className={inp} />
-         </div>
-         <div className="col-span-2">
-          <label className={lbl}>Setor</label>
-<<<<<<< HEAD
-         <SetorSelect
-               value={setorId}
-               onChange={(id) => setSetorId(id)}
-            />
-=======
-          <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
->>>>>>> merge-prod
-         </div>
+        </div>
+        <div className="col-span-2">
+         <label className={lbl}>Setor</label>
+         <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
+        </div>
          <div className="col-span-2">
           <label className={lbl}>Localidade</label>
           <LocalidadeSelect

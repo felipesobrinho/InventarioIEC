@@ -86,6 +86,8 @@ export interface Notebook {
   localidade_nome?: string | null
   emprestado: boolean
   emprestado_colaborador_id: string | null
+  emprestado_colaborador_nome?: string | null
+  emprestado_colaborador_setor?: string | null
   emprestado_setor_id: string | null
   emprestado_obs: string | null
   emprestado_desde: string | null
