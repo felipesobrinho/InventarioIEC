@@ -122,7 +122,7 @@ export async function PUT(request: Request, { params }: Props) {
 
   const { id } = await params
   if (!id) return NextResponse.json({ error: 'ID do notebook não fornecido' }, { status: 400 })
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
 
     const {

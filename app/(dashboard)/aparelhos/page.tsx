@@ -38,7 +38,7 @@ function hasMissingPhoneData(item: Aparelho) {
     item.tipo,
     item.endereco_ip,
     item.endereco_mac,
-    item.setor_nome ?? item.setor,
+    item.setor_nome ?? item.localidade_nome,
   ].some(
     (value) =>
       value === null || value === undefined || value === "",

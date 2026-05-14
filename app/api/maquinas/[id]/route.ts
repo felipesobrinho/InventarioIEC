@@ -81,7 +81,7 @@ export async function GET(_: Request, { params }: Props) {
 
     alocacoes: undefined,
 
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? item.localidade_rel?.nome ?? null,
     localidade_nome: item.localidade_rel?.nome ?? null,
   })
 }

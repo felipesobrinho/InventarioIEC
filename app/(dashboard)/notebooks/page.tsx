@@ -53,7 +53,7 @@ function hasMissingNotebookData(item: Notebook) {
     item.armazenamento,
     item.numero_patrimonio,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome ?? item.localidade_nome,
   ].some(
     (value) =>
       value === null ||
@@ -505,7 +505,7 @@ export default function NotebooksPage() {
 
         cell: ({ row }) =>
           row.original.setor_nome ??
-          row.original.setor ??
+          row.original.localidade_nome ??
           "—",
       },
 
@@ -826,7 +826,7 @@ function getNotebookSetor(
 ) {
   return (
     item?.setor_nome ||
-    item?.setor ||
+    item?.localidade_nome ||
     item?.alocacao_ativa
       ?.colaborador
       .setor_rel?.nome ||

@@ -69,15 +69,16 @@ export async function GET(_: Request, { params }: Props) {
         whatsapp: item.alocacoes[0].whatsapp,
         canal_adicional: item.alocacoes[0].canal_adicional,
         data_inicio: item.alocacoes[0].data_inicio,
-        setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
+        setor: item.alocacoes[0].colaborador?.nome ?? null,
       }
     : null,
 
   alocacoes: undefined,
 
-  setor_nome: item.setor_rel?.nome ?? item.nome_setor ?? null,
+  setor_nome: item.setor_rel?.nome ?? item.localidade_rel?.nome ?? null,
   localidade_nome: item.localidade_rel?.nome ?? null,
-})
+ })
+}
 
 export async function PUT(request: Request, { params }: Props) {
   const denied = await requireAdmin()
