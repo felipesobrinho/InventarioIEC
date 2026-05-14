@@ -219,7 +219,7 @@ const locationColors = [
 ]
 
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor_nome || item.setor || item.localidade_nome || item.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
+  return item.setor_nome || item.setor || item.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
 }
 
 function getLocalidade(item: { localidade_id?: string | null; localidade_nome?: string | null }) {
