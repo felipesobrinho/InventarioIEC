@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import type { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
 
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
     const page    = parseInt(searchParams.get('page')  || '1')
     const limit   = parseInt(searchParams.get('limit') || '50')
 
-    const where: any = {}
+    const where: Prisma.setoresWhereInput = {}
     if (search) where.nome = { contains: search, mode: 'insensitive' }
     if (ativo !== '') where.ativo = ativo === 'true'
 
@@ -26,7 +27,11 @@ export async function GET(request: Request) {
       const data = await prisma.setores.findMany({
         where,
         orderBy: { nome: 'asc' },
-        select: { id: true, nome: true, ativo: true },
+        select: {
+          id: true,
+          nome: true,
+          ativo: true,
+        },
       })
       return NextResponse.json(data)
     }
@@ -46,6 +51,7 @@ export async function GET(request: Request) {
               aparelhos: true,
               impressoras: true,
               ramais: true,
+              racks: true,
             },
           },
         },
@@ -53,7 +59,12 @@ export async function GET(request: Request) {
       prisma.setores.count({ where }),
     ])
 
-    return NextResponse.json({ data, total, page, totalPages: Math.ceil(total / limit) })
+    return NextResponse.json({
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    })
   } catch (err) {
     console.error('[GET /api/setores]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
@@ -65,7 +76,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const { nome, descricao } = await request.json()
 
     if (!nome?.trim()) {
@@ -76,13 +87,17 @@ export async function POST(request: Request) {
     if (existe) return NextResponse.json({ error: 'Setor já cadastrado' }, { status: 409 })
 
     const item = await prisma.setores.create({
-      data: { nome: nome.trim(), descricao: descricao || null, ativo: true },
+      data: {
+        nome: nome.trim(),
+        descricao: descricao || null,
+        ativo: true,
+      },
     })
 
     await registrarAuditoria({
       tabela: 'setores', registro_id: item.id, acao: 'CREATE',
       descricao: `Setor "${item.nome}" criado`,
-      dados_novos: item as any, usuario_id, usuario_nome,
+      dados_novos: item, usuario_id, usuario_nome,
     })
 
     return NextResponse.json(item, { status: 201 })

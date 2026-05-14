@@ -8,14 +8,14 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
-  identificador: z.string().optional().nullable(),
   fabricante: z.string().optional().nullable(),
   modelo: z.string().optional().nullable(),
-  categoria: z.enum(['Administrativa', 'Academica']).optional().nullable(),
+  categoria: z.enum(['Administrativa', 'Academica', 'Backup']).optional().nullable(),
   processador: z.string().optional().nullable(),
   memoria_ram: z.string().optional().nullable(),
   armazenamento: z.string().optional().nullable(),
@@ -34,11 +34,12 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
-    const maquina = await create({ ...data, setor_id: setorId })
+    const maquina = await create({ ...data, setor_id: setorId, localidade_id: localidadeId })
     if (!maquina) return
 
     console.log(maquina)
@@ -80,7 +81,6 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
           <form id="criar-maq-form" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Nome Host</label><input {...register('nome_host')} className={inp} /></div>
-              <div><label className={lbl}>Identificador</label><input {...register('identificador')} className={inp} /></div>
               <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
               <div><label className={lbl}>Modelo</label><input {...register('modelo')} className={inp} /></div>
               <div className="col-span-2">
@@ -89,6 +89,7 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                   <option value="">Selecione...</option>
                   <option value="Administrativa">Administrativa</option>
                   <option value="Academica">Acadêmica</option>
+                  <option value="Backup">Backup</option>
                 </select>
               </div>
               <div><label className={lbl}>Processador</label><input {...register('processador')} className={inp} /></div>
@@ -101,6 +102,13 @@ export function CriarMaquinaModal({ onClose, onRefresh }: Props) {
                     value={setorId}
                     onChange={(id) => setSetorId(id)}
                   />
+              </div>
+              <div>
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect
+                  value={localidadeId}
+                  onChange={(id) => { setLocalidadeId(id) }}
+                />
               </div>
               <div><label className={lbl}>Patrimônio CPU</label><input {...register('patrimonio_cpu')} className={inp} /></div>
               <div><label className={lbl}>Patrimônio Monitor</label><input {...register('patrimonio_monitor')} className={inp} /></div>

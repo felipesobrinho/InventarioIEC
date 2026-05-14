@@ -16,6 +16,7 @@ import type { Notebook } from "@/types";
 import { HistoricoPanel } from "./historico-panel";
 import { AlocacoesAtivasSection } from "./alocacoes-ativas-section";
 import { SetorSelect } from "./setor-select";
+import { LocalidadeSelect } from "./localidade-select";
 import { formatDate } from "@/lib/utils";
 
 const schema = z.object({
@@ -60,8 +61,11 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
  const [savingEmp, setSavingEmp] = useState(false);
 
  const [setorId, setSetorId] = useState<string | null>(
-  (notebook as any).setor_id ?? null,
- );
+    notebook.setor_id ?? null
+  )
+ const [localidadeId, setLocalidadeId] = useState<string | null>(
+    notebook.localidade_id ?? null
+  )
 
  const { update, remove, saving, deleting } = useCrud("notebooks", () => {
   onRefresh();
@@ -81,13 +85,20 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
   },
  });
 
- // Chamado APENAS pelo botão type="submit" form="nb-form"
- function onSubmit(data: FormData) {
-  update(notebook.id, { ...data, setor_id: setorId }, {
-    previousData: notebook,
-    label: `Notebook "${notebook.numero_patrimonio}" atualizado`,
-  })
-}
+  function onSubmit(data: FormData) {
+    update(
+      notebook.id,
+      {
+        ...data,
+        setor_id: setorId,
+        localidade_id: localidadeId,
+      },
+      {
+        previousData: notebook,
+        label: `Notebook "${notebook.numero_patrimonio}" atualizado`,
+      }
+    );
+  }
 
  async function alocar() {
   if (!colabId) return;
@@ -291,10 +302,18 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
         <DetailField label="Processador" value={notebook.processador} />
         <DetailField label="Memória" value={notebook.memoria} />
         <DetailField label="Armazenamento" value={notebook.armazenamento} />
+        <DetailField label="Última revisão" value={formatDate(notebook.data_revisao)} />
+        <DetailField label="Setor" value={notebook.setor_nome ?? '—'} />
+        <DetailField label="Localidade" value={notebook.localidade_nome ?? '—'} />
         <DetailField
-         label="Setor"
-         value={(notebook as any).setor_nome ?? notebook.setor ?? "—"}
+          label="Setor"
+          value={(notebook as any).setor_nome ?? notebook.localidade_nome ?? "—"}
         />
+        <DetailField
+          label="Localidade"
+          value={notebook.localidade_nome ?? "—"}
+        />
+
        </DetailSection>
        {notebook.emprestado ? (
         <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg p-4">
@@ -457,9 +476,21 @@ export function NotebookModal({ notebook, onClose, onRefresh }: Props) {
           <input {...register("numero_patrimonio")} className={inp} />
          </div>
          <div className="col-span-2">
-          <label className={lbl}>Setor</label>
-          <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
+            <label className={lbl}>Setor</label>
+            <SetorSelect
+              value={setorId}
+              onChange={(id) => setSetorId(id)}
+            />
          </div>
+         <div className="col-span-2">
+            <label className={lbl}>Localidade</label>
+            <LocalidadeSelect
+              value={localidadeId}
+              onChange={(id) => {
+                setLocalidadeId(id);
+              }}
+            />
+          </div>
         </div>
        </form>
       </div>

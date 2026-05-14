@@ -17,6 +17,7 @@ import type { Aparelho } from '@/types'
 import { HistoricoPanel } from './historico-panel'
 import { AlocacoesAtivasSection } from './alocacoes-ativas-section'
 import { SetorSelect } from './setor-select'
+import { LocalidadeSelect } from './localidade-select'
 
 const schema = z.object({
   modelo: z.string().optional().nullable(),
@@ -42,7 +43,10 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(
-    (aparelho as any).setor_id ?? null
+    aparelho.setor_id ?? null
+  )
+  const [localidadeId, setLocalidadeId] = useState<string | null>(
+    aparelho.localidade_id ?? null
   )
 
   const { update, remove, saving, deleting } = useCrud('aparelhos', () => {
@@ -62,7 +66,7 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-  update(aparelho.id, { ...data, setor_id: setorId }, {
+  update(aparelho.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
     previousData: aparelho,
     label: `Aparelho "${aparelho.modelo}" atualizado`,
   })
@@ -181,7 +185,8 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
               <DetailSection title="Rede">
                 <DetailField label="Endereço IP" value={aparelho.endereco_ip} />
                 <DetailField label="Endereço MAC" value={aparelho.endereco_mac} />
-                <DetailField label="Setor" value={(aparelho as any).setor_nome ?? aparelho.setor ?? '—'} />
+                <DetailField label="Setor" value={aparelho.setor_nome ?? '—'} />
+                <DetailField label="Localidade" value={aparelho.localidade_nome ?? '—'} />
               </DetailSection>
               <HistoricoPanel registroId={aparelho.id} tabela="aparelhos" />
             </div>
@@ -208,6 +213,13 @@ export function AparelhoModal({ aparelho, onClose, onRefresh }: Props) {
                     <SetorSelect
                       value={setorId}
                       onChange={(id) => setSetorId(id)}
+                    />
+                  </div>
+                  <div>
+                    <label className={lbl}>Localidade</label>
+                    <LocalidadeSelect
+                      value={localidadeId}
+                      onChange={(id) => { setLocalidadeId(id) }}
                     />
                   </div>
                   <div className="flex items-center gap-2 pt-2">

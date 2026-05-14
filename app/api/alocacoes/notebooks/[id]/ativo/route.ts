@@ -15,13 +15,13 @@ export async function DELETE(request: Request, { params }: Props) {
     const { id: notebook_id } = await params
     console.log('[DESALOCAR NOTEBOOK] notebook_id:', notebook_id)
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     console.log('[DESALOCAR NOTEBOOK] usuário:', { usuario_id, usuario_nome })
 
     // Buscar alocação ativa ANTES de desativar
     const alocacaoAtiva = await prisma.alocacoes_notebooks.findFirst({
       where: { notebook_id, ativo: true },
-      include: { colaborador: { select: { nome: true, setor: true } } },
+      include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
     })
     console.log('[DESALOCAR NOTEBOOK] alocação ativa encontrada:', alocacaoAtiva?.id ?? 'NENHUMA')
 
@@ -41,7 +41,7 @@ export async function DELETE(request: Request, { params }: Props) {
             alocacao_id: alocacaoAtiva.id,
             colaborador_id: alocacaoAtiva.colaborador_id,
             colaborador_nome: alocacaoAtiva.colaborador?.nome ?? null,
-            colaborador_setor: alocacaoAtiva.colaborador?.setor ?? null,
+            colaborador_setor: alocacaoAtiva.colaborador?.setor_rel?.nome ?? null,
             data_inicio: alocacaoAtiva.data_inicio,
             motivo_alocacao: alocacaoAtiva.motivo_alocacao,
           }

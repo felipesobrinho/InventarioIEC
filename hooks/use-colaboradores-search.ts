@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 interface ColaboradorOption {
   id: string
   nome: string
-  setor: string | null
+  setor_nome?: string | null
 }
 
 export function useColaboradoresSearch() {

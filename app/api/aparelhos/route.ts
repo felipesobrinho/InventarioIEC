@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +23,8 @@ export async function GET(request: Request) {
     const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
     const setorIds = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const status  = searchParams.get('status')   || ''
     const chip    = searchParams.get('chip')     || ''
     const alocacao= searchParams.get('alocacao') || ''
@@ -40,6 +44,7 @@ export async function GET(request: Request) {
           { modelo:      { contains: search, mode: 'insensitive' } },
           { endereco_ip: { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
               some: {
@@ -54,6 +59,8 @@ export async function GET(request: Request) {
 
     if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
     if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
     if (status !== '') AND.push({ status: status === 'true' })
     if (chip   !== '') AND.push({ chip:   chip   === 'true' })
 
@@ -75,10 +82,11 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+            include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.aparelhos.count({ where }),
@@ -86,14 +94,15 @@ export async function GET(request: Request) {
 
     const mapped = data.map((a: any) => ({
       ...a,
-      setor_nome: a.setor_rel?.nome ?? a.setor ?? null,
+      setor_nome: a.setor_rel?.nome ?? null,
+      localidade_nome: a.localidade_rel?.nome ?? null,
       alocacoes_ativas: a.alocacoes.map((al: any) => ({
         id: al.id,
         colaborador: al.colaborador,
         descricao_alocacao: al.descricao_alocacao,
         motivo_alocacao: al.motivo_alocacao,
         data_inicio: al.data_inicio,
-        setor: al.colaborador.setor_rel?.nome ?? al.colaborador.setor ?? null,
+        setor: al.colaborador.setor_rel?.nome ?? null,
       })),
       alocacao_ativa: a.alocacoes[0]
         ? {
@@ -101,7 +110,7 @@ export async function GET(request: Request) {
             descricao_alocacao: a.alocacoes[0].descricao_alocacao,
             motivo_alocacao: a.alocacoes[0].motivo_alocacao,
             data_inicio: a.alocacoes[0].data_inicio,
-            setor: a.alocacoes[0].colaborador.setor_rel?.nome ?? a.alocacoes[0].colaborador.setor ?? null,
+            setor: a.alocacoes[0].colaborador.setor_rel?.nome ?? null,
           }
         : null,
       alocacoes: undefined,
@@ -119,9 +128,10 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
-    const item = await prisma.aparelhos.create({ data: body })
+    const data = await withLocalidadePadrao(withoutLegacyVirtualFields(body))
+    const item = await prisma.aparelhos.create({ data })
 
     await registrarAuditoria({
       tabela: 'aparelhos',

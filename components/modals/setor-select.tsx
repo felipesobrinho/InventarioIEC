@@ -41,7 +41,6 @@ export function SetorSelect({
   const [creating, setCreating] = useState(false)
   const [novoNome, setNovoNome] = useState('')
   const [pos, setPos] = useState<DropdownPos | null>(null)
-  const [mounted, setMounted] = useState(false)
 
   const triggerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -50,9 +49,6 @@ export function SetorSelect({
   const selectedNome = value
     ? setores.find(s => s.id === value)?.nome ?? null
     : null
-
-  // Garantir que estamos no cliente para o portal
-  useEffect(() => { setMounted(true) }, [])
 
   function calcPos() {
     if (!triggerRef.current) return
@@ -134,7 +130,7 @@ export function SetorSelect({
     setSearch('')
   }
 
-  const dropdown = mounted && open && pos ? createPortal(
+  const dropdown = open && pos && typeof document !== 'undefined' ? createPortal(
     <>
       {/* Backdrop invisível para fechar */}
       <div

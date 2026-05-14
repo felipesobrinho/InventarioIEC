@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import { ColaboradorModal } from '@/components/modals/colaborador-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search } from 'lucide-react'
 import type { Colaborador, PaginatedResponse } from '@/types'
 import { CriarColaboradorModal } from '@/components/modals/criar-colaborador-modal'
@@ -27,7 +28,12 @@ const columns: ColumnDef<Colaborador>[] = [
     accessorKey: 'setor',
     header: 'Setor',
     enableSorting: false,
-    cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+    cell: ({ row }) => row.original.setor_nome ?? '—',
+  },
+  {
+    accessorKey: 'localidade_nome',
+    header: 'Localidade',
+    cell: ({ row }) => row.original.localidade_nome ?? '—',
   },
   {
     accessorKey: 'status', header: 'Status', enableSorting: false,
@@ -50,6 +56,7 @@ export default function ColaboradoresPage() {
   const [showCriar, setShowCriar] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [status, setStatus] = useState(searchParams.get('status') || '')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeOverviewFilters, setActiveOverviewFilters] = useState<ActiveOverviewFilter[]>([])
@@ -63,6 +70,7 @@ export default function ColaboradoresPage() {
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
     if (setorIdFiltro) params.set('setor_id', setorIdFiltro)
+    if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
     if (status) params.set('status', status)
     if (sort) params.set('sort', sort)
     if (dir) params.set('dir', dir)
@@ -72,7 +80,7 @@ export default function ColaboradoresPage() {
     setTotal(json.total)
     setTotalPages(json.totalPages)
     setLoading(false)
-  }, [page, search, setorIdFiltro, status, sort, dir])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, status, sort, dir])
 
   useEffect(() => { void Promise.resolve().then(fetchData) }, [fetchData, refreshKey])
 
@@ -107,6 +115,10 @@ export default function ColaboradoresPage() {
       'collaborator-sector': {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getColaboradorSetor(item) === filter.value,
+      },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
       },
       'collaborator-without-any': {
         label: 'Colaboradores sem alocacao',
@@ -189,6 +201,7 @@ export default function ColaboradoresPage() {
       setOverviewLoading(true)
       try {
         const params = new URLSearchParams({ page: '1', limit: '10000', sort: 'nome', dir: 'asc', overview: 'true' })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/colaboradores?${params}`)
         const json: PaginatedResponse<Colaborador> = await res.json()
         if (!cancelled) {
@@ -204,7 +217,7 @@ export default function ColaboradoresPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
   
   const filters = (
     <>
@@ -224,6 +237,15 @@ export default function ColaboradoresPage() {
           setPage(1)
         }}
         placeholder="Filtrar por setor..."
+      />
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value)
+          setSetorIdFiltro(null)
+          setPage(1)
+        }}
+        placeholder="Filtrar por localidade..."
       />
       <select
         value={status}
@@ -275,7 +297,7 @@ export default function ColaboradoresPage() {
 }
 
 function getColaboradorSetor(item?: Colaborador | null) {
-  return item?.setor_nome || item?.setor || 'Sem setor'
+  return item?.setor_nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
@@ -283,6 +305,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

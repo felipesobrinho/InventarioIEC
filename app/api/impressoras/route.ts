@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
 
 export const runtime = 'nodejs'
 
@@ -22,6 +23,8 @@ export async function GET(request: Request) {
     const search  = (searchParams.get('search') || '').trim()
     const setorId = searchParams.get('setor_id') || ''
     const setorIds = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const andar   = (searchParams.get('andar') || '').trim()
     const status  = searchParams.get('status') || ''
     const sort    = searchParams.get('sort')     || 'modelo'
@@ -41,13 +44,18 @@ export async function GET(request: Request) {
           { fabricante:  { contains: search, mode: 'insensitive' } },
           { localidade:  { contains: search, mode: 'insensitive' } },
           { endereco_ip: { contains: search, mode: 'insensitive' } },
+          { numero_serie: { contains: search, mode: 'insensitive' } },
+          { identificador_selb: { contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
         ],
       })
     }
 
     if (setorIds.length === 1) AND.push({ setor_id: setorIds[0] })
     if (setorIds.length > 1) AND.push({ setor_id: { in: setorIds } })
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
     if (andar) AND.push({ andar: { contains: andar, mode: 'insensitive' } })
     if (status === 'true') AND.push({ status: true })
     if (status === 'false') AND.push({ status: false })
@@ -63,6 +71,7 @@ export async function GET(request: Request) {
         orderBy,
         include: {
           setor_rel: { select: { id: true, nome: true } },
+          localidade_rel: { select: { id: true, nome: true } },
         },
       }),
       prisma.impressoras.count({ where }),
@@ -71,6 +80,7 @@ export async function GET(request: Request) {
     const mapped = data.map((i) => ({
       ...i,
       setor_nome: i.setor_rel?.nome ?? i.localidade ?? null,
+      localidade_nome: i.localidade_rel?.nome ?? i.localidade ?? null,
     }))
 
     return NextResponse.json({ data: mapped, total, page, totalPages: Math.ceil(total / limit) })
@@ -85,9 +95,10 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
-    const item = await prisma.impressoras.create({ data: body })
+    const data = await withLocalidadePadrao(body)
+    const item = await prisma.impressoras.create({ data })
 
     await registrarAuditoria({
       tabela: 'impressoras',

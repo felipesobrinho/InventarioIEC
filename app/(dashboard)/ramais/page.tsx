@@ -13,6 +13,7 @@ import { CriarRamalModal } from '@/components/modals/criar-ramal-modal'
 import { Search, Plus } from 'lucide-react'
 import type { Ramal, PaginatedResponse } from '@/types'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 
 type ActiveOverviewFilter = OverviewFilter & {
   key: string
@@ -37,7 +38,7 @@ function hasMissingRamalData(item: Ramal) {
     item.numero_ramal,
     item.prefixo_telefonico,
     item.senha_acesso,
-    item.setor_nome ?? item.setor ?? item.nome_setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -84,6 +85,7 @@ export default function RamaisPage() {
   const [search, setSearch] = useState('')
   const [disponibilidade, setDisponibilidade] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [fila, setFila] = useState('')
   const [alocacao, setAlocacao] = useState('')
   const [sort, setSort] = useState('numero_ramal')
@@ -114,10 +116,15 @@ export default function RamaisPage() {
       },
     },
     {
-      accessorKey: 'nome_setor',
+      accessorKey: 'setor_nome',
       header: 'Setor',
       enableSorting: false,
-      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+      cell: ({ row }) => row.original.setor_nome ?? '—',
+    },
+    {
+      accessorKey: 'localidade_nome',
+      header: 'Localidade',
+      cell: ({ row }) => row.original.localidade_nome ?? '—',
     },
     {
       accessorKey: 'fila',
@@ -174,6 +181,7 @@ export default function RamaisPage() {
       if (debouncedSearch)        params.set('search',        debouncedSearch)
       if (disponibilidade) params.set('disponibilidade', disponibilidade)
       if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
       if (fila !== '')   params.set('fila',          fila)
       if (alocacao)      params.set('alocacao',      alocacao)
       if (whatsappFiltro) params.set('whatsapp', whatsappFiltro)
@@ -196,7 +204,7 @@ export default function RamaisPage() {
 
     fetchData()
     return () => { cancelledRef.current = true }
-  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey, setorIdFiltro])
+  }, [page, debouncedSearch, disponibilidade, fila, alocacao, sort, dir, whatsappFiltro, refreshKey, setorIdFiltro, localidadeIdFiltro])
 
   useEffect(() => {
     let cancelled = false
@@ -210,6 +218,7 @@ export default function RamaisPage() {
           sort: 'numero_ramal',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/ramais?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Ramal> = await res.json()
@@ -226,7 +235,7 @@ export default function RamaisPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -251,6 +260,10 @@ export default function RamaisPage() {
       'extension-with-whatsapp': { label: 'Ramais com WhatsApp', predicate: hasWhatsapp },
       'extension-missing-data': { label: 'Ramais com informacoes faltantes', predicate: hasMissingRamalData },
       'extension-queue': { label: 'Ramais de fila', predicate: (item) => item.fila === true },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getRamalSetor(item) === filter.value,
@@ -342,6 +355,14 @@ export default function RamaisPage() {
      placeholder="Filtrar por setor..."
     />
 
+    <LocalidadeSelect
+     value={localidadeIdFiltro}
+     onChange={(value) => {
+      setLocalidadeIdFiltro(value); setSetorIdFiltro(null); setPage(1);
+     }}
+     placeholder="Filtrar por localidade..."
+    />
+
     <select
      value={fila}
      onChange={(e) => {
@@ -394,7 +415,7 @@ export default function RamaisPage() {
      <option value="numero_ramal:desc">Ramal ↓</option>
      <option value="created_at:desc">Mais recentes</option>
      <option value="created_at:asc">Mais antigos</option>
-     <option value="nome_setor:asc">Setor A→Z</option>
+     <option value="setor_id:asc">Setor A→Z</option>
     </select>
    </>
   );
@@ -448,7 +469,7 @@ export default function RamaisPage() {
 }
 
 function getRamalSetor(item?: Ramal | null) {
-  return item?.setor_nome || item?.setor || item?.nome_setor || item?.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.colaborador?.setor_rel?.nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
@@ -456,6 +477,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

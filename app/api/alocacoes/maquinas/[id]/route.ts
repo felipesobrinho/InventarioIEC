@@ -14,7 +14,7 @@ export async function DELETE(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id: alocacao_id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
 
     const alocacao = await prisma.alocacoes_maquinas.findUnique({
       where: { id: alocacao_id },
