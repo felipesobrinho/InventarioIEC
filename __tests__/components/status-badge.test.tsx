@@ -273,6 +273,13 @@ describe('CategoriaBadge - Categoria de Solicitação', () => {
     expect(screen.queryByText('Academica')).not.toBeInTheDocument()
   })
 
+  test('deve renderizar categoria Backup com cor âmbar', () => {
+    const { container } = render(<CategoriaBadge categoria="Backup" />)
+    expect(screen.getByText('Backup')).toBeInTheDocument()
+    const badge = container.querySelector('span')
+    expect(badge?.className).toContain('bg-amber-100')
+  })
+
   test('deve renderizar outras categorias com cor padrão', () => {
     const { container } = render(<CategoriaBadge categoria="Outra" />)
     expect(screen.getByText('Outra')).toBeInTheDocument()

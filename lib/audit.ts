@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import type { Prisma } from '@prisma/client'
 
 export type AuditAction =
   | 'CREATE'
@@ -30,8 +31,8 @@ interface AuditParams {
   registro_id: string
   acao: AuditAction
   descricao?: string
-  dados_anteriores?: Record<string, any> | null
-  dados_novos?: Record<string, any> | null
+  dados_anteriores?: Record<string, unknown> | null
+  dados_novos?: Record<string, unknown> | null
   usuario_id?: string | null
   usuario_nome?: string | null
 }
@@ -44,8 +45,8 @@ export async function registrarAuditoria(params: AuditParams) {
         registro_id: params.registro_id,
         acao: params.acao,
         descricao: params.descricao ?? null,
-        dados_anteriores: params.dados_anteriores ?? undefined,
-        dados_novos: params.dados_novos ?? undefined,
+        dados_anteriores: params.dados_anteriores as Prisma.InputJsonValue | undefined,
+        dados_novos: params.dados_novos as Prisma.InputJsonValue | undefined,
         usuario_id: params.usuario_id ?? null,
         usuario_nome: params.usuario_nome ?? null,
       },
@@ -56,18 +57,20 @@ export async function registrarAuditoria(params: AuditParams) {
   }
 }
 
-export async function getAuditSession(request: Request) {
+export async function getAuditSession() {
   const session = await getServerSession(authOptions)
+  const user = session?.user as { id?: string | null; name?: string | null } | undefined
+
   return {
-    usuario_id: (session?.user as any)?.id ?? null,
-    usuario_nome: (session?.user as any)?.name ?? 'Desconhecido',
+    usuario_id: user?.id ?? null,
+    usuario_nome: user?.name ?? 'Desconhecido',
   }
 }
 
 // Gerar descrição legível da diferença entre dois objetos
 export function descricaoDiff(
-  anterior: Record<string, any>,
-  novo: Record<string, any>
+  anterior: Record<string, unknown>,
+  novo: Record<string, unknown>
 ): string {
   const mudancas: string[] = []
   const camposIgnorados = ['created_at', 'updated_at', 'id']

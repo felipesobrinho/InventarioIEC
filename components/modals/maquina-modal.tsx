@@ -17,13 +17,13 @@ import type { Maquina } from "@/types";
 import { HistoricoPanel } from "./historico-panel";
 import { AlocacoesAtivasSection } from "./alocacoes-ativas-section";
 import { SetorSelect } from "./setor-select";
+import { LocalidadeSelect } from "./localidade-select";
 
 const schema = z.object({
  nome_host: z.string().optional().nullable(),
- identificador: z.string().optional().nullable(),
  fabricante: z.string().optional().nullable(),
  modelo: z.string().optional().nullable(),
- categoria: z.enum(["Administrativa", "Academica"]).optional().nullable(),
+ categoria: z.enum(["Administrativa", "Academica", "Backup"]).optional().nullable(),
  processador: z.string().optional().nullable(),
  memoria_ram: z.string().optional().nullable(),
  armazenamento: z.string().optional().nullable(),
@@ -48,7 +48,10 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
  const [colabNome, setColabNome] = useState("");
  const [savingAlocacao, setSavingAlocacao] = useState(false);
  const [setorId, setSetorId] = useState<string | null>(
-  (maquina as any).setor_id ?? null
+  maquina.setor_id ?? null
+ )
+ const [localidadeId, setLocalidadeId] = useState<string | null>(
+  maquina.localidade_id ?? null
  )
 
  const { update, remove, saving, deleting } = useCrud("maquinas", () => {
@@ -60,7 +63,6 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
   resolver: zodResolver(schema),
   defaultValues: {
    nome_host: maquina.nome_host,
-   identificador: maquina.identificador,
    fabricante: maquina.fabricante,
    modelo: maquina.modelo,
    categoria: maquina.categoria,
@@ -74,7 +76,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
  });
 
  function onSubmit(data: FormData) {
-  update(maquina.id, { ...data, setor_id: setorId }, {
+  update(maquina.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
     previousData: maquina,
     label: `Máquina "${maquina.nome_host ?? maquina.identificador}" atualizada`,
   })
@@ -231,7 +233,8 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
        </DetailSection>
        <DetailSection title="Rede e Localização">
         <DetailField label="Endereço IP" value={maquina.endereco_ip} />
-        <DetailField label="Setor" value={(maquina as any).setor_nome ?? maquina.setor ?? '—'} />
+        <DetailField label="Setor" value={maquina.setor_nome ?? '—'} />
+        <DetailField label="Localidade" value={maquina.localidade_nome ?? '—'} />
         <DetailField
          label="Categoria"
          value={<CategoriaBadge categoria={maquina.categoria} />}
@@ -261,10 +264,6 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
           <input {...register("nome_host")} className={inp} />
          </div>
          <div>
-          <label className={lbl}>Identificador</label>
-          <input {...register("identificador")} className={inp} />
-         </div>
-         <div>
           <label className={lbl}>Fabricante</label>
           <input {...register("fabricante")} className={inp} />
          </div>
@@ -278,6 +277,7 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
            <option value="">Selecione...</option>
            <option value="Administrativa">Administrativa</option>
            <option value="Academica">Acadêmica</option>
+           <option value="Backup">Backup</option>
           </select>
          </div>
          <div>
@@ -298,11 +298,18 @@ export function MaquinaModal({ maquina, onClose, onRefresh }: Props) {
          </div>
          <div>
           <label className={lbl}>Setor</label>
-          <SetorSelect
+         <SetorSelect
            value={setorId}
            onChange={(id) =>
             setSetorId(id)
            }
+          />
+         </div>
+         <div>
+          <label className={lbl}>Localidade</label>
+          <LocalidadeSelect
+           value={localidadeId}
+           onChange={(id) => { setLocalidadeId(id) }}
           />
          </div>
          <div>

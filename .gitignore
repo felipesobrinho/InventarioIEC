@@ -36,6 +36,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local Supabase CLI state
+supabase/.temp/
+supabase/.temp*/
+supabase/migrations 2/
 
 # vercel
 .vercel

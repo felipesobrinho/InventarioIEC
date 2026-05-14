@@ -9,13 +9,25 @@ type Props = { params: Promise<{ id: string }> }
 
 async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   if (!snapshot) return snapshot
-  const { setor_id, ...rest } = snapshot
+  const { setor_id, localidade_id, ...rest } = snapshot
   let setor_nome: string | null = null
+  let localidade_nome: string | null = null
   if (setor_id) {
     const setor = await prisma.setores.findUnique({ where: { id: setor_id }, select: { nome: true } })
     setor_nome = setor?.nome ?? setor_id
   }
-  return { ...rest, ...(setor_id !== undefined ? { setor_nome } : {}) }
+  if (localidade_id) {
+    const localidade = await prisma.localidades.findUnique({
+      where: { id: localidade_id },
+      select: { nome: true },
+    })
+    localidade_nome = localidade?.nome ?? localidade_id
+  }
+  return {
+    ...rest,
+    ...(setor_id !== undefined ? { setor_nome } : {}),
+    ...(localidade_id !== undefined ? { localidade_nome } : {}),
+  }
 }
 
 export async function GET(_: Request, { params }: Props) {
@@ -26,18 +38,51 @@ export async function GET(_: Request, { params }: Props) {
   const item = await prisma.maquinas.findUnique({
     where: { id },
     include: {
-      alocacoes: { where: { ativo: true }, include: { colaborador: { select: { nome: true, setor: true } } }, orderBy: { data_inicio: 'asc' } },
+      alocacoes: {
+        where: { ativo: true },
+        include: {
+          colaborador: {
+            select: {
+              nome: true,
+              setor_rel: {
+                select: { nome: true },
+              },
+            },
+          },
+        },
+        orderBy: { data_inicio: 'asc' },
+      },
       setor_rel: { select: { id: true, nome: true } },
+      localidade_rel: { select: { id: true, nome: true } },
     },
   })
   if (!item) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
 
   return NextResponse.json({
     ...item,
-    alocacoes_ativas: item.alocacoes.map((a: any) => ({ id: a.id, colaborador: a.colaborador, tipo_uso: a.tipo_uso, data_inicio: a.data_inicio })),
-    alocacao_ativa: item.alocacoes[0] ? { colaborador: item.alocacoes[0].colaborador, tipo_uso: item.alocacoes[0].tipo_uso, data_inicio: item.alocacoes[0].data_inicio } : null,
+
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({
+      id: a.id,
+      colaborador: a.colaborador,
+      tipo_uso: a.tipo_uso,
+      data_inicio: a.data_inicio,
+      setor: a.colaborador?.setor_rel?.nome ?? null,
+    })),
+
+    alocacao_ativa: item.alocacoes[0]
+      ? {
+          colaborador: item.alocacoes[0].colaborador,
+          tipo_uso: item.alocacoes[0].tipo_uso,
+          data_inicio: item.alocacoes[0].data_inicio,
+          setor:
+            item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
+        }
+      : null,
+
     alocacoes: undefined,
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+
+    setor_nome: item.setor_rel?.nome ?? item.localidade_rel?.nome ?? null,
+    localidade_nome: item.localidade_rel?.nome ?? null,
   })
 }
 
@@ -46,9 +91,23 @@ export async function PUT(request: Request, { params }: Props) {
   if (denied) return denied
 
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
   const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, ...data } = body
+
+  const {
+    alocacoes,
+    alocacao_ativa,
+    created_at,
+    id: _id,
+    identificador,
+    setor,
+    nome_setor,
+    setor_nome,
+    setor_rel,
+    localidade_nome,
+    localidade_rel,
+    ...data
+  } = body
 
   const anterior = await prisma.maquinas.findUnique({ where: { id } })
   const item = await prisma.maquinas.update({ where: { id }, data })
@@ -73,7 +132,7 @@ export async function DELETE(request: Request, { params }: Props) {
   if (denied) return denied
 
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.maquinas.findUnique({ where: { id } })
   await prisma.maquinas.delete({ where: { id } })

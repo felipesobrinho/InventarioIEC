@@ -15,6 +15,7 @@ import { BoolBadge } from "@/components/dashboard/status-badge";
 import { ImpressoraModal } from "@/components/modals/impressora-modal";
 import { CriarImpressoraModal } from "@/components/modals/criar-impressora-modal";
 import { SetorSelect } from "@/components/modals/setor-select";
+import { LocalidadeSelect } from "@/components/modals/localidade-select";
 import { Search, Plus } from "lucide-react";
 
 import type { Impressora, PaginatedResponse } from "@/types";
@@ -45,6 +46,7 @@ function hasMissingPrinterData(item: Impressora) {
     item.fabricante,
     item.modelo,
     item.numero_serie,
+    item.identificador_selb,
     item.endereco_ip,
   ].some(isMissing);
 }
@@ -73,6 +75,9 @@ export default function ImpressorasPage() {
 
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(
     searchParams.get("setor_id")
+  );
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(
+    searchParams.get("localidade_id")
   );
 
   const [andar, setAndar] = useState("");
@@ -103,6 +108,7 @@ export default function ImpressorasPage() {
     if (search) params.set("search", search);
 
     if (setorIdFiltro) params.set("setor_id", setorIdFiltro);
+    if (localidadeIdFiltro) params.set("localidade_id", localidadeIdFiltro);
 
     if (andar) params.set("andar", andar);
 
@@ -119,7 +125,8 @@ export default function ImpressorasPage() {
     setTotalPages(json.totalPages);
 
     setLoading(false);
-  }, [page, search, setorIdFiltro, andar, status, sort, dir]);
+  }, [page, search, setorIdFiltro, andar, status, sort, dir, localidadeIdFiltro]);
+
 
   useEffect(() => {
     void Promise.resolve().then(fetchData);
@@ -229,6 +236,14 @@ export default function ImpressorasPage() {
           hasMissingPrinterData(item),
       },
 
+      location: {
+        label: filter.label ?? "Unidade selecionada",
+        predicate: (item) =>
+          filter.value === "__sem_localidade__"
+            ? !item.localidade_id
+            : item.localidade_id === filter.value,
+      },
+
       "printer-sector": {
         label: `Setor: ${filter.value ?? "Sem setor registrado"}`,
         predicate: (item) =>
@@ -289,6 +304,7 @@ export default function ImpressorasPage() {
           sort: "created_at",
           dir: "desc",
         });
+        if (localidadeIdFiltro) params.set("localidade_id", localidadeIdFiltro);
 
         const res = await fetch(`/api/impressoras?${params}`);
 
@@ -310,7 +326,7 @@ export default function ImpressorasPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [refreshKey, localidadeIdFiltro]);
 
   const columns = useMemo<ColumnDef<Impressora, unknown>[]>(
     () => [
@@ -347,6 +363,12 @@ export default function ImpressorasPage() {
       },
 
       {
+        accessorKey: "identificador_selb",
+        header: "SELB",
+        cell: ({ getValue }) => getValue() || "—",
+      },
+
+      {
         accessorKey: "endereco_ip",
         header: "IP",
         enableSorting: false,
@@ -358,7 +380,14 @@ export default function ImpressorasPage() {
         header: "Setor",
         enableSorting: false,
         cell: ({ row }) =>
-          row.original.setor_nome ?? row.original.setor ?? "—",
+          row.original.setor_nome ?? "—",
+      },
+
+      {
+        accessorKey: "localidade_nome",
+        header: "Localidade",
+        cell: ({ row }) =>
+          row.original.localidade_nome ?? row.original.localidade ?? "—",
       },
 
       {
@@ -395,7 +424,7 @@ export default function ImpressorasPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          placeholder="Buscar por nome host ou nº série..."
+          placeholder="Buscar por nome host, nº série ou SELB..."
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -407,6 +436,16 @@ export default function ImpressorasPage() {
           setPage(1);
         }}
         placeholder="Filtrar por setor..."
+      />
+
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value);
+          setSetorIdFiltro(null);
+          setPage(1);
+        }}
+        placeholder="Filtrar por localidade..."
       />
 
       <input
@@ -494,6 +533,14 @@ function toggleOverviewFilter(
   filters: ActiveOverviewFilter[],
   candidate: ActiveOverviewFilter
 ) {
+  if (candidate.kind === "location") {
+    const withoutLocation = filters.filter(
+      (filter) => filter.kind !== "location"
+    );
+
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation;
+  }
+
   const exists = filters.some(
     (filter) => filter.key === candidate.key
   );

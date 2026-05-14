@@ -22,6 +22,7 @@ interface Setor {
     aparelhos: number
     impressoras: number
     ramais: number
+    racks: number
   }
 }
 
@@ -140,7 +141,7 @@ export default function SetoresPage() {
       cell: ({ row }) => {
         const c = row.original._count
         if (!c) return '—'
-        const total = c.colaboradores + c.maquinas + c.notebooks + c.aparelhos + c.impressoras + c.ramais
+        const total = c.colaboradores + c.maquinas + c.notebooks + c.aparelhos + c.impressoras + c.ramais + c.racks
         return (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{total} itens</span>

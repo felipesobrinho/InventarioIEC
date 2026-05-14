@@ -24,7 +24,6 @@ export async function GET(_: Request, { params }: Props) {
             fabricante: true,
             modelo: true,
             categoria: true,
-            setor: true,
             setor_id: true,
             setor_rel: {select: {nome: true }},
           },
@@ -41,7 +40,6 @@ export async function GET(_: Request, { params }: Props) {
             modelo: true,
             fabricante: true,
             numero_patrimonio: true,
-            setor: true,
             setor_id: true,
             setor_rel: {select: {nome: true }},
           },
@@ -56,7 +54,6 @@ export async function GET(_: Request, { params }: Props) {
           select: {
             id: true,
             modelo: true,
-            setor: true,
             setor_id: true,
             setor_rel: {select: {nome: true }},
           },
@@ -71,7 +68,6 @@ export async function GET(_: Request, { params }: Props) {
           select: {
             id: true,
             numero_ramal: true,
-            nome_setor: true,
             setor_id: true,
             setor_rel: {select: {nome: true }},
           },
@@ -87,27 +83,27 @@ export async function GET(_: Request, { params }: Props) {
       data_inicio: a.data_inicio,
       tipo_uso: a.tipo_uso,
       item: a.maquina,
-      setor_nome: a.maquina?.setor_rel?.nome ?? a.maquina?.setor ?? null,
+      setor_nome: a.maquina?.setor_rel?.nome ?? null,
     })),
     notebooks: notebooks.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       motivo_alocacao: a.motivo_alocacao,
       item: a.notebook,
-      setor_nome: a.notebook?.setor_rel?.nome ?? a.notebook?.setor ?? null,
+      setor_nome: a.notebook?.setor_rel?.nome ?? null,
     })),
     aparelhos: aparelhos.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       item: a.aparelho,
-      setor_nome: a.aparelho?.setor_rel?.nome ?? a.aparelho?.setor ?? null,
+      setor_nome: a.aparelho?.setor_rel?.nome ?? null,
     })),
     ramais: ramais.map((a) => ({
       alocacao_id: a.id,
       data_inicio: a.data_inicio,
       whatsapp: a.whatsapp,
       item: a.ramal,
-      setor_nome: a.ramal?.setor_rel?.nome ?? a.ramal?.nome_setor ?? null,
+      setor_nome: a.ramal?.setor_rel?.nome ?? null,
     })),
   })
 }

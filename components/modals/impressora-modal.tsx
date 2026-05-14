@@ -13,12 +13,14 @@ import { useCrud } from '@/hooks/use-crud'
 import { formatDate } from '@/lib/utils'
 import type { Impressora } from '@/types'
 import { SetorSelect } from './setor-select'
+import { LocalidadeSelect } from './localidade-select'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
   fabricante: z.string().optional().nullable(),
   modelo: z.string().optional().nullable(),
   numero_serie: z.string().optional().nullable(),
+  identificador_selb: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   andar: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
@@ -34,7 +36,10 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(
-    (impressora as any).setor_id ?? null
+    impressora.setor_id ?? null
+  )
+  const [localidadeId, setLocalidadeId] = useState<string | null>(
+    impressora.localidade_id ?? null
   )
 
   const { update, remove, saving, deleting } = useCrud('impressoras', () => {
@@ -49,6 +54,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
       fabricante: impressora.fabricante,
       modelo: impressora.modelo,
       numero_serie: impressora.numero_serie,
+      identificador_selb: impressora.identificador_selb,
       endereco_ip: impressora.endereco_ip,
       andar: impressora.andar,
       servidor_impressao: impressora.servidor_impressao,
@@ -58,11 +64,12 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
   })
 
   function onSubmit(data: FormData) {
-  update(impressora.id, { ...data, setor_id: setorId }, {
+  update(impressora.id, { ...data, setor_id: setorId, localidade_id: localidadeId }, {
     previousData: impressora,
     label: `Impressora "${impressora.nome_host ?? impressora.modelo }" atualizada`,
   })
 }
+
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
   const lbl = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
@@ -97,13 +104,15 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                 <DetailField label="Fabricante" value={impressora.fabricante} />
                 <DetailField label="Modelo" value={impressora.modelo} />
                 <DetailField label="Nº de Série" value={impressora.numero_serie} />
+                <DetailField label="SELB" value={impressora.identificador_selb} />
                 <DetailField label="Status" value={<BoolBadge value={impressora.status} labelTrue="Ativo" labelFalse="Inativo" />} />
               </DetailSection>
               <DetailSection title="Rede e Localização">
                 <DetailField label="Endereço IP" value={impressora.endereco_ip} />
                 <DetailField label="Servidor Impressão" value={impressora.servidor_impressao} />
                 <DetailField label="Andar" value={impressora.andar} />
-                <DetailField label="Localidade/Setor" value={(impressora as any).setor_nome ?? impressora.setor ?? '—'} />
+                <DetailField label="Setor" value={impressora.setor_nome ?? '—'} />
+                <DetailField label="Localidade" value={impressora.localidade_nome ?? impressora.localidade ?? '—'} />
                 <DetailField label="Tipo de Usuário" value={impressora.tipo_usuario} />
                 <DetailField label="Revisão" value={formatDate(impressora.revisao)} />
               </DetailSection>
@@ -118,6 +127,7 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                   <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
                   <div><label className={lbl}>Modelo</label><input {...register('modelo')} className={inp} /></div>
                   <div><label className={lbl}>Nº de Série</label><input {...register('numero_serie')} className={inp} /></div>
+                  <div><label className={lbl}>SELB</label><input {...register('identificador_selb')} className={inp} /></div>
                   <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
                   <div><label className={lbl}>Servidor Impressão</label><input {...register('servidor_impressao')} className={inp} /></div>
                   <div>
@@ -125,6 +135,13 @@ export function ImpressoraModal({ impressora, onClose, onRefresh }: Props) {
                     <SetorSelect
                       value={setorId}
                       onChange={(id) => setSetorId(id)}
+                    />
+                  </div>
+                  <div>
+                    <label className={lbl}>Localidade</label>
+                    <LocalidadeSelect
+                      value={localidadeId}
+                      onChange={(id) => { setLocalidadeId(id) }}
                     />
                   </div>
                   <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>

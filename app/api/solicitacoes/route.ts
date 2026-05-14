@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       if (dataFim) where.data_criacao.lte = new Date(dataFim)
     }
     const validSort: Record<string, boolean> = {
-      nome: true, created_at: true, codigo: true, setor: true,
+      nome: true, created_at: true, codigo: true,
     }
     const safeSort = validSort[sortBy] ? sortBy : 'nome'
     const [data, total] = await Promise.all([
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
 
     const data: any = { ...body }

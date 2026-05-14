@@ -1,11 +1,12 @@
 'use client'
 
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Layers3,
   MapPin,
   ShieldAlert,
@@ -22,7 +23,8 @@ export interface DeviceOverviewItem {
   identificador?: string | null
   setor?: string | null
   setor_nome?: string | null
-  nome_setor?: string | null
+  localidade_id?: string | null
+  localidade_nome?: string | null
   modelo?: string | null
   tipo?: number | string | null
   chip?: boolean | null
@@ -112,9 +114,10 @@ interface ImpressoraOverviewPanelProps {
     numero_serie: string | null
     endereco_ip: string | null
     andar: string | null
-    setor: string | null
     setor_id?: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     revisao: string | null
     status: boolean | null
   }>
@@ -129,6 +132,8 @@ interface RackOverviewPanelProps {
     id: string
     nome_switch: string | null
     localizacao: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     quantidade_portas: number | null
     portas_em_uso: number | null
     portas_livres: number | null
@@ -142,8 +147,9 @@ interface ColaboradorOverviewPanelProps {
   total: number
   items: Array<{
     id: string
-    setor: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number
@@ -153,8 +159,9 @@ interface ColaboradorOverviewPanelProps {
   metricTotal?: number
   metricItems?: Array<{
     id: string
-    setor: string | null
     setor_nome?: string | null
+    localidade_id?: string | null
+    localidade_nome?: string | null
     status: string
     alocacoes_maquinas_ativas?: number
     alocacoes_notebooks_ativas?: number
@@ -198,8 +205,86 @@ const chartColors = [
   '#f43f5e',
 ]
 
+const locationColors = [
+  '#2563eb',
+  '#0f766e',
+  '#7c3aed',
+  '#b45309',
+  '#be123c',
+  '#0891b2',
+  '#4d7c0f',
+  '#4338ca',
+  '#a21caf',
+  '#475569',
+]
+
 function getSetor(item: DeviceOverviewItem) {
-  return item.setor_nome || item.setor || item.nome_setor || item.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
+  return item.setor_nome || item.setor || item.localidade_nome || item.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
+}
+
+function getLocalidade(item: { localidade_id?: string | null; localidade_nome?: string | null }) {
+  const label = typeof item.localidade_nome === 'string' ? item.localidade_nome.trim() : ''
+  return label || 'Sem localidade'
+}
+
+function buildLocationScopes<T extends { localidade_id?: string | null; localidade_nome?: string | null }>(items: T[]) {
+  const map = items.reduce((scopeMap, item) => {
+      const id = item.localidade_id ?? '__sem_localidade__'
+      const current = scopeMap.get(id) ?? {
+        id,
+        label: getLocalidade(item),
+        total: 0,
+      }
+      current.total += 1
+      if (current.label === 'Sem localidade') current.label = getLocalidade(item)
+      scopeMap.set(id, current)
+      return scopeMap
+    }, new Map<string, { id: string; label: string; total: number }>())
+
+  return Array.from(map.values()).sort((a, b) => b.total - a.total || String(a.label ?? '').localeCompare(String(b.label ?? '')))
+}
+
+function filterByLocation<T extends { localidade_id?: string | null }>(items: T[], locationId: string | null) {
+  if (!locationId) return items
+  if (locationId === '__sem_localidade__') return items.filter(item => !item.localidade_id)
+  return items.filter(item => item.localidade_id === locationId)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getTextField(source: unknown, keys: string[]) {
+  if (!isRecord(source)) return null
+
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+    if (typeof value === 'number') return String(value)
+  }
+
+  const localidade = source.localidade
+  if (isRecord(localidade)) {
+    for (const key of keys) {
+      const value = localidade[key]
+      if (typeof value === 'string' && value.trim()) return value.trim()
+      if (typeof value === 'number') return String(value)
+    }
+  }
+
+  return null
+}
+
+function getAuditSnapshotText(log: AuditLog, keys: string[]) {
+  return getTextField(log.dados_novos, keys) ?? getTextField(log.dados_anteriores, keys)
+}
+
+export function getAuditLocalidadeId(log: AuditLog) {
+  return getAuditSnapshotText(log, ['localidade_id', 'localidadeId', 'unidade_id', 'unidadeId'])
+}
+
+export function getAuditLocalidadeNome(log: AuditLog) {
+  return getAuditSnapshotText(log, ['localidade_nome', 'localidadeNome', 'nome', 'unidade_nome', 'unidadeNome'])
 }
 
 function getRevisionDate(item: DeviceOverviewItem) {
@@ -228,7 +313,7 @@ function hasMissingNotebookData(item: DeviceOverviewItem) {
     item.armazenamento,
     item.numero_patrimonio,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -238,7 +323,7 @@ function hasMissingPhoneData(item: DeviceOverviewItem) {
     item.tipo,
     item.endereco_ip,
     item.endereco_mac,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -256,8 +341,12 @@ function hasMissingMachineData(item: DeviceOverviewItem) {
     item.patrimonio_cpu,
     item.patrimonio_monitor,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
+}
+
+function isBackupMachine(item: DeviceOverviewItem) {
+  return item.categoria === 'Backup'
 }
 
 function hasMissingExtensionData(item: DeviceOverviewItem) {
@@ -265,7 +354,7 @@ function hasMissingExtensionData(item: DeviceOverviewItem) {
     item.numero_ramal,
     item.prefixo_telefonico,
     item.senha_acesso,
-    item.setor_nome ?? item.setor ?? item.nome_setor,
+    item.setor_nome,
   ].some(missing)
 }
 
@@ -298,6 +387,29 @@ function getSectorColor(seed: string) {
   return chartColors[hash % chartColors.length]
 }
 
+function getDistinctColor(index: number) {
+  const hue = (index * 137.508) % 360
+  return `hsl(${hue.toFixed(1)} 84% 52%)`
+}
+
+function getLocationColor(index: number) {
+  return locationColors[index % locationColors.length]
+}
+
+function applyDistinctColors<T extends { label?: string; color?: string }>(items: T[]) {
+  const used = new Set<string>()
+  return items.map((item, index) => {
+    let color = item.color ?? getSectorColor(item.label ?? String(index))
+    let attempt = index
+    while (used.has(color)) {
+      color = getDistinctColor(attempt)
+      attempt += 1
+    }
+    used.add(color)
+    return { ...item, color }
+  })
+}
+
 function buildPieGradient(sectors: PieChartItem[]) {
   let cursor = 0
   const stops = sectors.map((sector) => {
@@ -321,7 +433,7 @@ function daysSince(value?: string | null) {
 }
 
 function groupByLabel<T>(items: T[], getLabel: (item: T) => string, total: number) {
-  return Array.from(
+  const grouped = Array.from(
     items.reduce((map, item) => {
       const label = getLabel(item)
       map.set(label, (map.get(label) ?? 0) + 1)
@@ -336,6 +448,8 @@ function groupByLabel<T>(items: T[], getLabel: (item: T) => string, total: numbe
       distribution: pct(count, total),
     }))
     .sort((a, b) => Number(b.value) - Number(a.value))
+
+  return applyDistinctColors(grouped)
 }
 
 function latestDate(values: Array<string | null | undefined>) {
@@ -357,6 +471,7 @@ function OverviewShell({
   listItems,
   emptyMessage,
   listSections,
+  beforeContent,
   activeFilters,
   onFilter,
   isLoading = false,
@@ -373,6 +488,7 @@ function OverviewShell({
   listItems?: OverviewListItem[]
   emptyMessage?: string
   listSections?: OverviewListSection[]
+  beforeContent?: ReactNode
   activeFilters?: ActiveOverviewFilterState[]
   onFilter?: (filter: OverviewFilter) => void
   isLoading?: boolean
@@ -401,6 +517,7 @@ function OverviewShell({
         <OverviewLoading accentClassName={accentClassName} />
       ) : (
         <div className="space-y-4">
+          {beforeContent}
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
             {metrics.map(metric => (
               <Metric
@@ -463,6 +580,99 @@ function OverviewShell({
   )
 }
 
+function LocationScopeAccordion({
+  locations,
+  selectedLocationId,
+  onSelect,
+}: {
+  locations: Array<{ id: string; label: string; total: number }>
+  selectedLocationId: string | null
+  onSelect: (location: { id: string; label: string } | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const safeLocations = locations.map((location, index) => ({
+    id: location.id ?? `__localidade_${index}`,
+    label: location.label || 'Sem localidade',
+    total: Number.isFinite(location.total) ? location.total : 0,
+    color: getLocationColor(index),
+  }))
+  const selectedLocation = safeLocations.find(location => location.id === selectedLocationId)
+  const allLocationsTotal = safeLocations.reduce((sum, location) => sum + location.total, 0)
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40">
+      <button
+        type="button"
+        onClick={() => setOpen(value => !value)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: selectedLocation?.color ?? '#64748b' }}
+          />
+          <span className="truncate text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+            Unidade: {selectedLocation?.label ?? 'Todas'}
+          </span>
+        </span>
+        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="grid gap-2 border-t border-slate-100 p-3 dark:border-slate-800 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={cn(
+              'relative rounded-md border border-l-4 px-3 py-2 text-left text-xs transition focus:outline-none focus:ring-2 focus:ring-blue-500',
+              !selectedLocationId
+                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+                : 'border-transparent bg-white text-slate-600 hover:bg-blue-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-blue-950/20'
+            )}
+            style={{ borderLeftColor: '#64748b' }}
+          >
+            {!selectedLocationId && (
+              <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+                x
+              </span>
+            )}
+            <span className="flex items-center gap-2 font-semibold">
+              <span className="h-2 w-2 rounded-full bg-slate-500" />
+              Todas
+            </span>
+            <span className="text-slate-400">{allLocationsTotal.toLocaleString('pt-BR')} registros</span>
+          </button>
+          {safeLocations.map(location => (
+            <button
+              key={location.id}
+              type="button"
+              onClick={() => onSelect(location)}
+              className={cn(
+                'relative rounded-md border border-l-4 px-3 py-2 text-left text-xs transition focus:outline-none focus:ring-2 focus:ring-blue-500',
+                selectedLocationId === location.id
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+                  : 'border-transparent bg-white text-slate-600 hover:bg-blue-50 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-blue-950/20'
+              )}
+              style={{ borderLeftColor: location.color }}
+            >
+              {selectedLocationId === location.id && (
+                <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+                  x
+                </span>
+              )}
+              <span className="flex min-w-0 items-center gap-2 font-semibold">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: location.color }} />
+                <span className="truncate">{location.label}</span>
+              </span>
+              <span className="text-slate-400">{location.total.toLocaleString('pt-BR')} registros</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   title,
   total,
@@ -472,15 +682,19 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
   isLoading = false,
   onFilter,
 }: DeviceOverviewPanelProps<T>) {
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const locations = buildLocationScopes(items)
+  const scopedItems = filterByLocation(items, selectedLocationId)
   const isNotebookOverview = title.toLowerCase() === 'notebooks'
   const isPhoneOverview = title.toLowerCase() === 'aparelhos'
   const isExtensionOverview = title.toLowerCase() === 'ramais'
   const isMachineOverview = title.toLowerCase() === 'máquinas'
-  const analyzedTotal = items.length
-  const allocated = items.filter(isOccupied).length
-  const allocationOnly = items.filter(isAllocated).length
-  const borrowed = items.filter(isBorrowed).length
-  const missingData = items.filter(
+  const analyzedTotal = scopedItems.length
+  const displayedTotal = selectedLocationId ? analyzedTotal : total || analyzedTotal
+  const allocated = scopedItems.filter(isOccupied).length
+  const allocationOnly = scopedItems.filter(isAllocated).length
+  const borrowed = scopedItems.filter(isBorrowed).length
+  const missingData = scopedItems.filter(
     isNotebookOverview
       ? hasMissingNotebookData
       : isPhoneOverview
@@ -491,14 +705,15 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             ? hasMissingMachineData
             : () => false
   ).length
-  const withChip = items.filter(item => item.chip === true).length
-  const withWhatsapp = items.filter(hasWhatsapp).length
-  const queueExtensions = items.filter(item => item.fila === true).length
+  const withChip = scopedItems.filter(item => item.chip === true).length
+  const withWhatsapp = scopedItems.filter(hasWhatsapp).length
+  const queueExtensions = scopedItems.filter(item => item.fila === true).length
+  const backupMachines = isMachineOverview ? scopedItems.filter(isBackupMachine).length : 0
   const free = Math.max(0, analyzedTotal - allocated)
   const occupancy = pct(allocated, analyzedTotal)
 
   const sectors = Array.from(
-    items.reduce((map, item) => {
+    scopedItems.reduce((map, item) => {
       const setor = getSetor(item)
       const current = map.get(setor) ?? { total: 0, allocated: 0 }
       current.total += 1
@@ -508,6 +723,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
     }, new Map<string, { total: number; allocated: number }>())
   )
     .map(([setor, value]) => ({
+      label: setor,
       setor,
       ...value,
       distribution: pct(value.total, analyzedTotal),
@@ -516,9 +732,14 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
     }))
     .filter(sector => sector.total > 0)
     .sort((a, b) => b.total - a.total)
+  const coloredSectors = applyDistinctColors(sectors)
   const activeFilterKeys = new Set(activeFilters.map(getOverviewFilterKey))
+  function applyLocationScope(location: { id: string; label: string } | null) {
+    setSelectedLocationId(location?.id ?? null)
+    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
+  }
 
-  const latestRevision = items
+  const latestScopedRevision = scopedItems
     .map(getRevisionDate)
     .filter(Boolean)
     .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0]
@@ -539,8 +760,13 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
         <OverviewLoading accentClassName={accentClassName} />
       ) : (
       <div className="space-y-4">
+        <LocationScopeAccordion
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onSelect={applyLocationScope}
+        />
         <div className={cn('grid grid-cols-2 gap-2', isNotebookOverview ? 'md:grid-cols-3 xl:grid-cols-6' : 'md:grid-cols-5')}>
-          <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={total.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
+          <Metric icon={<Layers3 className="h-3.5 w-3.5" />} label="Cadastrados" value={displayedTotal.toLocaleString('pt-BR')} filter={{ kind: 'all' }} onFilter={onFilter} />
           {isNotebookOverview ? (
             <>
               <Metric icon={<Activity className="h-3.5 w-3.5" />} label="Ocupados" value={allocated.toLocaleString('pt-BR')} tone="danger" filter={{ kind: 'notebook-occupied' }} isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'notebook-occupied' }))} onFilter={onFilter} />
@@ -550,7 +776,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
               <Metric
                 icon={<CalendarClock className="h-3.5 w-3.5" />}
                 label="Última revisão"
-                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+                value={latestScopedRevision ? formatDate(String(latestScopedRevision)) : '—'}
               />
             </>
           ) : (
@@ -561,7 +787,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
               <Metric
                 icon={<CalendarClock className="h-3.5 w-3.5" />}
                 label="Última revisão"
-                value={latestRevision ? formatDate(String(latestRevision)) : '—'}
+                value={latestScopedRevision ? formatDate(String(latestScopedRevision)) : '—'}
               />
             </>
           )}
@@ -573,7 +799,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             <div className="mt-4 flex flex-1 items-center justify-center">
               <div
                 className="relative h-44 w-44 rounded-full"
-                style={{ background: buildPieGradient(sectors) }}
+                style={{ background: buildPieGradient(coloredSectors) }}
                 aria-label="Distribuição de dispositivos por setor"
               >
                 <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white text-center dark:bg-slate-900">
@@ -588,7 +814,7 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             <SectionTitle icon={<MapPin className="h-3.5 w-3.5" />} label="Ocupação por setor" />
             {sectors.length > 0 ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {sectors.map(sector => (
+                {coloredSectors.map(sector => (
                   <OverviewListCard
                     key={sector.setor}
                     onFilter={onFilter}
@@ -705,6 +931,17 @@ export function DeviceOverviewPanel<T extends DeviceOverviewItem>({
             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               <OverviewListCard
                 onFilter={onFilter}
+                isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-backup' }))}
+                item={{
+                  label: 'Backups',
+                  value: backupMachines.toLocaleString('pt-BR'),
+                  detail: `${pct(backupMachines, analyzedTotal)}% das maquinas cadastradas`,
+                  tone: backupMachines > 0 ? 'warning' : 'success',
+                  filter: { kind: 'machine-backup' },
+                }}
+              />
+              <OverviewListCard
+                onFilter={onFilter}
                 isSelected={activeFilterKeys.has(getOverviewFilterKey({ kind: 'machine-missing-data' }))}
                 item={{
                   label: 'Informacoes faltantes',
@@ -730,37 +967,52 @@ export function ImpressoraOverviewPanel({
   isLoading = false,
   onFilter,
 }: ImpressoraOverviewPanelProps) {
-  const active = items.filter(item => item.status !== false).length
-  const inactive = items.filter(item => item.status === false).length
-  const stale = items.filter(item => {
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const locations = buildLocationScopes(items)
+  const scopedItems = filterByLocation(items, selectedLocationId)
+  const active = scopedItems.filter(item => item.status !== false).length
+  const inactive = scopedItems.filter(item => item.status === false).length
+  const stale = scopedItems.filter(item => {
     const days = daysSince(item.revisao)
     return days === null || days > 90
   }).length
-  const missingData = items.filter(item =>
+  const missingData = scopedItems.filter(item =>
     [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
   ).length
-  const attention = items.filter(item => {
+  const attention = scopedItems.filter(item => {
     const days = daysSince(item.revisao)
     const hasMissingData = [item.nome_host, item.fabricante, item.modelo, item.numero_serie, item.endereco_ip].some(missing)
     return item.status === false || days === null || days > 90 || hasMissingData
   }).length
   const sectors = groupByLabel(
-    items,
+    scopedItems,
     item => item.setor_id && item.setor_nome ? item.setor_nome : 'Sem setor registrado',
-    items.length
+    scopedItems.length
   )
-  const noRevision = items.filter(item => !item.revisao).length
-  const noIp = items.filter(item => missing(item.endereco_ip)).length
-  const noSector = items.filter(item => !item.setor_id || !item.setor_nome).length
-  const noIdentity = items.filter(item => missing(item.nome_host) || missing(item.numero_serie)).length
+  const noRevision = scopedItems.filter(item => !item.revisao).length
+  const noIp = scopedItems.filter(item => missing(item.endereco_ip)).length
+  const noSector = scopedItems.filter(item => !item.setor_id || !item.setor_nome).length
+  const noIdentity = scopedItems.filter(item => missing(item.nome_host) || missing(item.numero_serie)).length
+  const displayedTotal = selectedLocationId ? scopedItems.length : total || scopedItems.length
+  function applyLocationScope(location: { id: string; label: string } | null) {
+    setSelectedLocationId(location?.id ?? null)
+    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
+  }
 
   return (
     <OverviewShell
       title="Impressoras"
       accentClassName="bg-cyan-500"
       icon={<Activity className="h-4 w-4" />}
+      beforeContent={
+        <LocationScopeAccordion
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onSelect={applyLocationScope}
+        />
+      }
       metrics={[
-        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Cadastradas', value: total.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Cadastradas', value: displayedTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Ativas', value: active.toLocaleString('pt-BR'), tone: 'success', filter: { kind: 'printer-status', value: 'true' } },
         { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Inativas', value: inactive.toLocaleString('pt-BR'), tone: inactive > 0 ? 'danger' : 'success', filter: { kind: 'printer-status', value: 'false' } },
         { icon: <CalendarClock className="h-3.5 w-3.5" />, label: 'Revisao 3 meses', value: stale.toLocaleString('pt-BR'), tone: stale > 0 ? 'warning' : 'success', filter: { kind: 'printer-stale' } },
@@ -791,7 +1043,7 @@ export function ImpressoraOverviewPanel({
             { label: 'Sem IP', value: String(noIp), detail: 'endereco de rede ausente', tone: noIp > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-ip' } },
             { label: 'Sem setor registrado', value: String(noSector), detail: 'setor ausente no cadastro', tone: noSector > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-sector' } },
             { label: 'Sem identificacao', value: String(noIdentity), detail: 'host ou serie ausentes', tone: noIdentity > 0 ? 'warning' : 'success', filter: { kind: 'printer-no-identity' } },
-            { label: 'Inativas', value: String(inactive), detail: `${pct(inactive, items.length)}% do parque`, tone: inactive > 0 ? 'danger' : 'success', filter: { kind: 'printer-status', value: 'false' } },
+            { label: 'Inativas', value: String(inactive), detail: `${pct(inactive, scopedItems.length)}% do parque`, tone: inactive > 0 ? 'danger' : 'success', filter: { kind: 'printer-status', value: 'false' } },
           ],
           emptyMessage: 'Nenhum ponto de atencao encontrado.',
         },
@@ -804,16 +1056,20 @@ export function ImpressoraOverviewPanel({
 }
 
 export function RackOverviewPanel({ total, items, isLoading = false, onFilter }: RackOverviewPanelProps) {
-  const totalPorts = items.reduce((sum, item) => sum + (item.quantidade_portas ?? 0), 0)
-  const usedPorts = items.reduce((sum, item) => sum + (item.portas_em_uso ?? 0), 0)
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const locationScopes = buildLocationScopes(items)
+  const scopedItems = filterByLocation(items, selectedLocationId)
+  const totalPorts = scopedItems.reduce((sum, item) => sum + (item.quantidade_portas ?? 0), 0)
+  const usedPorts = scopedItems.reduce((sum, item) => sum + (item.portas_em_uso ?? 0), 0)
+  const displayedTotal = selectedLocationId ? scopedItems.length : total || scopedItems.length
   const occupancy = pct(usedPorts, totalPorts)
-  const critical = items.filter(item => {
+  const critical = scopedItems.filter(item => {
     if (!item.quantidade_portas || item.portas_em_uso === null || item.portas_em_uso === undefined) return true
     return pct(item.portas_em_uso, item.quantidade_portas) >= 85
   })
-  const locations = groupByLabel(items, item => item.localizacao || 'Sem localizacao', items.length)
-  const missingPorts = items.filter(item => !item.quantidade_portas).length
-  const missingUsedPorts = items.filter(item => item.portas_em_uso === null || item.portas_em_uso === undefined).length
+  const locations = groupByLabel(scopedItems, item => item.localizacao || 'Sem localizacao', scopedItems.length)
+  const missingPorts = scopedItems.filter(item => !item.quantidade_portas).length
+  const missingUsedPorts = scopedItems.filter(item => item.portas_em_uso === null || item.portas_em_uso === undefined).length
   const criticalList = critical
     .map(item => {
       const rackOccupancy = pct(item.portas_em_uso ?? 0, item.quantidade_portas ?? 0)
@@ -829,14 +1085,25 @@ export function RackOverviewPanel({ total, items, isLoading = false, onFilter }:
     })
     .sort((a, b) => Number.parseInt(b.value) - Number.parseInt(a.value))
     .slice(0, 6)
+  function applyLocationScope(location: { id: string; label: string } | null) {
+    setSelectedLocationId(location?.id ?? null)
+    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
+  }
 
   return (
     <OverviewShell
       title="Racks"
       accentClassName="bg-violet-500"
       icon={<Activity className="h-4 w-4" />}
+      beforeContent={
+        <LocationScopeAccordion
+          locations={locationScopes}
+          selectedLocationId={selectedLocationId}
+          onSelect={applyLocationScope}
+        />
+      }
       metrics={[
-        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Cadastrados', value: total.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Cadastrados', value: displayedTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <Activity className="h-3.5 w-3.5" />, label: 'Portas em uso', value: usedPorts.toLocaleString('pt-BR'), tone: occupancy >= 85 ? 'danger' : 'default' },
         { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Portas livres', value: Math.max(0, totalPorts - usedPorts).toLocaleString('pt-BR'), tone: 'success' },
         { icon: <Users className="h-3.5 w-3.5" />, label: 'Ocupacao', value: `${occupancy}%`, tone: occupancy >= 85 ? 'danger' : occupancy >= 65 ? 'warning' : 'success' },
@@ -880,11 +1147,15 @@ export function ColaboradorOverviewPanel({
   isLoading = false,
   onFilter,
 }: ColaboradorOverviewPanelProps) {
-  const activeItems = items.filter(item => item.status === 'Ativo')
-  const metricActiveItems = metricItems.filter(item => item.status === 'Ativo')
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const locations = buildLocationScopes(items)
+  const scopedItems = filterByLocation(items, selectedLocationId)
+  const scopedMetricItems = filterByLocation(metricItems, selectedLocationId)
+  const activeItems = scopedItems.filter(item => item.status === 'Ativo')
+  const metricActiveItems = scopedMetricItems.filter(item => item.status === 'Ativo')
   const active = metricActiveItems.length
-  const sectors = groupByLabel(items, item => item.setor_nome ?? item.setor ?? 'Sem setor', items.length)
-  const metricSectors = groupByLabel(metricItems, item => item.setor_nome ?? item.setor ?? 'Sem setor', metricItems.length)
+  const sectors = groupByLabel(scopedItems, item => item.setor_nome ?? 'Sem setor', scopedItems.length)
+  const metricSectors = groupByLabel(scopedMetricItems, item => item.setor_nome ?? 'Sem setor', scopedMetricItems.length)
   const withoutMachine = activeItems.filter(item => !item.alocacoes_maquinas_ativas).length
   const withoutNotebook = activeItems.filter(item => !item.alocacoes_notebooks_ativas).length
   const withoutPhone = activeItems.filter(item => !item.alocacoes_aparelhos_ativas).length
@@ -895,14 +1166,26 @@ export function ColaboradorOverviewPanel({
     !item.alocacoes_aparelhos_ativas &&
     !item.alocacoes_ramais_ativas
   ).length
+  const displayedMetricTotal = selectedLocationId ? scopedMetricItems.length : metricTotal || scopedMetricItems.length
+  function applyLocationScope(location: { id: string; label: string } | null) {
+    setSelectedLocationId(location?.id ?? null)
+    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
+  }
 
   return (
     <OverviewShell
       title="Colaboradores"
       accentClassName="bg-emerald-500"
       icon={<Users className="h-4 w-4" />}
+      beforeContent={
+        <LocationScopeAccordion
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onSelect={applyLocationScope}
+        />
+      }
       metrics={[
-        { icon: <Users className="h-3.5 w-3.5" />, label: 'Em registro', value: metricTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Users className="h-3.5 w-3.5" />, label: 'Em registro', value: displayedMetricTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <CheckCircle2 className="h-3.5 w-3.5" />, label: 'Ativos', value: active.toLocaleString('pt-BR'), tone: 'success', filter: { kind: 'collaborator-status', value: 'Ativo' } },
         { icon: <MapPin className="h-3.5 w-3.5" />, label: 'Setores', value: metricSectors.length.toLocaleString('pt-BR') },
         { icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Sem alocacao', value: metricWithoutAny.toLocaleString('pt-BR'), tone: metricWithoutAny > 0 ? 'warning' : 'success', filter: { kind: 'collaborator-without-any' } },
@@ -987,20 +1270,42 @@ export function notifyOverviewFilter(filters: ActiveOverviewFilterState[]) {
 }
 
 export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }: AuditOverviewPanelProps) {
-  const edits = items.filter(item => item.acao === 'UPDATE' || item.acao === 'EDITAR_ALOCACAO')
-  const deletes = items.filter(item => item.acao === 'DELETE')
-  const latest = latestDate(edits.map(item => item.created_at)) ?? latestDate(items.map(item => item.created_at))
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null)
+  const itemsWithLocation = items.map(item => ({
+    ...item,
+    localidade_id: getAuditLocalidadeId(item),
+    localidade_nome: getAuditLocalidadeNome(item),
+  }))
+  const locations = buildLocationScopes(itemsWithLocation)
+  const scopedItems = filterByLocation(itemsWithLocation, selectedLocationId)
+  const analyzedTotal = scopedItems.length
+  const displayedTotal = selectedLocationId ? analyzedTotal : total || analyzedTotal
+  const edits = scopedItems.filter(item => item.acao === 'UPDATE' || item.acao === 'EDITAR_ALOCACAO')
+  const deletes = scopedItems.filter(item => item.acao === 'DELETE')
+  const latest = latestDate(edits.map(item => item.created_at)) ?? latestDate(scopedItems.map(item => item.created_at))
   const users = groupByLabel(edits, item => item.usuario_nome || 'Sem responsavel', edits.length)
-  const actions = groupByLabel(items, item => ACAO_LABELS[item.acao] || item.acao || 'Sem acao', items.length)
+  const actions = groupByLabel(scopedItems, item => ACAO_LABELS[item.acao] || item.acao || 'Sem acao', scopedItems.length)
   const latestLabel = latest ? formatDate(String(latest)) : '—'
+
+  function applyLocationScope(location: { id: string; label: string } | null) {
+    setSelectedLocationId(location?.id ?? null)
+    onFilter?.({ kind: 'location', value: location?.id, label: location ? `Unidade: ${location.label}` : 'Todas as unidades' })
+  }
 
   return (
     <OverviewShell
       title="Auditoria"
       accentClassName="bg-amber-500"
       icon={<ShieldAlert className="h-4 w-4" />}
+      beforeContent={
+        <LocationScopeAccordion
+          locations={locations}
+          selectedLocationId={selectedLocationId}
+          onSelect={applyLocationScope}
+        />
+      }
       metrics={[
-        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Registros', value: total.toLocaleString('pt-BR'), filter: { kind: 'all' } },
+        { icon: <Layers3 className="h-3.5 w-3.5" />, label: 'Registros', value: displayedTotal.toLocaleString('pt-BR'), filter: { kind: 'all' } },
         { icon: <Activity className="h-3.5 w-3.5" />, label: 'Edicoes', value: edits.length.toLocaleString('pt-BR'), tone: 'warning', filter: { kind: 'audit-edits' } },
         { icon: <Users className="h-3.5 w-3.5" />, label: 'Responsaveis', value: users.length.toLocaleString('pt-BR') },
         { icon: <CalendarClock className="h-3.5 w-3.5" />, label: 'Ultima edicao', value: latestLabel },
@@ -1028,7 +1333,7 @@ export function AuditOverviewPanel({ total, items, isLoading = false, onFilter }
           title: 'Pontos de cuidado',
           icon: <ShieldAlert className="h-3.5 w-3.5" />,
           items: [
-            { label: 'Exclusoes registradas', value: String(deletes.length), detail: `${pct(deletes.length, total)}% dos registros`, tone: deletes.length > 0 ? 'danger' : 'success', filter: { kind: 'audit-action', value: 'DELETE' } },
+            { label: 'Exclusoes registradas', value: String(deletes.length), detail: `${pct(deletes.length, analyzedTotal)}% dos registros`, tone: deletes.length > 0 ? 'danger' : 'success', filter: { kind: 'audit-action', value: 'DELETE' } },
           ],
           emptyMessage: 'Sem pontos de cuidado.',
           layout: 'half',

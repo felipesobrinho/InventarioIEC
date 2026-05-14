@@ -71,12 +71,15 @@ export function PrioridadeBadge({ prioridade }: { prioridade: number | string | 
 
 export function CategoriaBadge({ categoria }: { categoria: string | null | undefined }) {
   if (!categoria) return <span className="text-slate-400 text-xs">—</span>
-  return (
-    <Badge className={
-      categoria === 'Administrativa'
-        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+  const className =
+    categoria === 'Administrativa'
+      ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+      : categoria === 'Backup'
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
         : 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-    }>
+
+  return (
+    <Badge className={className}>
       {categoria === 'Academica' ? 'Acadêmica' : categoria}
     </Badge>
   )

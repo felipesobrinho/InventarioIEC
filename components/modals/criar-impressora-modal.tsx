@@ -7,12 +7,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCreate } from '@/hooks/use-create'
 import { SetorSelect } from './setor-select'
+import { LocalidadeSelect } from './localidade-select'
 
 const schema = z.object({
   nome_host: z.string().optional().nullable(),
   fabricante: z.string().optional().nullable(),
   modelo: z.string().optional().nullable(),
   numero_serie: z.string().optional().nullable(),
+  identificador_selb: z.string().optional().nullable(),
   endereco_ip: z.string().optional().nullable(),
   andar: z.string().optional().nullable(),
   servidor_impressao: z.string().optional().nullable(),
@@ -26,6 +28,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('impressoras', () => { onRefresh(); onClose() })
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: true },
@@ -43,12 +46,13 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
           <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          <form id="criar-imp-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: setorId }))} noValidate>
+          <form id="criar-imp-form" onSubmit={handleSubmit((data) => create({ ...data, setor_id: setorId, localidade_id: localidadeId }))} noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div><label className={lbl}>Nome Host</label><input {...register('nome_host')} className={inp} /></div>
               <div><label className={lbl}>Fabricante</label><input {...register('fabricante')} className={inp} /></div>
               <div><label className={lbl}>Modelo</label><input {...register('modelo')} className={inp} /></div>
               <div><label className={lbl}>Nº de Série</label><input {...register('numero_serie')} className={inp} /></div>
+              <div><label className={lbl}>SELB</label><input {...register('identificador_selb')} className={inp} /></div>
               <div><label className={lbl}>Endereço IP</label><input {...register('endereco_ip')} className={inp} /></div>
               <div><label className={lbl}>Servidor Impressão</label><input {...register('servidor_impressao')} className={inp} /></div>
               <div><label className={lbl}>Andar</label><input {...register('andar')} className={inp} /></div>
@@ -57,6 +61,13 @@ export function CriarImpressoraModal({ onClose, onRefresh }: Props) {
                 <SetorSelect
                   value={setorId}
                   onChange={(id) => setSetorId(id)}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect
+                  value={localidadeId}
+                  onChange={(id) => { setLocalidadeId(id) }}
                 />
               </div>
               <div><label className={lbl}>Tipo de Usuário</label><input {...register('tipo_usuario')} className={inp} /></div>

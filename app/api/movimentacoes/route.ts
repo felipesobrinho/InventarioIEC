@@ -23,7 +23,24 @@ export async function GET(request: Request) {
     const sortDir = searchParams.get('dir') === 'asc' ? 'asc' : ('desc' as const)
 
     const where: any = {}
-    if (search) where.identificador_dispositivo = { contains: search, mode: 'insensitive' }
+    
+    if (search) {
+      where.OR = [
+        {
+          identificador_dispositivo: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          descricao: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ]
+    }
+
     if (tipoDispositivoRaw !== '') {
       const n = parseInt(tipoDispositivoRaw)
       if (!isNaN(n)) where.tipo_dispositivo = n
@@ -65,7 +82,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
 
     const data: any = { ...body }

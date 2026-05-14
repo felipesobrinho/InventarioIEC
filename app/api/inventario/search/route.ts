@@ -28,7 +28,7 @@ export async function GET(request: Request) {
               { endereco_ip:  { contains: query, mode: 'insensitive' } },
             ],
           },
-          select: { id: true, nome_host: true, identificador: true, fabricante: true, modelo: true, setor: true },
+          select: { id: true, nome_host: true, identificador: true, fabricante: true, modelo: true, setor_rel: { select: { nome: true } } },
           take: 10,
         })
         return NextResponse.json({
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
             id: i.id,
             label: i.nome_host || i.identificador || i.id,
             sub: [i.fabricante, i.modelo].filter(Boolean).join(' '),
-            meta: i.setor || '',
+            meta: i.setor_rel?.nome || '',
           })),
         })
       }
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
               { fabricante:       { contains: query, mode: 'insensitive' } },
             ],
           },
-          select: { id: true, modelo: true, fabricante: true, numero_patrimonio: true, setor: true },
+          select: { id: true, modelo: true, fabricante: true, numero_patrimonio: true, setor_rel: { select: { nome: true } } },
           take: 10,
         })
         return NextResponse.json({
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
             id: i.id,
             label: i.numero_patrimonio || i.modelo || i.id,
             sub: [i.fabricante, i.modelo].filter(Boolean).join(' '),
-            meta: i.setor || '',
+            meta: i.setor_rel?.nome || '',
           })),
         })
       }
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
               { endereco_mac:{ contains: query, mode: 'insensitive' } },
             ],
           },
-          select: { id: true, modelo: true, setor: true, endereco_ip: true },
+          select: { id: true, modelo: true, endereco_ip: true, setor_rel: { select: { nome: true } } },
           take: 10,
         })
         return NextResponse.json({
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
             id: i.id,
             label: i.modelo || i.id,
             sub: i.endereco_ip || '',
-            meta: i.setor || '',
+            meta: i.setor_rel?.nome || '',
           })),
         })
       }
@@ -89,18 +89,18 @@ export async function GET(request: Request) {
         const items = await prisma.ramais.findMany({
           where: {
             OR: [
-              { nome_setor: { contains: query, mode: 'insensitive' } },
               { numero_ramal: { contains: query, mode: 'insensitive' } },
+              { setor_rel: { nome: { contains: query, mode: 'insensitive' } } },
             ],
           },
-          select: { id: true, numero_ramal: true, nome_setor: true, prefixo_telefonico: true },
+          select: { id: true, numero_ramal: true, prefixo_telefonico: true, setor_rel: { select: { nome: true } } },
           take: 10,
         })
         return NextResponse.json({
           results: items.map(i => ({
             id: i.id,
             label: i.numero_ramal != null ? `Ramal ${i.numero_ramal}` : i.id,
-            sub: i.nome_setor || '',
+            sub: i.setor_rel?.nome || '',
             meta: i.prefixo_telefonico || '',
           })),
         })

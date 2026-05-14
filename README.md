@@ -50,9 +50,13 @@ CREATE TABLE usuarios (
 ### 4. Sincronizar Prisma
 
 ```bash
-npx prisma db pull   # puxa schema existente do banco
+npm run db:validate  # valida migrations e schema Prisma
 npx prisma generate  # gera o client
 ```
+
+> O schema do banco é versionado por migrations em `supabase/migrations`.
+> Use `prisma db pull` somente quando for capturar deliberadamente um novo
+> snapshot do banco, conforme `docs/database-versioning.md`.
 
 ### 5. Criar primeiro usuário admin
 
@@ -110,3 +114,8 @@ lib/
 - [ ] Rota admin para gestão de usuários
 - [ ] Relatórios por setor
 - [ ] Histórico de alocações por colaborador
+
+## Docs
+
+- [Versionamento do banco](docs/database-versioning.md)
+- [Testes](docs/testing.md)

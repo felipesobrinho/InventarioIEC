@@ -13,11 +13,11 @@ export async function DELETE(request: Request, { params }: Props) {
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
     const { id: maquina_id } = await params
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
 
     const alocacaoAtiva = await prisma.alocacoes_maquinas.findFirst({
       where: { maquina_id, ativo: true },
-      include: { colaborador: { select: { nome: true, setor: true } } },
+      include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
     })
 
     await prisma.alocacoes_maquinas.updateMany({
@@ -35,7 +35,7 @@ export async function DELETE(request: Request, { params }: Props) {
             alocacao_id: alocacaoAtiva.id,
             colaborador_id: alocacaoAtiva.colaborador_id,
             colaborador_nome: alocacaoAtiva.colaborador?.nome ?? null,
-            colaborador_setor: alocacaoAtiva.colaborador?.setor ?? null,
+            colaborador_setor: alocacaoAtiva.colaborador?.setor_rel?.nome ?? null,
             data_inicio: alocacaoAtiva.data_inicio,
           }
         : null,

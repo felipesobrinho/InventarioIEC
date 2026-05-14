@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { registrarAuditoria, getAuditSession } from '@/lib/audit'
+import { withLocalidadePadrao } from '@/lib/localidades'
+import { withoutLegacyVirtualFields } from '@/lib/payload'
 
 export const runtime = 'nodejs'
 
@@ -21,6 +23,8 @@ export async function GET(request: Request) {
     const search    = (searchParams.get('search')    || '').trim()
     const setorId   = searchParams.get('setor_id')   || ''
     const setorIds  = parseSetorIds(setorId)
+    const localidadeId = searchParams.get('localidade_id') || ''
+    const localidadeIds = parseSetorIds(localidadeId)
     const categoria = searchParams.get('categoria')  || ''
     const fabricante= searchParams.get('fabricante') || ''
     const alocacao  = searchParams.get('alocacao')   || ''
@@ -42,6 +46,7 @@ export async function GET(request: Request) {
           { fabricante:       { contains: search, mode: 'insensitive' } },
           { numero_patrimonio:{ contains: search, mode: 'insensitive' } },
           { setor_rel: { nome: { contains: search, mode: 'insensitive' } } },
+          { localidade_rel: { nome: { contains: search, mode: 'insensitive' } } },
           {
             alocacoes: {
               some: {
@@ -72,6 +77,8 @@ export async function GET(request: Request) {
         ],
       })
     }
+    if (localidadeIds.length === 1) AND.push({ localidade_id: localidadeIds[0] })
+    if (localidadeIds.length > 1) AND.push({ localidade_id: { in: localidadeIds } })
     if (categoria) AND.push({ categoria })
     if (fabricante) AND.push({ fabricante: { contains: fabricante, mode: 'insensitive' } })
 
@@ -101,11 +108,12 @@ export async function GET(request: Request) {
         include: {
           alocacoes: {
             where: { ativo: true },
-            include: { colaborador: { select: { nome: true, setor: true, setor_rel: {select: {nome: true } } } } },
+            include: { colaborador: { select: { nome: true, setor_rel: {select: {nome: true } } } } },
             orderBy: { data_inicio: 'asc' },
           },
           setor_rel: { select: { id: true, nome: true } },
-          emprestado_colaborador: { select: { nome: true, setor: true } },
+          localidade_rel: { select: { id: true, nome: true } },
+          emprestado_colaborador: { select: { nome: true } },
           emprestado_setor:       { select: { nome: true } },
         },
       }),
@@ -114,7 +122,8 @@ export async function GET(request: Request) {
 
     const mapped = data.map((n: any) => ({
       ...n,
-      setor_nome: n.setor_rel?.nome ?? n.setor ?? null,
+      setor_nome: n.setor_rel?.nome ?? null,
+      localidade_nome: n.localidade_rel?.nome ?? null,
       emprestado_colaborador_nome: n.emprestado_colaborador?.nome ?? null,
       emprestado_setor_nome:       n.emprestado_setor?.nome ?? null,
       // limpar relações aninhadas
@@ -125,7 +134,7 @@ export async function GET(request: Request) {
         colaborador: a.colaborador,
         motivo_alocacao: a.motivo_alocacao,
         tipo_posse: a.tipo_posse,
-        setor: a.colaborador.setor_rel?.nome ?? a.colaborador.setor ?? null,
+        setor: a.colaborador.setor_rel?.nome ?? null,
         data_inicio: a.data_inicio,
       })),
       alocacao_ativa: n.alocacoes[0]
@@ -133,7 +142,7 @@ export async function GET(request: Request) {
             colaborador: n.alocacoes[0].colaborador,
             motivo_alocacao: n.alocacoes[0].motivo_alocacao,
             tipo_posse: n.alocacoes[0].tipo_posse,
-            setor: n.alocacoes[0].colaborador?.setor_rel?.nome ?? n.alocacoes[0].colaborador?.setor ?? null,
+            setor: n.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
             data_inicio: n.alocacoes[0].data_inicio,
           }
         : null,
@@ -152,20 +161,37 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
 
-    const { usuario_id, usuario_nome } = await getAuditSession(request)
+    const { usuario_id, usuario_nome } = await getAuditSession()
     const body = await request.json()
+    
     if (body.data_revisao) {
       body.data_revisao = new Date(body.data_revisao + 'T00:00:00.000Z')
     } else if (body.data_revisao === '' || body.data_revisao === null) {
       body.data_revisao = null
     }
 
-    if (body) {
-      const existe = await prisma.notebooks.findFirst({ where: { numero_patrimonio: body.numero_patrimonio } })
-      if (existe) return NextResponse.json({ error: `Número de patrimônio ${body.numero_patrimonio} já cadastrado` }, { status: 409 })
+    if (body?.numero_patrimonio) {
+      const existe = await prisma.notebooks.findFirst({
+        where: {
+          numero_patrimonio: body.numero_patrimonio,
+        },
+      })
+
+      if (existe) {
+        return NextResponse.json(
+          {
+            error: `Número de patrimônio ${body.numero_patrimonio} já cadastrado`,
+          },
+          { status: 409 }
+        )
+      }
     }
 
-    const item = await prisma.notebooks.create({ data: body })
+const data = await withLocalidadePadrao(
+  withoutLegacyVirtualFields(body)
+)
+
+const item = await prisma.notebooks.create({ data })
 
     await registrarAuditoria({
       tabela: 'notebooks',

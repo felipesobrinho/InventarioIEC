@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { useCreate } from '@/hooks/use-create'
 import { optionalInt } from '@/lib/zod-helpers'
 
@@ -25,6 +26,7 @@ interface Props { onClose: () => void; onRefresh: () => void }
 export function CriarRackModal({ onClose, onRefresh }: Props) {
   const { create, saving } = useCreate('racks', () => { onRefresh(); onClose() })
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
@@ -32,7 +34,7 @@ export function CriarRackModal({ onClose, onRefresh }: Props) {
   })
 
   async function onSubmit(data: FormData) {
-    await create({ ...data, setor_id: setorId })
+    await create({ ...data, setor_id: setorId, localidade_id: localidadeId })
   }
 
   const inp = "w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -68,6 +70,10 @@ export function CriarRackModal({ onClose, onRefresh }: Props) {
               <div className="col-span-2">
                 <label className={lbl}>Setor</label>
                 <SetorSelect value={setorId} onChange={(id) => setSetorId(id)} />
+              </div>
+              <div className="col-span-2">
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect value={localidadeId} onChange={(id) => { setLocalidadeId(id) }} />
               </div>
               <div>
                 <label className={lbl}>Total de Portas</label>

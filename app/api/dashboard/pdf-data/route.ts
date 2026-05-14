@@ -13,36 +13,40 @@ export async function GET() {
     prisma.maquinas.findMany({
       orderBy: { nome_host: 'asc' },
       include: {
+        setor_rel: { select: { nome: true } },
         alocacoes: {
           where: { ativo: true },
-          include: { colaborador: { select: { nome: true, setor: true } } },
+          include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
         },
       },
     }),
     prisma.notebooks.findMany({
       orderBy: { modelo: 'asc' },
       include: {
+        setor_rel: { select: { nome: true } },
         alocacoes: {
           where: { ativo: true },
-          include: { colaborador: { select: { nome: true, setor: true } } },
+          include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
         },
       },
     }),
     prisma.aparelhos.findMany({
       orderBy: { modelo: 'asc' },
       include: {
+        setor_rel: { select: { nome: true } },
         alocacoes: {
           where: { ativo: true },
-          include: { colaborador: { select: { nome: true, setor: true } } },
+          include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
         },
       },
     }),
     prisma.ramais.findMany({
       orderBy: { numero_ramal: 'asc' },
       include: {
+        setor_rel: { select: { nome: true } },
         alocacoes: {
           where: { ativo: true },
-          include: { colaborador: { select: { nome: true, setor: true } } },
+          include: { colaborador: { select: { nome: true, setor_rel: { select: { nome: true } } } } },
         },
       },
     }),
@@ -51,15 +55,22 @@ export async function GET() {
   function mapAlocacoes(items: any[]) {
     return items.map(item => ({
       ...item,
+      setor_nome: item.setor_rel?.nome ?? null,
       alocacoes_ativas: item.alocacoes.map((a: any) => ({
         id: a.id,
         colaborador: a.colaborador,
         data_inicio: a.data_inicio,
+        setor: a.colaborador?.setor_rel?.nome ?? null,
       })),
       alocacao_ativa: item.alocacoes[0]
-        ? { colaborador: item.alocacoes[0].colaborador, data_inicio: item.alocacoes[0].data_inicio }
+        ? {
+            colaborador: item.alocacoes[0].colaborador,
+            data_inicio: item.alocacoes[0].data_inicio,
+            setor: item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
+          }
         : null,
       alocacoes: undefined,
+      setor_rel: undefined,
     }))
   }
 

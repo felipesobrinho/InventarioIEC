@@ -10,6 +10,7 @@ import { CategoriaBadge } from '@/components/dashboard/status-badge'
 import { MaquinaModal } from '@/components/modals/maquina-modal'
 import { CriarMaquinaModal } from '@/components/modals/criar-maquina-modal'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { Search, Plus } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import type { Maquina, PaginatedResponse } from '@/types'
@@ -42,8 +43,12 @@ function hasMissingMachineData(item: Maquina) {
     item.patrimonio_cpu,
     item.patrimonio_monitor,
     item.data_revisao,
-    item.setor_nome ?? item.setor,
+    item.setor_nome,
   ].some(missing)
+}
+
+function isBackupMachine(item: Maquina) {
+  return item.categoria === 'Backup'
 }
 
 export default function MaquinasPage() {
@@ -67,6 +72,7 @@ export default function MaquinasPage() {
   // Filtros
   const [search, setSearch] = useState('')
   const [setorIdFiltro, setSetorIdFiltro] = useState<string | null>(searchParams.get('setor_id'))
+  const [localidadeIdFiltro, setLocalidadeIdFiltro] = useState<string | null>(searchParams.get('localidade_id'))
   const [categoria, setCategoria] = useState('')
   const [fabricante, setFabricante] = useState('')
   const [alocacao, setAlocacao] = useState('')
@@ -88,6 +94,7 @@ export default function MaquinasPage() {
       })
       if (search)    params.set('search',    search)
       if (setorIdFiltro)     params.set('setor_id',     setorIdFiltro)
+      if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
       if (categoria) params.set('categoria', categoria)
       if (fabricante)params.set('fabricante',fabricante)
       if (alocacao)  params.set('alocacao',  alocacao)
@@ -110,7 +117,7 @@ export default function MaquinasPage() {
 
     fetchData()
     return () => { cancelled = true }
-  }, [page, search, setorIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
+  }, [page, search, setorIdFiltro, localidadeIdFiltro, categoria, fabricante, alocacao, sort, dir, refreshKey])
 
   useEffect(() => {
     let cancelled = false
@@ -124,6 +131,7 @@ export default function MaquinasPage() {
           sort: 'nome_host',
           dir: 'asc',
         })
+        if (localidadeIdFiltro) params.set('localidade_id', localidadeIdFiltro)
         const res = await fetch(`/api/maquinas?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json: PaginatedResponse<Maquina> = await res.json()
@@ -140,7 +148,7 @@ export default function MaquinasPage() {
 
     fetchOverview()
     return () => { cancelled = true }
-  }, [refreshKey])
+  }, [refreshKey, localidadeIdFiltro])
 
   const filteredOverviewData = activeOverviewFilters.length > 0
     ? overviewData.filter(item => matchesOverviewFilters(item, activeOverviewFilters))
@@ -163,6 +171,11 @@ export default function MaquinasPage() {
       allocated: { label: 'Máquinas ocupadas', predicate: isAllocated },
       free: { label: 'Máquinas livres', predicate: (item) => !isAllocated(item) },
       'machine-missing-data': { label: 'Máquinas com informacoes faltantes', predicate: hasMissingMachineData },
+      'machine-backup': { label: 'Máquinas backup', predicate: isBackupMachine },
+      location: {
+        label: filter.label ?? 'Unidade selecionada',
+        predicate: (item) => filter.value === '__sem_localidade__' ? !item.localidade_id : item.localidade_id === filter.value,
+      },
       sector: {
         label: `Setor: ${filter.value ?? 'Sem setor'}`,
         predicate: (item) => getMaquinaSetor(item) === filter.value,
@@ -237,16 +250,10 @@ export default function MaquinasPage() {
       header: 'Máquina',
       cell: ({ row }) => (
         <div>
-          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.identificador || '—'}</span>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{row.original.nome_host || row.original.modelo || '—'}</span>
           <p className="text-xs text-slate-400">{row.original.endereco_ip || row.original.modelo || 'Sem modelo'}</p>
         </div>
       ),
-      enableSorting: true,
-    },
-    {
-      accessorKey: 'identificador',
-      header: 'ID',
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.identificador || '—'}</span>,
       enableSorting: true,
     },
     {
@@ -258,7 +265,12 @@ export default function MaquinasPage() {
     {
       accessorKey: 'setor',
       header: 'Setor',
-      cell: ({ row }) => row.original.setor_nome ?? row.original.setor ?? '—',
+      cell: ({ row }) => row.original.setor_nome ?? '—',
+    },
+    {
+      accessorKey: 'localidade_nome',
+      header: 'Localidade',
+      cell: ({ row }) => row.original.localidade_nome ?? '—',
       enableSorting: false,
     },
     {
@@ -316,6 +328,16 @@ export default function MaquinasPage() {
         placeholder="Filtrar por setor..."
       />
 
+      <LocalidadeSelect
+        value={localidadeIdFiltro}
+        onChange={(value) => {
+          setLocalidadeIdFiltro(value)
+          setSetorIdFiltro(null)
+          setPage(1)
+        }}
+        placeholder="Filtrar por localidade..."
+      />
+
       {/* Categoria */}
       <select
         value={categoria}
@@ -325,6 +347,7 @@ export default function MaquinasPage() {
         <option value="">Todas as categorias</option>
         <option value="Administrativa">Administrativa</option>
         <option value="Academica">Acadêmica</option>
+        <option value="Backup">Backup</option>
       </select>
 
       {/* Fabricante */}
@@ -418,7 +441,7 @@ export default function MaquinasPage() {
 }
 
 function getMaquinaSetor(item?: Maquina | null) {
-  return item?.setor_nome || item?.setor || item?.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
+  return item?.setor_nome || item?.alocacao_ativa?.colaborador.setor_rel?.nome || 'Sem setor'
 }
 
 function getOverviewFilterKey(filter: OverviewFilter) {
@@ -426,6 +449,10 @@ function getOverviewFilterKey(filter: OverviewFilter) {
 }
 
 function toggleOverviewFilter(filters: ActiveOverviewFilter[], candidate: ActiveOverviewFilter) {
+  if (candidate.kind === 'location') {
+    const withoutLocation = filters.filter(filter => filter.kind !== 'location')
+    return candidate.value ? [...withoutLocation, candidate] : withoutLocation
+  }
   const exists = filters.some(filter => filter.key === candidate.key)
   if (exists) return filters.filter(filter => filter.key !== candidate.key)
   return [...filters, candidate]

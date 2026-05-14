@@ -9,15 +9,49 @@ type Props = { params: Promise<{ id: string }> }
 
 async function enrichAuditSnapshot(snapshot: Record<string, any> | null) {
   if (!snapshot) return snapshot
-  const { setor_id, emprestado_setor_id, ...rest } = snapshot
-  const [setorRes, empSetorRes] = await Promise.all([
-    setor_id ? prisma.setores.findUnique({ where: { id: setor_id }, select: { nome: true } }) : null,
-    emprestado_setor_id ? prisma.setores.findUnique({ where: { id: emprestado_setor_id }, select: { nome: true } }) : null,
+
+  const { setor_id, localidade_id, emprestado_setor_id, ...rest } = snapshot
+
+  const [setorRes, localidadeRes, empSetorRes] = await Promise.all([
+    setor_id
+      ? prisma.setores.findUnique({
+          where: { id: setor_id },
+          select: { nome: true },
+        })
+      : null,
+
+    localidade_id
+      ? prisma.localidades.findUnique({
+          where: { id: localidade_id },
+          select: { nome: true },
+        })
+      : null,
+
+    emprestado_setor_id
+      ? prisma.setores.findUnique({
+          where: { id: emprestado_setor_id },
+          select: { nome: true },
+        })
+      : null,
   ])
+
   return {
     ...rest,
-    ...(setor_id !== undefined ? { setor_nome: setorRes?.nome ?? setor_id } : {}),
-    ...(emprestado_setor_id !== undefined ? { emprestado_setor_nome: empSetorRes?.nome ?? emprestado_setor_id } : {}),
+
+    ...(setor_id !== undefined
+      ? { setor_nome: setorRes?.nome ?? setor_id }
+      : {}),
+
+    ...(localidade_id !== undefined
+      ? { localidade_nome: localidadeRes?.nome ?? localidade_id }
+      : {}),
+
+    ...(emprestado_setor_id !== undefined
+      ? {
+          emprestado_setor_nome:
+            empSetorRes?.nome ?? emprestado_setor_id,
+        }
+      : {}),
   }
 }
 
@@ -29,8 +63,22 @@ export async function GET(_: Request, { params }: Props) {
   const item = await prisma.notebooks.findUnique({
     where: { id },
     include: {
-      alocacoes: { where: { ativo: true }, include: { colaborador: { select: { nome: true, setor: true } } }, orderBy: { data_inicio: 'asc' } },
+      alocacoes: {
+        where: { ativo: true },
+        include: {
+          colaborador: {
+            select: {
+              nome: true,
+              setor_rel: {
+                select: { nome: true },
+              },
+            },
+          },
+        },
+        orderBy: { data_inicio: 'asc' },
+      },
       setor_rel: { select: { id: true, nome: true } },
+      localidade_rel: { select: { id: true, nome: true } },
       emprestado_colaborador: { select: { nome: true } },
       emprestado_setor: { select: { nome: true } },
     },
@@ -39,10 +87,28 @@ export async function GET(_: Request, { params }: Props) {
 
   return NextResponse.json({
     ...item,
-    alocacoes_ativas: item.alocacoes.map((a: any) => ({ id: a.id, colaborador: a.colaborador, motivo_alocacao: a.motivo_alocacao, tipo_posse: a.tipo_posse, data_inicio: a.data_inicio })),
-    alocacao_ativa: item.alocacoes[0] ? { colaborador: item.alocacoes[0].colaborador, motivo_alocacao: item.alocacoes[0].motivo_alocacao, tipo_posse: item.alocacoes[0].tipo_posse, data_inicio: item.alocacoes[0].data_inicio } : null,
+    alocacoes_ativas: item.alocacoes.map((a: any) => ({
+      id: a.id,
+      colaborador: a.colaborador,
+      motivo_alocacao: a.motivo_alocacao,
+      setor: a.colaborador?.setor_rel?.nome ?? null,
+      tipo_posse: a.tipo_posse,
+      data_inicio: a.data_inicio,
+    })),
+
+    alocacao_ativa: item.alocacoes[0]
+      ? {
+          colaborador: item.alocacoes[0].colaborador,
+          motivo_alocacao: item.alocacoes[0].motivo_alocacao,
+          tipo_posse: item.alocacoes[0].tipo_posse,
+          data_inicio: item.alocacoes[0].data_inicio,
+          setor:
+            item.alocacoes[0].colaborador?.setor_rel?.nome ?? null,
+        }
+      : null,
     alocacoes: undefined,
-    setor_nome: item.setor_rel?.nome ?? item.setor ?? null,
+    setor_nome: item.setor_rel?.nome ?? null,
+    localidade_nome: item.localidade_rel?.nome ?? null,
     emprestado_colaborador_nome: (item as any).emprestado_colaborador?.nome ?? null,
     emprestado_setor_nome: (item as any).emprestado_setor?.nome ?? null,
     emprestado_colaborador: undefined,
@@ -56,10 +122,24 @@ export async function PUT(request: Request, { params }: Props) {
 
   const { id } = await params
   if (!id) return NextResponse.json({ error: 'ID do notebook não fornecido' }, { status: 400 })
+    const { usuario_id, usuario_nome } = await getAuditSession()
+    const body = await request.json()
 
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
-  const body = await request.json()
-  const { alocacoes, alocacao_ativa, created_at, id: _id, setor_nome, setor_rel, emprestado_colaborador_nome, emprestado_setor_nome, ...rest } = body
+    const {
+      alocacoes,
+      alocacao_ativa,
+      created_at,
+      id: _id,
+      setor,
+      nome_setor,
+      setor_nome,
+      setor_rel,
+      localidade_nome,
+      localidade_rel,
+      emprestado_colaborador_nome,
+      emprestado_setor_nome,
+      ...rest
+    } = body
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   if (!anterior) return NextResponse.json({ error: `Notebook não encontrado (ID: ${id})` }, { status: 404 })
@@ -102,7 +182,7 @@ export async function DELETE(request: Request, { params }: Props) {
   if (denied) return denied
 
   const { id } = await params
-  const { usuario_id, usuario_nome } = await getAuditSession(request)
+  const { usuario_id, usuario_nome } = await getAuditSession()
 
   const anterior = await prisma.notebooks.findUnique({ where: { id } })
   await prisma.notebooks.delete({ where: { id } })

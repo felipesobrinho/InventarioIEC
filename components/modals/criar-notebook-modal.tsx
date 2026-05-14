@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { ColaboradorSelect } from '@/components/modals/colaborador-select'
 import { SetorSelect } from '@/components/modals/setor-select'
+import { LocalidadeSelect } from '@/components/modals/localidade-select'
 import { useCreate } from '@/hooks/use-create'
 
 const schema = z.object({
@@ -30,11 +31,12 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
   const [colabNome, setColabNome] = useState('')
   const [savingAlocacao, setSavingAlocacao] = useState(false)
   const [setorId, setSetorId] = useState<string | null>(null)
+  const [localidadeId, setLocalidadeId] = useState<string | null>(null)
 
   const { register, handleSubmit } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
-    const notebook = await create({ ...data, setor_id: setorId })
+    const notebook = await create({ ...data, setor_id: setorId, localidade_id: localidadeId })
     if (!notebook) return
 
     if (colabId) {
@@ -93,6 +95,13 @@ export function CriarNotebookModal({ onClose, onRefresh }: Props) {
                 <SetorSelect
                   value={setorId}
                   onChange={(id) => setSetorId(id)}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Localidade</label>
+                <LocalidadeSelect
+                  value={localidadeId}
+                  onChange={(id) => { setLocalidadeId(id) }}
                 />
               </div>
               <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
