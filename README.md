@@ -1,121 +1,79 @@
-# IEC Inventário TI
+# InventarioIEC — gestão de ativos de TI
 
-Sistema interno de controle de inventário de TI do IEC. Desenvolvido com Next.js 14+, Prisma, NextAuth e Supabase.
+**Sistema de inventário de TI em produção no IEC/PUC Minas: ativos, alocações a colaboradores, movimentações e solicitações num só lugar, com auditoria de toda alteração.** Usado por ~10 pessoas da equipe de TI para gerir 361 ativos e 152 colaboradores com suas alocações.
+
+![Tour: dashboard, busca global, máquinas, notebooks e movimentações — dados fictícios](docs/media/inventario-demo.gif)
+
+<sub>Vídeo em MP4: [docs/media/inventario-demo.mp4](docs/media/inventario-demo.mp4) · gravado com dados fictícios; os números da legenda são os da produção</sub>
+
+## O problema
+
+A TI precisava de um único lugar para registrar cada ativo (máquinas, notebooks, aparelhos, impressoras, ramais e racks), saber com quem e em qual setor cada um está e reconstruir o histórico de qualquer movimentação — quem alterou o quê e quando.
+
+## Como funciona
+
+```
+Login (NextAuth credentials + bcrypt) ── perfis admin e viewer
+   │
+App Router (Next.js 16)
+   ├── dashboard: disponibilidade por setor, KPIs, exportação em PDF
+   ├── inventário: máquinas · notebooks · aparelhos · impressoras · ramais · racks
+   ├── pessoas: colaboradores · setores · localidades · usuários
+   ├── movimentações e solicitações
+   └── busca global (Ctrl+K)
+   │
+API Routes ── validação com Zod ── Prisma ── PostgreSQL (Supabase)
+   │
+   └── registrarAuditoria() ──► audit_log (dados anteriores e novos em JSON)
+```
+
+## Decisões e trade-offs
+
+- **Auditoria como preocupação transversal.** Um único serviço, `registrarAuditoria()` em [`lib/audit.ts`](lib/audit.ts), grava tabela, registro, ação (`CREATE`, `UPDATE`, `DELETE`, `ALOCAR`, `DESALOCAR`…) e o JSON antes/depois. As rotas só o chamam. Falha no log nunca derruba a operação principal.
+- **Multi-alocação no modelo de dados.** Um ativo pode ter mais de uma alocação ativa por decisão de design, sem exceções pontuais no código.
+- **Banco só por migrations versionadas.** O schema evolui por SQL em [`supabase/migrations`](supabase/migrations), com nome padronizado. A CI ([`database-migrations.yml`](.github/workflows/database-migrations.yml)) aplica as migrations num PostgreSQL descartável e falha se o banco resultante divergir do `schema.prisma`. O fluxo está em [`docs/database-versioning.md`](docs/database-versioning.md).
+- **Tabelas genéricas.** Um `DataTable` sobre TanStack Table atende todas as categorias de inventário, com paginação no servidor.
+- **Testes em camadas.** Testes unitários e de componentes com Jest + Testing Library em `__tests__/` (inclusive da auditoria) e e2e de autenticação com Playwright em `e2e/`.
+- **Desenvolvido AI-first.** Construído com agentes de código guiados por instruções versionadas no próprio repositório ([`AGENTS.md`](AGENTS.md) e [`CLAUDE.md`](CLAUDE.md)), com revisão humana, lint e testes antes de cada merge.
+
+## Resultado
+
+Em produção no IEC/PUC Minas: **~10 usuários da TI, 361 ativos e 152 colaboradores inventariados com suas alocações**, com histórico auditável de cada alteração.
 
 ## Stack
 
-- **Framework:** Next.js 14+ com App Router
-- **Linguagem:** TypeScript
-- **ORM:** Prisma (Supabase/PostgreSQL)
-- **Autenticação:** NextAuth.js Credentials (e-mail + senha bcrypt)
-- **Tabelas:** TanStack Table v8 com paginação server-side
-- **Forms:** React Hook Form + Zod
-- **Notificações:** Sonner
+Next.js 16 (App Router) · React 19 · TypeScript · Prisma · PostgreSQL/Supabase · NextAuth (credentials + bcrypt) · TanStack Table · React Hook Form + Zod · @react-pdf/renderer · Jest + Testing Library · Playwright
 
-## Setup
+## Como rodar
 
-### 1. Instalar dependências
+Requer Node 20+ e um PostgreSQL local.
 
 ```bash
 npm install
-```
-
-### 2. Configurar `.env`
-
-```env
-DATABASE_URL="postgresql://postgres:SENHA@db.SEU-PROJETO.supabase.co:5432/postgres"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="gere-com-openssl-rand-base64-32"
-```
-
-Gere o secret:
-```bash
-openssl rand -base64 32
-```
-
-### 3. Criar tabela de usuários no Supabase SQL Editor
-
-```sql
-CREATE TABLE usuarios (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  nome TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  senha_hash TEXT NOT NULL,
-  perfil TEXT NOT NULL DEFAULT 'viewer',
-  ativo BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### 4. Sincronizar Prisma
-
-```bash
-npm run db:validate  # valida migrations e schema Prisma
-npx prisma generate  # gera o client
-```
-
-> O schema do banco é versionado por migrations em `supabase/migrations`.
-> Use `prisma db pull` somente quando for capturar deliberadamente um novo
-> snapshot do banco, conforme `docs/database-versioning.md`.
-
-### 5. Criar primeiro usuário admin
-
-```bash
-# Gerar hash da senha
-node -e "const b = require('bcryptjs'); b.hash('suaSenha123', 10).then(console.log)"
-```
-
-```sql
-INSERT INTO usuarios (nome, email, senha_hash, perfil)
-VALUES ('Admin', 'admin@iec.com.br', '$2a$10$HASH_AQUI', 'admin');
-```
-
-### 6. Rodar
-
-```bash
+cp .env.example .env.local        # aponte DATABASE_URL e LOCAL_DATABASE_URL para o banco local
+npm run db:validate               # valida nomes das migrations e o schema Prisma
+npm run db:apply:local            # aplica supabase/migrations no banco local
+npx prisma generate
+node scripts/hash-senha.js "SuaSenha@123"   # gera o hash e o INSERT do primeiro usuário
 npm run dev
-# Acesse http://localhost:3000
 ```
 
-## Estrutura
+Use dados fictícios no ambiente local (por exemplo `demo@exemplo.com`).
 
-```
-app/
-├── (auth)/login/         → Tela de login
-├── (dashboard)/          → Layout sidebar + telas
-│   ├── page.tsx          → Dashboard com stats, solicitações, movimentações
-│   ├── colaboradores/
-│   ├── maquinas/
-│   ├── notebooks/
-│   ├── aparelhos/
-│   ├── impressoras/
-│   ├── ramais/
-│   ├── racks/
-│   ├── movimentacoes/
-│   └── solicitacoes/
-└── api/                  → API Routes server-side
+### Testes
 
-components/
-├── layout/               → Sidebar colapsável, PageHeader
-├── dashboard/            → StatsCards, badges de status/prioridade
-├── tables/               → DataTable genérico TanStack
-└── modals/               → Painéis laterais de detalhe
-
-lib/
-├── prisma.ts             → Singleton Prisma Client
-├── auth.ts               → NextAuth config
-└── utils.ts              → formatDate, mapTipoDispositivo, etc.
+```bash
+npm run lint
+npm run test        # Jest
+npm run test:e2e    # Playwright
 ```
 
-## Roadmap
-
-- [ ] Exportação CSV/Excel
-- [ ] Formulários de edição de ativos
-- [ ] Rota admin para gestão de usuários
-- [ ] Relatórios por setor
-- [ ] Histórico de alocações por colaborador
-
-## Docs
+## Documentação
 
 - [Versionamento do banco](docs/database-versioning.md)
+- [Migrations](docs/DATABASE_MIGRATIONS.md)
 - [Testes](docs/testing.md)
+
+---
+
+Feito por [Felipe Sobrinho](https://felipe-nephew.vercel.app)
